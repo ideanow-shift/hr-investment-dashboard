@@ -6,7 +6,7 @@ IDEA NOVグループ向けの「人材投資管理システム」静的プロト
 
 ## 起動方法
 
-1. `talent-investment-dashboard` フォルダを開きます。
+1. `hr-investment-dashboard-gas-retry` フォルダを開きます。
 2. `index.html` をブラウザで開きます。
 
 ローカルサーバーを使う場合は、以下のように起動できます。
@@ -15,16 +15,15 @@ IDEA NOVグループ向けの「人材投資管理システム」静的プロト
 python -m http.server 8000
 ```
 
-その後、ブラウザで `http://localhost:8000/talent-investment-dashboard/` を開きます。
+その後、ブラウザで `http://localhost:8000/` を開きます。
 
 ## 現在の状態
 
-現在はHTML / CSS / JavaScriptのみで動作する静的プロトタイプです。
+現在はHTML / CSS / JavaScriptのみで動作し、必要に応じてGoogleスプレッドシート + GASへ接続できるプロトタイプです。
 
 - Firebase接続なし
-- GAS接続なし
-- DB接続なし
-- サンプルデータは `app.js` 内に保持
+- GAS URL未設定時はサンプルデータで表示
+- GAS URL設定時はGoogleスプレッドシートからJSONPでデータ取得
 - GitHub Pagesで公開可能
 - PC / スマホ対応
 - NOV HUBに組み込める前提のカード型ダッシュボードUI
@@ -37,13 +36,108 @@ python -m http.server 8000
 - 学校別投資効果分析
 - ルールベースのAI風アクション提案
 
+## Googleスプレッドシート + GAS 接続手順
+
+混線防止のため、今回は `clasp` を使いません。必ず1つのGoogleスプレッドシートに紐づいたApps Scriptだけを使います。
+
+### 1. スプレッドシートを作成
+
+Googleドライブで新しいスプレッドシートを作成します。
+
+推奨名:
+
+```text
+人材投資管理システム データ
+```
+
+### 2. Apps Scriptを開く
+
+スプレッドシート上部メニューから以下を開きます。
+
+```text
+拡張機能 → Apps Script
+```
+
+この方法で開いたApps Scriptだけを使ってください。
+
+### 3. Code.gsを貼り付け
+
+このフォルダ内の以下を開き、内容をApps Scriptの `Code.gs` に貼り付けます。
+
+```text
+gas/Code.gs
+```
+
+### 4. サンプルシートを作成
+
+Apps Script画面上部の関数選択で以下を選び、実行します。
+
+```text
+setupSampleSheets
+```
+
+初回は権限承認が必要です。実行後、スプレッドシートに以下3シートが作成されます。
+
+- 年度設定
+- フェア実績
+- 学校別分析
+
+### 5. Webアプリとしてデプロイ
+
+Apps Script右上の `デプロイ` から新しいデプロイを作成します。
+
+設定:
+
+```text
+種類: ウェブアプリ
+実行するユーザー: 自分
+アクセスできるユーザー: 全員
+```
+
+デプロイ後に表示されるWebアプリURLをコピーします。
+
+### 6. JSONP接続確認
+
+コピーしたURLの末尾に以下を付けてブラウザで開きます。
+
+```text
+?callback=testCallback
+```
+
+成功すると以下のように表示されます。
+
+```javascript
+testCallback({"config": ...});
+```
+
+通常のJSONだけが表示される場合は、Apps Scriptの `Code.gs` がJSONP対応版に更新されていません。
+
+### 7. app.jsへURL設定
+
+`app.js` の先頭にある以下へ、WebアプリURLを貼り付けます。
+
+```javascript
+const GAS_API_URL = "https://script.google.com/macros/s/XXXXXXXX/exec";
+```
+
+接続成功時は、画面右上のバッジが以下になります。
+
+```text
+● GAS Connected
+v0.2
+```
+
+失敗時は以下のまま、サンプルデータで表示されます。
+
+```text
+Sample Data
+v0.1
+```
+
 ## 今後の接続予定
 
-今後、以下の外部データ連携を想定しています。
-
-- Googleスプレッドシート連携
-- Google Apps Script連携
 - Firebase連携
+- 認証機能
 
 ## 今後追加予定の機能
 
@@ -56,4 +150,4 @@ python -m http.server 8000
 
 ## 拡張メモ
 
-現在のサンプルデータは `app.js` の `fairData` と `schoolData` にあります。将来的にGASやFirebaseと接続する場合は、このデータ定義部分をAPI取得処理に置き換えることで、UIと計算ロジックを活かしたまま拡張できます。
+現在のサンプルデータは `app.js` の `fairData` と `schoolData` にあります。GAS接続時も同じデータ構造を使うため、UIと計算ロジックを活かしたままスプレッドシート運用へ移行できます。

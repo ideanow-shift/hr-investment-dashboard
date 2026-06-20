@@ -1,11 +1,13 @@
-const dashboardConfig = {
+const GAS_API_URL = "https://script.google.com/macros/s/AKfycbx0X9DvO6zydd8txe_Mgme1COTfltp7ZxueJyrIPQsJSwWCvbVrM2otmlgarPTDmU5iWg/exec";
+
+let dashboardConfig = {
   appName: "Talent Investment Dashboard",
   targetHires: 18,
   hiringBudget: 1200000,
   expectedJoiners: 9
 };
 
-const fairData = [
+let fairData = [
   {
     name: "さんぽう美容就職フェア 高田馬場",
     date: "2026-04-18",
@@ -48,7 +50,7 @@ const fairData = [
   }
 ];
 
-const schoolData = [
+let schoolData = [
   {
     name: "国際文化理容美容専門学校 国分寺校",
     contacts: 36,
@@ -104,6 +106,98 @@ const schoolData = [
     offers: 0
   }
 ];
+
+async function fetchDashboardData() {
+  if (!GAS_API_URL) {
+    return false;
+  }
+
+  try {
+    const data = await loadJsonp(GAS_API_URL);
+    applyDashboardData(data);
+    return true;
+  } catch (error) {
+    console.warn("[WARN] GAS APIからの取得に失敗しました。サンプルデータで表示します。", error.message);
+    return false;
+  }
+}
+
+function loadJsonp(apiUrl) {
+  return new Promise((resolve, reject) => {
+    const callbackName = `talentInvestmentDashboard_${Date.now()}_${Math.random().toString(36).slice(2)}`;
+    const script = document.createElement("script");
+    const timeoutId = window.setTimeout(() => {
+      cleanup();
+      reject(new Error("GAS APIの読み込みがタイムアウトしました"));
+    }, 10000);
+
+    function cleanup() {
+      window.clearTimeout(timeoutId);
+      delete window[callbackName];
+      if (script.parentNode) {
+        script.parentNode.removeChild(script);
+      }
+    }
+
+    window[callbackName] = (data) => {
+      cleanup();
+      resolve(data);
+    };
+
+    script.onerror = () => {
+      cleanup();
+      reject(new Error("GAS APIのJSONPスクリプトを読み込めませんでした"));
+    };
+
+    const url = new URL(apiUrl);
+    url.searchParams.set("callback", callbackName);
+    url.searchParams.set("_", String(Date.now()));
+    script.src = url.toString();
+    document.head.appendChild(script);
+  });
+}
+
+function applyDashboardData(data) {
+  if (!data || typeof data !== "object") {
+    throw new Error("GAS APIのレスポンス形式が不正です");
+  }
+
+  if (data.error) {
+    throw new Error(data.error);
+  }
+
+  if (data.config) {
+    dashboardConfig = {
+      appName: data.config.appName || "Talent Investment Dashboard",
+      targetHires: Number(data.config.targetHires) || 0,
+      hiringBudget: Number(data.config.hiringBudget) || 0,
+      expectedJoiners: Number(data.config.expectedJoiners) || 0
+    };
+  }
+
+  if (Array.isArray(data.fairs)) {
+    fairData = data.fairs.map((fair) => ({
+      name: String(fair.name || ""),
+      date: String(fair.date || ""),
+      cost: Number(fair.cost) || 0,
+      contacts: Number(fair.contacts) || 0,
+      lineRegistrations: Number(fair.lineRegistrations) || 0,
+      salonTours: Number(fair.salonTours) || 0
+    }));
+  }
+
+  if (Array.isArray(data.schools)) {
+    schoolData = data.schools.map((school) => ({
+      name: String(school.name || ""),
+      contacts: Number(school.contacts) || 0,
+      lineRegistrations: Number(school.lineRegistrations) || 0,
+      salonTours: Number(school.salonTours) || 0,
+      interviews: Number(school.interviews) || 0,
+      passed: Number(school.passed) || 0,
+      offers: Number(school.offers) || 0
+    }));
+  }
+}
 
 const formatNumber = new Intl.NumberFormat("ja-JP");
 const formatCurrency = new Intl.NumberFormat("ja-JP", {
@@ -334,7 +428,18 @@ function generateActionCards() {
   `).join("");
 }
 
-function initDashboard() {
+function updateHeaderBadge(isConnected) {
+  const badge = document.querySelector(".header-badge");
+  if (!badge) return;
+
+  badge.innerHTML = isConnected
+    ? `<span style="color:#047857;">● GAS Connected</span><strong>v0.2</strong>`
+    : `<span>Sample Data</span><strong>v0.1</strong>`;
+}
+
+async function initDashboard() {
+  const isConnected = await fetchDashboardData();
+  updateHeaderBadge(isConnected);
   document.getElementById("appTitle").textContent = dashboardConfig.appName;
 
   const metrics = buildMetrics();
