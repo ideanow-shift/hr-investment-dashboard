@@ -1,0 +1,108 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Talent Investment Dashboard</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <header class="app-header">
+    <div class="header-inner">
+      <div>
+        <p class="eyebrow">IDEA NOV Group / Human Capital Investment</p>
+        <h1 id="appTitle">Talent Investment Dashboard</h1>
+        <p class="lead">
+          求人費・就職フェア・学校接点・学生接触データをもとに、採用活動を「人材投資」として判断するための社内ダッシュボードです。
+        </p>
+      </div>
+      <div class="header-badge">
+        <span>Prototype</span>
+        <strong>v0.1</strong>
+      </div>
+    </div>
+  </header>
+
+  <main class="dashboard-shell">
+    <section class="section-block" aria-labelledby="summaryTitle">
+      <div class="section-heading">
+        <div>
+          <p class="section-kicker">Summary Dashboard</p>
+          <h2 id="summaryTitle">人材投資サマリー</h2>
+        </div>
+        <p class="section-note">目標達成度、投資額、学生接点の現状を一目で確認します。</p>
+      </div>
+      <div id="kpiGrid" class="kpi-grid"></div>
+    </section>
+
+    <section class="section-grid">
+      <div class="section-block" aria-labelledby="funnelTitle">
+        <div class="section-heading compact">
+          <div>
+            <p class="section-kicker">Recruitment Funnel</p>
+            <h2 id="funnelTitle">採用ファネル</h2>
+          </div>
+        </div>
+        <div id="funnelList" class="funnel-list"></div>
+      </div>
+
+      <div class="section-block" aria-labelledby="actionTitle">
+        <div class="section-heading compact">
+          <div>
+            <p class="section-kicker">Next Action</p>
+            <h2 id="actionTitle">次に取るべき行動</h2>
+          </div>
+        </div>
+        <div id="actionCards" class="action-list"></div>
+      </div>
+    </section>
+
+    <section class="section-block" aria-labelledby="fairTitle">
+      <div class="section-heading">
+        <div>
+          <p class="section-kicker">Fair ROI Ranking</p>
+          <h2 id="fairTitle">フェア別ROIランキング</h2>
+        </div>
+        <p class="section-note">見学率と接触単価から、次年度のフェア別投資判断につなげます。</p>
+      </div>
+      <div class="table-wrap">
+        <table>
+          <thead>
+            <tr>
+              <th>評価</th>
+              <th>フェア名</th>
+              <th>開催日</th>
+              <th>費用</th>
+              <th>接触数</th>
+              <th>LINE登録</th>
+              <th>見学取得</th>
+              <th>見学率</th>
+              <th>接触単価</th>
+              <th>見学取得単価</th>
+            </tr>
+          </thead>
+          <tbody id="fairTableBody"></tbody>
+        </table>
+      </div>
+    </section>
+
+    <section class="section-block" aria-labelledby="schoolTitle">
+      <div class="section-heading">
+        <div>
+          <p class="section-kicker">School Analysis</p>
+          <h2 id="schoolTitle">学校別投資効果</h2>
+        </div>
+        <p class="section-note">学校ごとの接点から、将来の活躍人材につながる可能性を見ます。</p>
+      </div>
+      <div id="schoolGrid" class="school-grid"></div>
+    </section>
+  </main>
+
+  <footer class="app-footer">
+    <span>Talent Investment Dashboard</span>
+    <strong>Prototype v0.1</strong>
+  </footer>
+
+  <script src="app.js"></script>
+</body>
+</html>
