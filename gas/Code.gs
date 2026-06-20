@@ -13,6 +13,9 @@
  *   setupSampleSheets() — シート・ヘッダー・サンプルデータを自動作成
  */
 
+var SPREADSHEET_ID_PROPERTY = 'TALENT_INVESTMENT_SPREADSHEET_ID';
+var SPREADSHEET_NAME = '人材投資管理システム データ';
+
 // ============================================================
 // Webアプリ エントリポイント
 // ============================================================
@@ -80,7 +83,7 @@ function getDashboardData() {
  *   A: 年度 | B: 採用目標人数 | C: 採用予算 | D: 入社予定数
  */
 function getConfig() {
-  var ss = SpreadsheetApp.getActiveSpreadsheet();
+  var ss = getSpreadsheet_();
   var sheet = ss.getSheetByName('年度設定');
 
   if (!sheet) {
@@ -121,7 +124,7 @@ function getConfig() {
  *   A: フェア名 | B: 開催日 | C: 費用 | D: 接触数 | E: LINE登録数 | F: 見学取得数
  */
 function getFairData() {
-  var ss = SpreadsheetApp.getActiveSpreadsheet();
+  var ss = getSpreadsheet_();
   var sheet = ss.getSheetByName('フェア実績');
 
   if (!sheet) {
@@ -170,7 +173,7 @@ function getFairData() {
  *   A: 学校名 | B: 接触数 | C: LINE登録数 | D: 見学数 | E: 面接数 | F: 合格数 | G: 内定数
  */
 function getSchoolData() {
-  var ss = SpreadsheetApp.getActiveSpreadsheet();
+  var ss = getSpreadsheet_();
   var sheet = ss.getSheetByName('学校別分析');
 
   if (!sheet) {
@@ -215,7 +218,7 @@ function getSchoolData() {
  * 既存シートがある場合はスキップし、上書きしない。
  */
 function setupSampleSheets() {
-  var ss = SpreadsheetApp.getActiveSpreadsheet();
+  var ss = getSpreadsheet_();
 
   // --- シート①: 年度設定 ---
   setupSheet_(ss, '年度設定',
@@ -251,11 +254,28 @@ function setupSampleSheets() {
   );
 
   // 完了メッセージ
-  SpreadsheetApp.getUi().alert(
-    'セットアップ完了',
-    '年度設定・フェア実績・学校別分析の3シートをサンプルデータ付きで作成しました。',
-    SpreadsheetApp.getUi().ButtonSet.OK
-  );
+  Logger.log('セットアップ完了: ' + ss.getUrl());
+}
+
+/**
+ * getSpreadsheet_ — 専用スプレッドシートを取得する
+ * スクリプトプロパティにIDがない場合は新規作成してIDを保存する。
+ */
+function getSpreadsheet_() {
+  var properties = PropertiesService.getScriptProperties();
+  var spreadsheetId = properties.getProperty(SPREADSHEET_ID_PROPERTY);
+
+  if (spreadsheetId) {
+    try {
+      return SpreadsheetApp.openById(spreadsheetId);
+    } catch (error) {
+      Logger.log('保存済みスプレッドシートIDを開けないため再作成します: ' + error.message);
+    }
+  }
+
+  var spreadsheet = SpreadsheetApp.create(SPREADSHEET_NAME);
+  properties.setProperty(SPREADSHEET_ID_PROPERTY, spreadsheet.getId());
+  return spreadsheet;
 }
 
 /**
