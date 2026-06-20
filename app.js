@@ -4,7 +4,7 @@
 // GAS WebアプリのデプロイURLを以下に設定してください。
 // 空文字のままでも、下のサンプルデータで動作します。
 // 例: "https://script.google.com/macros/s/XXXXXXXX/exec"
-const GAS_API_URL = "https://script.google.com/macros/s/AKfycby_gbPrwMVKkMWtPDDKHppey65PhlCI0S6boKYYvlTXG2cksvpegQaD9HC8JJfbDspD/exec";
+const GAS_API_URL = "https://script.google.com/macros/s/AKfycbx0X9DvO6zydd8txe_Mgme1COTfltp7ZxueJyrIPQsJSwWCvbVrM2otmlgarPTDmU5iWg/exec";
 
 // ============================================================
 // サンプルデータ（フォールバック用）
