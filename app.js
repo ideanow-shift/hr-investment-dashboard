@@ -1,24 +1,11 @@
-// ============================================================
-// GAS API 設定
-// ============================================================
-// GAS WebアプリのデプロイURLを以下に設定してください。
-// 空文字のままでも、下のサンプルデータで動作します。
-// 例: "https://script.google.com/macros/s/XXXXXXXX/exec"
-const GAS_API_URL = "https://script.google.com/macros/s/AKfycbx0X9DvO6zydd8txe_Mgme1COTfltp7ZxueJyrIPQsJSwWCvbVrM2otmlgarPTDmU5iWg/exec";
-
-// ============================================================
-// サンプルデータ（フォールバック用）
-// GAS APIからデータを取得できない場合に使用されます。
-// ============================================================
-
-const sampleConfig = {
+const dashboardConfig = {
   appName: "Talent Investment Dashboard",
   targetHires: 18,
   hiringBudget: 1200000,
   expectedJoiners: 9
 };
 
-const sampleFairData = [
+const fairData = [
   {
     name: "さんぽう美容就職フェア 高田馬場",
     date: "2026-04-18",
@@ -61,7 +48,7 @@ const sampleFairData = [
   }
 ];
 
-const sampleSchoolData = [
+const schoolData = [
   {
     name: "国際文化理容美容専門学校 国分寺校",
     contacts: 36,
@@ -118,127 +105,6 @@ const sampleSchoolData = [
   }
 ];
 
-// ============================================================
-// 実行時データ（GAS APIまたはサンプルデータで初期化される）
-// ============================================================
-let dashboardConfig = { ...sampleConfig };
-let fairData = [...sampleFairData];
-let schoolData = [...sampleSchoolData];
-
-// ============================================================
-// GAS APIからデータを取得する
-// ============================================================
-
-/**
- * GAS APIからダッシュボードデータをJSONPで取得する。
- * GitHub Pagesやfile://からGAS Webアプリを読む場合、fetchはCORSで失敗しやすいため
- * scriptタグを動的に追加して callback(data) 形式で受け取る。
- * 取得成功時はグローバル変数を更新して true を返す。
- * 失敗時は false を返し、サンプルデータのまま動作する。
- */
-async function fetchFromGAS() {
-  if (!GAS_API_URL) {
-    console.log("[INFO] GAS_API_URL が未設定のため、サンプルデータで表示します。");
-    return false;
-  }
-
-  try {
-    const data = await loadJsonp(GAS_API_URL);
-
-    // データの検証
-    if (!data || typeof data !== "object") {
-      throw new Error("レスポンスが不正な形式です");
-    }
-
-    // エラーレスポンスの検出
-    if (data.error) {
-      throw new Error(`GAS エラー: ${data.error}`);
-    }
-
-    // グローバル変数を更新
-    if (data.config) {
-      dashboardConfig = {
-        appName: data.config.appName || sampleConfig.appName,
-        targetHires: Number(data.config.targetHires) || 0,
-        hiringBudget: Number(data.config.hiringBudget) || 0,
-        expectedJoiners: Number(data.config.expectedJoiners) || 0
-      };
-    }
-
-    if (Array.isArray(data.fairs) && data.fairs.length > 0) {
-      fairData = data.fairs.map(fair => ({
-        name: String(fair.name || ""),
-        date: String(fair.date || ""),
-        cost: Number(fair.cost) || 0,
-        contacts: Number(fair.contacts) || 0,
-        lineRegistrations: Number(fair.lineRegistrations) || 0,
-        salonTours: Number(fair.salonTours) || 0
-      }));
-    }
-
-    if (Array.isArray(data.schools) && data.schools.length > 0) {
-      schoolData = data.schools.map(school => ({
-        name: String(school.name || ""),
-        contacts: Number(school.contacts) || 0,
-        lineRegistrations: Number(school.lineRegistrations) || 0,
-        salonTours: Number(school.salonTours) || 0,
-        interviews: Number(school.interviews) || 0,
-        passed: Number(school.passed) || 0,
-        offers: Number(school.offers) || 0
-      }));
-    }
-
-    console.log("[INFO] GAS APIからデータを取得しました。");
-    return true;
-  } catch (error) {
-    console.warn("[WARN] GAS APIからの取得に失敗しました。サンプルデータで表示します。", error.message);
-    return false;
-  }
-}
-
-function loadJsonp(apiUrl) {
-  return new Promise((resolve, reject) => {
-    const callbackName = `talentInvestmentCallback_${Date.now()}_${Math.random().toString(36).slice(2)}`;
-    const script = document.createElement("script");
-    const timeoutMs = 10000;
-    let timeoutId;
-
-    window[callbackName] = (data) => {
-      cleanup();
-      resolve(data);
-    };
-
-    const cleanup = () => {
-      window[callbackName] = undefined;
-      delete window[callbackName];
-      if (script.parentNode) {
-        script.parentNode.removeChild(script);
-      }
-      window.clearTimeout(timeoutId);
-    };
-
-    timeoutId = window.setTimeout(() => {
-      cleanup();
-      reject(new Error("GAS APIの読み込みがタイムアウトしました"));
-    }, timeoutMs);
-
-    script.onerror = () => {
-      cleanup();
-      reject(new Error("GAS APIのJSONPスクリプトを読み込めませんでした"));
-    };
-
-    const url = new URL(apiUrl);
-    url.searchParams.set("callback", callbackName);
-    url.searchParams.set("_", Date.now().toString());
-    script.src = url.toString();
-    document.head.appendChild(script);
-  });
-}
-
-// ============================================================
-// フォーマッタ・ユーティリティ
-// ============================================================
-
 const formatNumber = new Intl.NumberFormat("ja-JP");
 const formatCurrency = new Intl.NumberFormat("ja-JP", {
   style: "currency",
@@ -275,10 +141,6 @@ function getSchoolPromise(school) {
   return { label: "要検証", className: "promise-low", score };
 }
 
-// ============================================================
-// メトリクス計算
-// ============================================================
-
 function buildMetrics() {
   const fairTotals = fairData.reduce((acc, fair) => {
     acc.cost += fair.cost;
@@ -310,10 +172,6 @@ function buildMetrics() {
     expectedJoiners: dashboardConfig.expectedJoiners
   };
 }
-
-// ============================================================
-// レンダリング関数
-// ============================================================
 
 function renderKpis(metrics) {
   const kpis = [
@@ -476,52 +334,9 @@ function generateActionCards() {
   `).join("");
 }
 
-// ============================================================
-// データソースバッジ表示
-// ============================================================
-
-/**
- * ヘッダーバッジにデータソース情報を表示する。
- * GAS API接続時は "v0.2 Live" 、サンプルデータ時は "v0.1 Sample" と表示。
- */
-function updateHeaderBadge(isLive) {
-  const badge = document.querySelector(".header-badge");
-  if (!badge) return;
-
-  if (isLive) {
-    badge.innerHTML = `
-      <span style="color: #047857;">● GAS Connected</span>
-      <strong>v0.2</strong>
-    `;
-  } else {
-    badge.innerHTML = `
-      <span>Sample Data</span>
-      <strong>v0.1</strong>
-    `;
-  }
-}
-
-// ============================================================
-// 初期化
-// ============================================================
-
-/**
- * ダッシュボードの初期化（非同期対応）
- * 1. GAS APIからデータ取得を試みる
- * 2. 失敗時はサンプルデータで表示
- * 3. UI描画を実行
- */
-async function initDashboard() {
-  // GAS APIからのデータ取得を試みる
-  const isLive = await fetchFromGAS();
-
-  // ヘッダーバッジを更新
-  updateHeaderBadge(isLive);
-
-  // アプリタイトルを設定
+function initDashboard() {
   document.getElementById("appTitle").textContent = dashboardConfig.appName;
 
-  // ダッシュボードを描画
   const metrics = buildMetrics();
   renderKpis(metrics);
   renderFunnel(metrics);
