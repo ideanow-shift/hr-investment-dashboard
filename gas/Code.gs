@@ -202,6 +202,8 @@ function setupSampleSheets() {
     ]
   );
 
+  applySheetRules(ss);
+
   Logger.log("人材投資管理システム用シートを作成しました。");
   return "人材投資管理システム用シートを作成しました。";
 }
@@ -223,6 +225,63 @@ function setupSheet(ss, sheetName, headers, rows) {
   for (let col = 1; col <= headers.length; col++) {
     sheet.autoResizeColumn(col);
   }
+}
+
+function applySheetRules(ss) {
+  formatBasicSheet(ss.getSheetByName("年度設定"), 4);
+  formatBasicSheet(ss.getSheetByName("フェア実績"), 6);
+  formatBasicSheet(ss.getSheetByName("学校別分析"), 7);
+  formatBasicSheet(ss.getSheetByName("学生管理"), 16);
+
+  const configSheet = ss.getSheetByName("年度設定");
+  configSheet.getRange("B2:D100").setNumberFormat("0");
+
+  const fairSheet = ss.getSheetByName("フェア実績");
+  fairSheet.getRange("B2:B1000").setNumberFormat("yyyy/mm/dd");
+  fairSheet.getRange("C2:F1000").setNumberFormat("0");
+
+  const schoolSheet = ss.getSheetByName("学校別分析");
+  schoolSheet.getRange("B2:G1000").setNumberFormat("0");
+
+  const studentSheet = ss.getSheetByName("学生管理");
+  studentSheet.getRange("F2:F1000").setNumberFormat("yyyy/mm/dd");
+  studentSheet.getRange("O2:O1000").setNumberFormat("yyyy/mm/dd");
+
+  setDropdown(studentSheet, "D2:D1000", ["1年", "2年", "既卒", "その他"]);
+  setDropdown(studentSheet, "G2:G1000", ["未登録", "登録済"]);
+  setDropdown(studentSheet, "H2:H1000", ["未設定", "予定", "実施済", "キャンセル"]);
+  setDropdown(studentSheet, "I2:I1000", ["未設定", "予定", "実施済", "キャンセル"]);
+  setDropdown(studentSheet, "J2:J1000", ["未定", "合格", "不合格", "辞退"]);
+  setDropdown(studentSheet, "K2:K1000", ["未定", "内定", "承諾", "辞退"]);
+  setDropdown(studentSheet, "L2:L1000", ["未定", "入社予定", "入社済", "辞退"]);
+}
+
+function formatBasicSheet(sheet, columnCount) {
+  if (!sheet) return;
+
+  ensureMinRows(sheet, 1000);
+  sheet.setFrozenRows(1);
+  sheet.getRange(1, 1, 1, columnCount)
+    .setFontWeight("bold")
+    .setBackground("#eef5fc")
+    .setFontColor("#1f1f1f");
+  sheet.getRange(1, 1, sheet.getMaxRows(), columnCount)
+    .setVerticalAlignment("middle");
+}
+
+function ensureMinRows(sheet, minRows) {
+  const currentRows = sheet.getMaxRows();
+  if (currentRows < minRows) {
+    sheet.insertRowsAfter(currentRows, minRows - currentRows);
+  }
+}
+
+function setDropdown(sheet, rangeA1, values) {
+  const rule = SpreadsheetApp.newDataValidation()
+    .requireValueInList(values, true)
+    .setAllowInvalid(false)
+    .build();
+  sheet.getRange(rangeA1).setDataValidation(rule);
 }
 
 function getRequiredSheet(sheetName) {

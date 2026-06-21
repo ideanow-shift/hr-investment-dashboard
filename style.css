@@ -661,6 +661,12 @@ td {
   margin-bottom: 0;
 }
 
+.guide-note {
+  margin-bottom: 10px;
+  color: var(--muted);
+  font-size: 13px;
+}
+
 .guide-section {
   margin-bottom: 14px;
 }
