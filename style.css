@@ -34,6 +34,10 @@ body {
   -webkit-font-smoothing: antialiased;
 }
 
+body.modal-open {
+  overflow: hidden;
+}
+
 .app-header {
   border: 1px solid var(--line);
   border-radius: 8px;
@@ -794,7 +798,14 @@ td {
   border: 1px solid var(--line);
   border-radius: 8px;
   background: #ffffff;
+  cursor: pointer;
   padding: 14px;
+  transition: border-color .15s ease, background .15s ease;
+}
+
+.student-card:hover {
+  border-color: var(--accent);
+  background: var(--accent-soft);
 }
 
 .student-card-main {
@@ -895,6 +906,124 @@ td {
   font-weight: 500;
 }
 
+.modal-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 20;
+  display: none;
+  align-items: center;
+  justify-content: center;
+  background: rgba(31, 31, 31, 0.32);
+  padding: 18px;
+}
+
+.modal-backdrop.is-open {
+  display: flex;
+}
+
+.student-modal {
+  position: relative;
+  width: min(760px, 100%);
+  max-height: min(760px, 92vh);
+  overflow-y: auto;
+  border-radius: 8px;
+  background: #ffffff;
+  padding: 20px;
+}
+
+.modal-close {
+  position: absolute;
+  top: 12px;
+  right: 12px;
+  width: 34px;
+  height: 34px;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  background: #ffffff;
+  color: var(--muted);
+  cursor: pointer;
+  font-size: 20px;
+  line-height: 1;
+}
+
+.modal-close:hover {
+  border-color: var(--accent);
+  color: var(--text);
+}
+
+.modal-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 48px;
+  margin-bottom: 16px;
+  padding-right: 42px;
+}
+
+.modal-header h2 {
+  margin-bottom: 4px;
+}
+
+.modal-header p {
+  margin-bottom: 0;
+  color: var(--muted);
+}
+
+.modal-status-grid,
+.modal-progress {
+  display: grid;
+  gap: 10px;
+}
+
+.modal-status-grid {
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  margin-bottom: 14px;
+}
+
+.modal-status-grid div,
+.progress-chip,
+.modal-next-action,
+.modal-memo {
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--surface-soft);
+  padding: 12px;
+}
+
+.modal-status-grid span,
+.progress-chip span,
+.modal-next-action span,
+.modal-memo span {
+  display: block;
+  margin-bottom: 4px;
+  color: var(--muted);
+  font-size: 12px;
+}
+
+.modal-status-grid strong,
+.progress-chip strong,
+.modal-next-action strong {
+  color: var(--text);
+  font-size: 14px;
+  font-weight: 500;
+}
+
+.modal-progress {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  margin-bottom: 14px;
+}
+
+.modal-next-action {
+  border-left: 3px solid var(--accent);
+  margin-bottom: 14px;
+}
+
+.modal-next-action p,
+.modal-memo p {
+  margin: 4px 0 0;
+  color: var(--muted);
+}
+
 @media (max-width: 980px) {
   .kpi-grid {
     grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -970,6 +1099,16 @@ td {
     border-top: 1px solid var(--line);
     padding-top: 12px;
     padding-left: 0;
+  }
+
+  .modal-header {
+    flex-direction: column;
+    gap: 10px;
+  }
+
+  .modal-status-grid,
+  .modal-progress {
+    grid-template-columns: 1fr;
   }
 
   .student-action-meta {

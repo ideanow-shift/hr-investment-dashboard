@@ -821,7 +821,7 @@ function renderStudentList(activeKey = "all") {
     const priority = getStudentPriority(student);
 
     return `
-      <article class="student-card">
+      <article class="student-card" data-student-id="${student.studentId}">
         <div class="student-card-main">
           <div>
             <span class="priority-pill ${priority.className}">${priority.label}</span>
@@ -843,6 +843,91 @@ function renderStudentList(activeKey = "all") {
       </article>
     `;
   }).join("");
+
+  document.querySelectorAll("[data-student-id]").forEach((card) => {
+    card.addEventListener("click", () => {
+      const selectedStudent = studentData.find((student) => student.studentId === card.dataset.studentId);
+      openStudentModal(selectedStudent);
+    });
+  });
+}
+
+function openStudentModal(student) {
+  if (!student) return;
+
+  const modal = document.getElementById("studentModal");
+  const content = document.getElementById("studentModalContent");
+  const priority = getStudentPriority(student);
+
+  content.innerHTML = `
+    <div class="modal-header">
+      <div>
+        <p class="section-kicker">Student Detail</p>
+        <h2 id="studentModalTitle">${student.name || "氏名未設定"}</h2>
+        <p>${student.school || "学校未設定"} / ${student.grade || "学年未設定"}</p>
+      </div>
+      <span class="priority-pill ${priority.className}">${priority.label}</span>
+    </div>
+    <div class="modal-status-grid">
+      <div><span>接点</span><strong>${student.source || "未設定"}</strong></div>
+      <div><span>接触日</span><strong>${student.contactDate || "未設定"}</strong></div>
+      <div><span>担当</span><strong>${student.owner || "未設定"}</strong></div>
+      <div><span>学生ID</span><strong>${student.studentId || "未設定"}</strong></div>
+    </div>
+    <div class="modal-progress">
+      ${[
+        ["LINE", student.lineStatus],
+        ["見学", student.salonTourStatus],
+        ["面接", student.interviewStatus],
+        ["結果", student.resultStatus],
+        ["内定", student.offerStatus],
+        ["入社予定", student.expectedJoinStatus]
+      ].map(([label, value]) => `
+        <div class="progress-chip">
+          <span>${label}</span>
+          <strong>${value || "未設定"}</strong>
+        </div>
+      `).join("")}
+    </div>
+    <div class="modal-next-action">
+      <span>次アクション</span>
+      <strong>${student.nextAction || "次アクション未設定"}</strong>
+      <p>${student.nextActionDate || "日付未設定"}</p>
+    </div>
+    <div class="modal-memo">
+      <span>メモ</span>
+      <p>${student.memo || "メモはまだありません。"}</p>
+    </div>
+  `;
+
+  modal.classList.add("is-open");
+  modal.setAttribute("aria-hidden", "false");
+  document.body.classList.add("modal-open");
+}
+
+function closeStudentModal() {
+  const modal = document.getElementById("studentModal");
+  modal.classList.remove("is-open");
+  modal.setAttribute("aria-hidden", "true");
+  document.body.classList.remove("modal-open");
+}
+
+function setupStudentModal() {
+  const modal = document.getElementById("studentModal");
+  const closeButton = modal.querySelector(".modal-close");
+
+  closeButton.addEventListener("click", closeStudentModal);
+  modal.addEventListener("click", (event) => {
+    if (event.target === modal) {
+      closeStudentModal();
+    }
+  });
+
+  document.addEventListener("keydown", (event) => {
+    if (event.key === "Escape" && modal.classList.contains("is-open")) {
+      closeStudentModal();
+    }
+  });
 }
 
 function setupTabs() {
@@ -894,6 +979,7 @@ function updateDataSourceStatus(isConnected) {
 
 async function initDashboard() {
   setupTabs();
+  setupStudentModal();
   const isConnected = await fetchDashboardData();
   updateDataSourceStatus(isConnected);
   document.getElementById("appTitle").textContent = dashboardConfig.appName;
