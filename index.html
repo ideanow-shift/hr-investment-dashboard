@@ -205,7 +205,7 @@
       <div class="guide-grid">
         <article class="guide-card">
           <h3>推奨ステータス</h3>
-          <p class="guide-note">`setupSampleSheets` 実行時に、学生管理シートへプルダウン入力規則が自動設定されます。</p>
+          <p class="guide-note">新規作成時は `setupSampleSheets`、既存シートの列追加時は `upgradeExistingSheetsToLatestSchema` を実行します。</p>
           <dl class="status-list">
             <dt>LINE登録</dt>
             <dd>未登録 / 登録済</dd>
@@ -227,6 +227,7 @@
             <li>学校訪問後：学校別分析と学生管理の流入元を更新。</li>
             <li>月次：重点投資フェア、見直し候補フェア、優先学校を確認。</li>
             <li>データ反映：右上の「データ更新」ボタンでGASから再取得。</li>
+            <li>列追加時：既存データがある場合は `setupSampleSheets` ではなく `upgradeExistingSheetsToLatestSchema` を実行。</li>
           </ul>
         </article>
       </div>

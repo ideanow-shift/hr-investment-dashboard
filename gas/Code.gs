@@ -218,6 +218,25 @@ function setupSampleSheets() {
   return "人材投資管理システム用シートを作成しました。";
 }
 
+function upgradeExistingSheetsToLatestSchema() {
+  const ss = SpreadsheetApp.getActiveSpreadsheet();
+  const configSheet = getRequiredSheet("年度設定");
+  const studentSheet = getRequiredSheet("学生管理");
+
+  ensureColumnAfterHeader(configSheet, "接触人数目標", "採用目標人数");
+  ensureColumnAfterHeader(configSheet, "面接成約目標", "接触人数目標");
+  fillBlankColumnValues(configSheet, "接触人数目標", 220, "年度");
+  fillBlankColumnValues(configSheet, "面接成約目標", 30, "年度");
+
+  ensureColumnAfterHeader(studentSheet, "性別", "氏名");
+  fillBlankColumnValues(studentSheet, "性別", "未回答", "学生ID");
+
+  applySheetRules(ss);
+
+  Logger.log("既存シートを最新の列構成へ更新しました。既存データは保持されています。");
+  return "既存シートを最新の列構成へ更新しました。既存データは保持されています。";
+}
+
 function setupSheet(ss, sheetName, headers, rows) {
   let sheet = ss.getSheetByName(sheetName);
   if (!sheet) {
@@ -235,6 +254,49 @@ function setupSheet(ss, sheetName, headers, rows) {
   for (let col = 1; col <= headers.length; col++) {
     sheet.autoResizeColumn(col);
   }
+}
+
+function ensureColumnAfterHeader(sheet, headerName, previousHeaderName) {
+  const existingIndex = findHeaderIndex(sheet, headerName);
+  if (existingIndex) return existingIndex;
+
+  const previousIndex = findHeaderIndex(sheet, previousHeaderName);
+  if (!previousIndex) {
+    throw new Error(`シート「${sheet.getName()}」に列「${previousHeaderName}」が見つかりません。`);
+  }
+
+  sheet.insertColumnAfter(previousIndex);
+  const newIndex = previousIndex + 1;
+  sheet.getRange(1, newIndex).setValue(headerName);
+  return newIndex;
+}
+
+function findHeaderIndex(sheet, headerName) {
+  const lastColumn = Math.max(sheet.getLastColumn(), 1);
+  const headers = sheet.getRange(1, 1, 1, lastColumn).getValues()[0];
+  const index = headers.findIndex((header) => String(header || "").trim() === headerName);
+  return index >= 0 ? index + 1 : 0;
+}
+
+function fillBlankColumnValues(sheet, targetHeaderName, defaultValue, requiredHeaderName) {
+  const targetIndex = findHeaderIndex(sheet, targetHeaderName);
+  const requiredIndex = requiredHeaderName ? findHeaderIndex(sheet, requiredHeaderName) : 0;
+  const lastRow = sheet.getLastRow();
+
+  if (!targetIndex || lastRow < 2) return;
+
+  const width = Math.max(sheet.getLastColumn(), targetIndex, requiredIndex);
+  const rows = sheet.getRange(2, 1, lastRow - 1, width).getValues();
+  const nextValues = rows.map((row) => {
+    const hasRequiredValue = !requiredIndex || row[requiredIndex - 1] !== "";
+    const currentValue = row[targetIndex - 1];
+    if (hasRequiredValue && (currentValue === "" || currentValue === null)) {
+      return [defaultValue];
+    }
+    return [currentValue];
+  });
+
+  sheet.getRange(2, targetIndex, nextValues.length, 1).setValues(nextValues);
 }
 
 function applySheetRules(ss) {

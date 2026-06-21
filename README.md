@@ -99,6 +99,14 @@ setupSampleSheets
 
 注意: 既存データが入ったシートで `setupSampleSheets` を再実行すると、サンプルデータで上書きされます。本番運用開始後は、必要な場合だけ実行してください。
 
+既存シートに新しい列だけ追加したい場合は、`setupSampleSheets` ではなく以下を実行してください。
+
+```text
+upgradeExistingSheetsToLatestSchema
+```
+
+この関数は、既存データを保持したまま `年度設定` に `接触人数目標` と `面接成約目標`、`学生管理` に `性別` を追加し、入力規則と表示形式を再設定します。
+
 主な列:
 
 ```text
