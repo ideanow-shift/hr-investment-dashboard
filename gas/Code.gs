@@ -7,6 +7,16 @@
 
 const APP_NAME = "NOV Talent";
 
+function onOpen() {
+  SpreadsheetApp.getUi()
+    .createMenu("NOV Talent")
+    .addItem("入力規則を再設定", "resetInputRulesFromMenu")
+    .addItem("既存シートを最新化", "upgradeExistingSheetsToLatestSchema")
+    .addSeparator()
+    .addItem("初期サンプルシートを作成", "setupSampleSheets")
+    .addToUi();
+}
+
 function doGet(e) {
   try {
     const data = getDashboardData();
@@ -218,6 +228,13 @@ function setupSampleSheets() {
   return "人材投資管理システム用シートを作成しました。";
 }
 
+function resetInputRulesFromMenu() {
+  const ss = SpreadsheetApp.getActiveSpreadsheet();
+  applySheetRules(ss);
+  ss.toast("入力規則と表示形式を再設定しました。", "NOV Talent", 5);
+  return "入力規則と表示形式を再設定しました。";
+}
+
 function upgradeExistingSheetsToLatestSchema() {
   const ss = SpreadsheetApp.getActiveSpreadsheet();
   const configSheet = getRequiredSheet("年度設定");
@@ -233,6 +250,7 @@ function upgradeExistingSheetsToLatestSchema() {
 
   applySheetRules(ss);
 
+  ss.toast("既存シートを最新の列構成へ更新しました。", "NOV Talent", 5);
   Logger.log("既存シートを最新の列構成へ更新しました。既存データは保持されています。");
   return "既存シートを最新の列構成へ更新しました。既存データは保持されています。";
 }
