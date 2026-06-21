@@ -107,6 +107,101 @@ let schoolData = [
   }
 ];
 
+let studentData = [
+  {
+    studentId: "S-0001",
+    name: "山田 花",
+    school: "国際文化理容美容専門学校 国分寺校",
+    grade: "2年",
+    source: "ヘアワークス 新宿",
+    contactDate: "2026-06-03",
+    lineStatus: "登録済",
+    salonTourStatus: "実施済",
+    interviewStatus: "実施済",
+    resultStatus: "合格",
+    offerStatus: "内定",
+    expectedJoinStatus: "入社予定",
+    owner: "総務人事",
+    nextAction: "内定後フォロー面談",
+    nextActionDate: "2026-07-05",
+    memo: "BASSA池袋に関心"
+  },
+  {
+    studentId: "S-0002",
+    name: "佐藤 美咲",
+    school: "山野美容専門学校",
+    grade: "2年",
+    source: "東京総合",
+    contactDate: "2026-06-15",
+    lineStatus: "登録済",
+    salonTourStatus: "予定",
+    interviewStatus: "未設定",
+    resultStatus: "未定",
+    offerStatus: "未定",
+    expectedJoinStatus: "未定",
+    owner: "総務人事",
+    nextAction: "見学前リマインド",
+    nextActionDate: "2026-06-25",
+    memo: "カラー教育に興味"
+  },
+  {
+    studentId: "S-0003",
+    name: "鈴木 里奈",
+    school: "横浜ビューティーアート専門学校",
+    grade: "2年",
+    source: "学校訪問",
+    contactDate: "2026-06-10",
+    lineStatus: "登録済",
+    salonTourStatus: "実施済",
+    interviewStatus: "予定",
+    resultStatus: "未定",
+    offerStatus: "未定",
+    expectedJoinStatus: "未定",
+    owner: "総務人事",
+    nextAction: "面接日程確認",
+    nextActionDate: "2026-06-28",
+    memo: ""
+  },
+  {
+    studentId: "S-0004",
+    name: "田中 優",
+    school: "パリ総合美容専門学校",
+    grade: "2年",
+    source: "さんぽう美容就職フェア 高田馬場",
+    contactDate: "2026-04-18",
+    lineStatus: "登録済",
+    salonTourStatus: "未設定",
+    interviewStatus: "未設定",
+    resultStatus: "未定",
+    offerStatus: "未定",
+    expectedJoinStatus: "未定",
+    owner: "総務人事",
+    nextAction: "見学誘導LINE送信",
+    nextActionDate: "",
+    memo: "LINE反応あり"
+  },
+  {
+    studentId: "S-0005",
+    name: "高橋 杏",
+    school: "高山美容専門学校",
+    grade: "1年",
+    source: "エイド 代々木",
+    contactDate: "2026-05-24",
+    lineStatus: "登録済",
+    salonTourStatus: "未設定",
+    interviewStatus: "未設定",
+    resultStatus: "未定",
+    offerStatus: "未定",
+    expectedJoinStatus: "未定",
+    owner: "総務人事",
+    nextAction: "学校訪問時に再接点",
+    nextActionDate: "",
+    memo: "次年度候補"
+  }
+];
+
+let studentSummary = buildStudentSummary(studentData);
+
 async function fetchDashboardData() {
   if (!GAS_API_URL) {
     return false;
@@ -197,6 +292,29 @@ function applyDashboardData(data) {
       offers: Number(school.offers) || 0
     }));
   }
+
+  if (Array.isArray(data.students)) {
+    studentData = data.students.map((student) => ({
+      studentId: String(student.studentId || ""),
+      name: String(student.name || ""),
+      school: String(student.school || ""),
+      grade: String(student.grade || ""),
+      source: String(student.source || ""),
+      contactDate: String(student.contactDate || ""),
+      lineStatus: String(student.lineStatus || ""),
+      salonTourStatus: String(student.salonTourStatus || ""),
+      interviewStatus: String(student.interviewStatus || ""),
+      resultStatus: String(student.resultStatus || ""),
+      offerStatus: String(student.offerStatus || ""),
+      expectedJoinStatus: String(student.expectedJoinStatus || ""),
+      owner: String(student.owner || ""),
+      nextAction: String(student.nextAction || ""),
+      nextActionDate: String(student.nextActionDate || ""),
+      memo: String(student.memo || "")
+    }));
+  }
+
+  studentSummary = data.studentSummary || buildStudentSummary(studentData);
 }
 
 const formatNumber = new Intl.NumberFormat("ja-JP");
@@ -265,6 +383,23 @@ function buildMetrics() {
     costPerOffer: safeDivide(fairTotals.cost, schoolTotals.offers),
     expectedJoiners: dashboardConfig.expectedJoiners
   };
+}
+
+function buildStudentSummary(students) {
+  return students.reduce((summary, student) => {
+    if (student.nextAction && !student.nextActionDate) summary.needsFollowUp += 1;
+    if (student.salonTourStatus === "予定") summary.salonTourScheduled += 1;
+    if (student.interviewStatus === "予定") summary.interviewScheduled += 1;
+    if (student.offerStatus === "内定") summary.offered += 1;
+    if (student.expectedJoinStatus === "入社予定") summary.expectedJoiners += 1;
+    return summary;
+  }, {
+    needsFollowUp: 0,
+    salonTourScheduled: 0,
+    interviewScheduled: 0,
+    offered: 0,
+    expectedJoiners: 0
+  });
 }
 
 function renderKpis(metrics) {
@@ -428,6 +563,55 @@ function generateActionCards() {
   `).join("");
 }
 
+function renderStudentSummary() {
+  const summaryItems = [
+    { label: "要フォロー", value: studentSummary.needsFollowUp || 0, sub: "次アクション日未設定" },
+    { label: "見学予定者", value: studentSummary.salonTourScheduled || 0, sub: "サロン見学につなげる学生" },
+    { label: "面接予定者", value: studentSummary.interviewScheduled || 0, sub: "選考フォロー対象" },
+    { label: "内定者", value: studentSummary.offered || 0, sub: "内定後フォロー対象" },
+    { label: "入社予定者", value: studentSummary.expectedJoiners || 0, sub: "入社準備フォロー対象" }
+  ];
+
+  document.getElementById("studentSummaryGrid").innerHTML = summaryItems.map((item) => `
+    <article class="student-summary-card">
+      <p>${item.label}</p>
+      <strong>${formatNumber.format(item.value)}<span>名</span></strong>
+      <small>${item.sub}</small>
+    </article>
+  `).join("");
+}
+
+function renderStudentActions() {
+  const actionStudents = studentData
+    .filter((student) => student.nextAction)
+    .sort((a, b) => {
+      if (!a.nextActionDate) return 1;
+      if (!b.nextActionDate) return -1;
+      return a.nextActionDate.localeCompare(b.nextActionDate);
+    })
+    .slice(0, 8);
+
+  if (actionStudents.length === 0) {
+    document.getElementById("studentActionList").innerHTML = `
+      <div class="student-empty">次アクションが登録されている学生はいません。</div>
+    `;
+    return;
+  }
+
+  document.getElementById("studentActionList").innerHTML = actionStudents.map((student) => `
+    <article class="student-action-item">
+      <div>
+        <strong>${student.name}</strong>
+        <p>${student.school} / ${student.source}</p>
+      </div>
+      <div class="student-action-meta">
+        <span>${student.nextActionDate || "日付未設定"}</span>
+        <b>${student.nextAction}</b>
+      </div>
+    </article>
+  `).join("");
+}
+
 function updateHeaderBadge(isConnected) {
   const badge = document.querySelector(".header-badge");
   if (!badge) return;
@@ -448,6 +632,8 @@ async function initDashboard() {
   renderFairTable();
   renderSchools();
   generateActionCards();
+  renderStudentSummary();
+  renderStudentActions();
 }
 
 document.addEventListener("DOMContentLoaded", initDashboard);

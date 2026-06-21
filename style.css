@@ -439,6 +439,108 @@ td {
   font-size: 12px;
 }
 
+.student-summary-grid {
+  display: grid;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.student-summary-card {
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--surface-soft);
+  padding: 14px;
+}
+
+.student-summary-card p {
+  margin-bottom: 8px;
+  color: var(--muted);
+  font-size: 13px;
+}
+
+.student-summary-card strong {
+  display: block;
+  color: var(--text);
+  font-size: 26px;
+  font-weight: 500;
+  line-height: 1.2;
+}
+
+.student-summary-card strong span {
+  margin-left: 4px;
+  color: var(--muted);
+  font-size: 13px;
+  font-weight: 400;
+}
+
+.student-summary-card small {
+  display: block;
+  margin-top: 8px;
+  color: var(--muted);
+  font-size: 12px;
+}
+
+.student-action-wrap {
+  margin-top: 18px;
+}
+
+.student-action-list {
+  display: grid;
+  gap: 10px;
+  margin-top: 10px;
+}
+
+.student-action-item {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(220px, 0.55fr);
+  gap: 12px;
+  align-items: center;
+  border: 1px solid var(--line);
+  border-left: 3px solid var(--accent);
+  border-radius: 8px;
+  padding: 12px 14px;
+  background: #ffffff;
+}
+
+.student-action-item strong {
+  color: var(--text);
+  font-weight: 500;
+}
+
+.student-action-item p {
+  margin-bottom: 0;
+  color: var(--muted);
+  font-size: 12px;
+}
+
+.student-action-meta {
+  text-align: right;
+}
+
+.student-action-meta span,
+.student-action-meta b {
+  display: block;
+}
+
+.student-action-meta span {
+  color: var(--muted);
+  font-size: 12px;
+}
+
+.student-action-meta b {
+  color: var(--text);
+  font-size: 13px;
+  font-weight: 500;
+}
+
+.student-empty {
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  padding: 14px;
+  color: var(--muted);
+  background: var(--surface-soft);
+}
+
 .app-footer {
   display: flex;
   align-items: center;
@@ -468,6 +570,10 @@ td {
   .school-grid {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
+
+  .student-summary-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
 }
 
 @media (max-width: 640px) {
@@ -492,8 +598,17 @@ td {
   }
 
   .kpi-grid,
-  .school-grid {
+  .school-grid,
+  .student-summary-grid {
     grid-template-columns: 1fr;
+  }
+
+  .student-action-item {
+    grid-template-columns: 1fr;
+  }
+
+  .student-action-meta {
+    text-align: left;
   }
 
   .funnel-step {
