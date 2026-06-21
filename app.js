@@ -452,6 +452,58 @@ function renderKpis(metrics) {
   `).join("");
 }
 
+function renderDecisionSummary(metrics) {
+  const rankedFairs = getRankedFairs();
+  const bestFair = rankedFairs[0];
+  const reviewFair = rankedFairs.find((fair) => fair.rank.rank === "D")
+    || [...rankedFairs].sort((a, b) => b.cost - a.cost)[0];
+  const topSchool = [...schoolData].sort((a, b) => getSchoolPromise(b).score - getSchoolPromise(a).score)[0];
+  const followUpCount = studentSummary.needsFollowUp || 0;
+  const budgetUseRate = safeDivide(metrics.spentBudget, metrics.hiringBudget);
+
+  const decisions = [
+    bestFair && {
+      type: "重点投資",
+      title: bestFair.name,
+      value: `${percent(bestFair.tourRate)} 見学率`,
+      body: "次年度も参加候補です。見学予約導線を残し、同じ勝ち筋を再現します。",
+      className: "decision-good"
+    },
+    reviewFair && {
+      type: "見直し候補",
+      title: reviewFair.name,
+      value: reviewFair.salonTours ? `${formatCurrency.format(reviewFair.tourCost)} / 見学` : "見学取得 0",
+      body: "出展内容、声かけ、参加可否を見直す対象です。代替フェアや学校訪問への振替も検討します。",
+      className: "decision-risk"
+    },
+    topSchool && {
+      type: "優先学校",
+      title: topSchool.name,
+      value: `${getSchoolPromise(topSchool).score} 有望度`,
+      body: "学校訪問や先生連携を優先し、将来の活躍人材との接点を増やします。",
+      className: "decision-blue"
+    },
+    {
+      type: "運用注意",
+      title: "学生フォロー",
+      value: `${formatNumber.format(followUpCount)}名 要確認`,
+      body: budgetUseRate >= 0.75
+        ? "予算消化が進んでいます。未フォロー学生の見学・面接化を優先してください。"
+        : "次アクション日未設定の学生を減らし、接点を次の行動へ進めます。",
+      className: followUpCount > 0 ? "decision-caution" : "decision-good"
+    }
+  ].filter(Boolean);
+
+  document.getElementById("decisionGrid").innerHTML = decisions.map((decision) => `
+    <article class="decision-card ${decision.className}">
+      <span>${decision.type}</span>
+      <h3>${decision.title}</h3>
+      <strong>${decision.value}</strong>
+      <p>${decision.body}</p>
+    </article>
+  `).join("");
+}
+
 function renderFunnel(metrics) {
   const steps = [
     { label: "接触", value: metrics.contacts },
@@ -848,6 +900,7 @@ async function initDashboard() {
 
   const metrics = buildMetrics();
   renderKpis(metrics);
+  renderDecisionSummary(metrics);
   renderFunnel(metrics);
   renderFairTable();
   renderSchools();
