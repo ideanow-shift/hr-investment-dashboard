@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Talent Investment Dashboard</title>
+  <title>NOV Talent</title>
   <link rel="stylesheet" href="style.css">
 </head>
 <body>
@@ -11,7 +11,7 @@
     <div class="header-inner">
       <div>
         <p class="eyebrow">IDEA NOV Group / Human Capital Investment</p>
-        <h1 id="appTitle">Talent Investment Dashboard</h1>
+        <h1 id="appTitle">NOV Talent</h1>
         <p class="lead">
           求人費・就職フェア・学校接点・学生接触データをもとに、採用活動を「人材投資」として判断するための社内ダッシュボードです。
         </p>
@@ -29,6 +29,7 @@
       <button class="dashboard-tab" type="button" data-view="fair">フェア分析</button>
       <button class="dashboard-tab" type="button" data-view="school">学校分析</button>
       <button class="dashboard-tab" type="button" data-view="student">学生フォロー</button>
+      <button class="dashboard-tab" type="button" data-view="guide">使い方</button>
     </nav>
 
     <section class="section-block dashboard-view" data-view="overview" aria-labelledby="summaryTitle">
@@ -129,10 +130,103 @@
         <div id="studentList" class="student-list"></div>
       </div>
     </section>
+
+    <section class="section-block dashboard-view view-hidden" data-view="guide" aria-labelledby="guideTitle">
+      <div class="section-heading">
+        <div>
+          <p class="section-kicker">Operation Guide</p>
+          <h2 id="guideTitle">スプレッドシートの使い方</h2>
+        </div>
+        <p class="section-note">総務人事部が日常入力で迷わないための運用ルールです。</p>
+      </div>
+
+      <div class="guide-grid">
+        <article class="guide-card">
+          <h3>基本ルール</h3>
+          <ul>
+            <li>1行目の列名とシート名は変更しない。</li>
+            <li>数字は円記号やカンマを入れず、数値だけ入力する。</li>
+            <li>日付はGoogleスプレッドシートの日付形式で入力する。</li>
+            <li>学校名、フェア名、流入元は表記ゆれを避ける。</li>
+          </ul>
+        </article>
+        <article class="guide-card">
+          <h3>毎週見るところ</h3>
+          <ul>
+            <li>学生フォローの「要フォロー」を確認する。</li>
+            <li>見学予定、面接予定、内定者の次アクション日を更新する。</li>
+            <li>フェア分析でD評価、見学取得0のフェアを確認する。</li>
+            <li>経営判断サマリーで重点投資と見直し候補を見る。</li>
+          </ul>
+        </article>
+      </div>
+
+      <div class="guide-section">
+        <h3>シート別入力ルール</h3>
+        <div class="guide-table-wrap">
+          <table class="guide-table">
+            <thead>
+              <tr>
+                <th>シート</th>
+                <th>主な入力内容</th>
+                <th>注意点</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td>年度設定</td>
+                <td>年度、採用目標人数、採用予算、入社予定数</td>
+                <td>予算は円記号なし。年度は西暦で入力。</td>
+              </tr>
+              <tr>
+                <td>フェア実績</td>
+                <td>フェア名、開催日、費用、接触数、LINE登録数、見学取得数</td>
+                <td>フェア名は学生管理の流入元と同じ表記にする。</td>
+              </tr>
+              <tr>
+                <td>学校別分析</td>
+                <td>学校名、接触数、LINE登録数、見学数、面接数、合格数、内定数</td>
+                <td>学校名は学生管理の学校名と同じ表記にする。</td>
+              </tr>
+              <tr>
+                <td>学生管理</td>
+                <td>学生ID、氏名、学校名、流入元、各ステータス、次アクション</td>
+                <td>同じ学生を複数行に分けない。次アクションは空欄にしない。</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <div class="guide-grid">
+        <article class="guide-card">
+          <h3>推奨ステータス</h3>
+          <dl class="status-list">
+            <dt>LINE登録</dt>
+            <dd>未登録 / 登録済</dd>
+            <dt>見学・面接</dt>
+            <dd>未設定 / 予定 / 実施済 / キャンセル</dd>
+            <dt>選考結果</dt>
+            <dd>未定 / 合格 / 不合格 / 辞退</dd>
+            <dt>内定・入社予定</dt>
+            <dd>未定 / 内定 / 承諾 / 入社予定 / 入社済 / 辞退</dd>
+          </dl>
+        </article>
+        <article class="guide-card">
+          <h3>更新タイミング</h3>
+          <ul>
+            <li>フェア当日：接触数、LINE登録数、学生管理を更新。</li>
+            <li>翌営業日：見学取得数、次アクション、次アクション日を更新。</li>
+            <li>学校訪問後：学校別分析と学生管理の流入元を更新。</li>
+            <li>月次：重点投資フェア、見直し候補フェア、優先学校を確認。</li>
+          </ul>
+        </article>
+      </div>
+    </section>
   </main>
 
   <footer class="app-footer">
-    <span>Talent Investment Dashboard</span>
+    <span>NOV Talent</span>
     <strong id="footerStatus">Loading Data ...</strong>
   </footer>
 

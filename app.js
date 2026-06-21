@@ -1,7 +1,7 @@
 const GAS_API_URL = "https://script.google.com/macros/s/AKfycbx0X9DvO6zydd8txe_Mgme1COTfltp7ZxueJyrIPQsJSwWCvbVrM2otmlgarPTDmU5iWg/exec";
 
 let dashboardConfig = {
-  appName: "Talent Investment Dashboard",
+  appName: "NOV Talent",
   targetHires: 18,
   hiringBudget: 1200000,
   expectedJoiners: 9
@@ -263,7 +263,7 @@ function applyDashboardData(data) {
 
   if (data.config) {
     dashboardConfig = {
-      appName: data.config.appName || "Talent Investment Dashboard",
+      appName: normalizeAppName(data.config.appName),
       targetHires: Number(data.config.targetHires) || 0,
       hiringBudget: Number(data.config.hiringBudget) || 0,
       expectedJoiners: Number(data.config.expectedJoiners) || 0
@@ -326,6 +326,10 @@ const formatCurrency = new Intl.NumberFormat("ja-JP", {
 
 const percent = (value) => `${Math.round(value * 100)}%`;
 const safeDivide = (numerator, denominator) => denominator ? numerator / denominator : 0;
+const normalizeAppName = (name) => {
+  if (!name || name === "Talent Investment Dashboard") return "NOV Talent";
+  return String(name);
+};
 
 function getFairRank(tourRate) {
   if (tourRate >= 0.5) return { rank: "S", label: "非常に良い", className: "rank-s" };
@@ -983,6 +987,7 @@ async function initDashboard() {
   const isConnected = await fetchDashboardData();
   updateDataSourceStatus(isConnected);
   document.getElementById("appTitle").textContent = dashboardConfig.appName;
+  document.title = dashboardConfig.appName;
 
   const metrics = buildMetrics();
   renderKpis(metrics);

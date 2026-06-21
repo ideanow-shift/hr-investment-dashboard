@@ -5,7 +5,7 @@
  * 「拡張機能 > Apps Script」で開いたプロジェクトに貼り付けて使います。
  */
 
-const APP_NAME = "Talent Investment Dashboard";
+const APP_NAME = "NOV Talent";
 
 function doGet(e) {
   try {

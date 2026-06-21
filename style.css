@@ -632,6 +632,63 @@ td {
   font-size: 13px;
 }
 
+.guide-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+  margin-bottom: 14px;
+}
+
+.guide-card,
+.guide-section {
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: #ffffff;
+  padding: 16px;
+}
+
+.guide-card ul {
+  margin: 0;
+  padding-left: 18px;
+  color: var(--muted);
+}
+
+.guide-card li {
+  margin-bottom: 6px;
+}
+
+.guide-card li:last-child {
+  margin-bottom: 0;
+}
+
+.guide-section {
+  margin-bottom: 14px;
+}
+
+.guide-table-wrap {
+  overflow-x: auto;
+}
+
+.guide-table {
+  min-width: 760px;
+}
+
+.status-list {
+  display: grid;
+  gap: 8px;
+  margin: 0;
+}
+
+.status-list dt {
+  color: var(--text);
+  font-weight: 500;
+}
+
+.status-list dd {
+  margin: -6px 0 0;
+  color: var(--muted);
+}
+
 .student-summary-grid {
   display: grid;
   grid-template-columns: repeat(5, minmax(0, 1fr));
@@ -1047,6 +1104,10 @@ td {
 
   .detail-grid {
     grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .guide-grid {
+    grid-template-columns: 1fr;
   }
 }
 
