@@ -202,7 +202,8 @@ function setupSampleSheets() {
     ]
   );
 
-  SpreadsheetApp.getUi().alert("人材投資管理システム用シートを作成しました。");
+  Logger.log("人材投資管理システム用シートを作成しました。");
+  return "人材投資管理システム用シートを作成しました。";
 }
 
 function setupSheet(ss, sheetName, headers, rows) {
