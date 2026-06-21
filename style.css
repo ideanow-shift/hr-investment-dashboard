@@ -385,6 +385,25 @@ td {
   font-size: 14px;
 }
 
+.detail-link {
+  border: 0;
+  background: transparent;
+  color: var(--text);
+  cursor: pointer;
+  font: inherit;
+  font-weight: 500;
+  padding: 0;
+  text-align: left;
+  text-decoration: underline;
+  text-decoration-color: transparent;
+  text-underline-offset: 3px;
+}
+
+.detail-link:hover {
+  color: var(--blue);
+  text-decoration-color: currentColor;
+}
+
 .rank-pill,
 .promise-pill {
   display: inline-flex;
@@ -469,9 +488,87 @@ td {
   margin-top: 14px;
 }
 
+.detail-button {
+  width: 100%;
+  margin-top: 14px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: #ffffff;
+  color: var(--text);
+  cursor: pointer;
+  font: inherit;
+  padding: 8px 10px;
+}
+
+.detail-button:hover {
+  border-color: var(--accent);
+  background: var(--accent-soft);
+}
+
 .score-text {
   color: var(--muted);
   font-size: 12px;
+}
+
+.detail-panel {
+  display: grid;
+  gap: 14px;
+  margin-top: 16px;
+  border: 1px solid var(--line);
+  border-left: 3px solid var(--blue);
+  border-radius: 8px;
+  background: var(--surface-soft);
+  padding: 16px;
+}
+
+.detail-lead {
+  margin-bottom: 0;
+  color: var(--muted);
+}
+
+.detail-grid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.detail-metric {
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: #ffffff;
+  padding: 12px;
+}
+
+.detail-metric span,
+.detail-metric small {
+  display: block;
+  color: var(--muted);
+  font-size: 12px;
+}
+
+.detail-metric strong {
+  display: block;
+  margin: 4px 0;
+  color: var(--text);
+  font-size: 22px;
+  font-weight: 500;
+}
+
+.related-list {
+  border-top: 1px solid var(--line);
+  padding-top: 12px;
+}
+
+.related-list strong {
+  display: block;
+  margin-bottom: 6px;
+  font-weight: 500;
+}
+
+.related-list p {
+  margin-bottom: 4px;
+  color: var(--muted);
+  font-size: 13px;
 }
 
 .student-summary-grid {
@@ -609,6 +706,10 @@ td {
   .student-summary-grid {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
+
+  .detail-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
 }
 
 @media (max-width: 640px) {
@@ -634,7 +735,8 @@ td {
 
   .kpi-grid,
   .school-grid,
-  .student-summary-grid {
+  .student-summary-grid,
+  .detail-grid {
     grid-template-columns: 1fr;
   }
 

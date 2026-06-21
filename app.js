@@ -353,6 +353,23 @@ function getSchoolPromise(school) {
   return { label: "要検証", className: "promise-low", score };
 }
 
+function getRankedFairs() {
+  return fairData
+    .map((fair) => {
+      const tourRate = safeDivide(fair.salonTours, fair.contacts);
+      const lineRate = safeDivide(fair.lineRegistrations, fair.contacts);
+      const contactCost = safeDivide(fair.cost, fair.contacts);
+      const tourCost = safeDivide(fair.cost, fair.salonTours);
+      const rank = getFairRank(tourRate);
+
+      return { ...fair, tourRate, lineRate, contactCost, tourCost, rank };
+    })
+    .sort((a, b) => {
+      if (b.tourRate !== a.tourRate) return b.tourRate - a.tourRate;
+      return a.contactCost - b.contactCost;
+    });
+}
+
 function buildMetrics() {
   const fairTotals = fairData.reduce((acc, fair) => {
     acc.cost += fair.cost;
@@ -469,25 +486,12 @@ function renderFunnel(metrics) {
 }
 
 function renderFairTable() {
-  const rankedFairs = fairData
-    .map((fair) => {
-      const tourRate = safeDivide(fair.salonTours, fair.contacts);
-      const lineRate = safeDivide(fair.lineRegistrations, fair.contacts);
-      const contactCost = safeDivide(fair.cost, fair.contacts);
-      const tourCost = safeDivide(fair.cost, fair.salonTours);
-      const rank = getFairRank(tourRate);
-
-      return { ...fair, tourRate, lineRate, contactCost, tourCost, rank };
-    })
-    .sort((a, b) => {
-      if (b.tourRate !== a.tourRate) return b.tourRate - a.tourRate;
-      return a.contactCost - b.contactCost;
-    });
+  const rankedFairs = getRankedFairs();
 
   document.getElementById("fairTableBody").innerHTML = rankedFairs.map((fair) => `
     <tr>
       <td><span class="rank-pill ${fair.rank.className}">${fair.rank.rank}</span> ${fair.rank.label}</td>
-      <td><strong>${fair.name}</strong></td>
+      <td><button class="detail-link" type="button" data-fair-name="${fair.name}">${fair.name}</button></td>
       <td>${fair.date}</td>
       <td>${formatCurrency.format(fair.cost)}</td>
       <td>${formatNumber.format(fair.contacts)}</td>
@@ -498,6 +502,51 @@ function renderFairTable() {
       <td>${fair.salonTours ? formatCurrency.format(fair.tourCost) : "未取得"}</td>
     </tr>
   `).join("");
+
+  document.querySelectorAll("[data-fair-name]").forEach((button) => {
+    button.addEventListener("click", () => {
+      const selectedFair = rankedFairs.find((fair) => fair.name === button.dataset.fairName);
+      renderFairDetail(selectedFair);
+    });
+  });
+
+  renderFairDetail(rankedFairs[0]);
+}
+
+function renderFairDetail(fair) {
+  const detail = document.getElementById("fairDetail");
+
+  if (!fair) {
+    detail.innerHTML = "";
+    return;
+  }
+
+  const relatedStudents = studentData.filter((student) => student.source === fair.name);
+  const investmentDecision = fair.rank.rank === "S" || fair.rank.rank === "A"
+    ? "次年度も参加候補。事前告知と見学予約導線を強化すると、さらに投資効果が伸びます。"
+    : fair.rank.rank === "D"
+      ? "次回は出展内容の見直し、または参加見送り候補。学校訪問や別フェアへの振替も検討してください。"
+      : "改善余地あり。LINE登録後24時間以内の見学誘導と、当日の声かけ内容を見直してください。";
+
+  detail.innerHTML = `
+    <div>
+      <p class="section-kicker">Fair Drilldown</p>
+      <h3>${fair.name}</h3>
+      <p class="detail-lead">${investmentDecision}</p>
+    </div>
+    <div class="detail-grid">
+      <div class="detail-metric"><span>評価</span><strong>${fair.rank.rank}</strong><small>${fair.rank.label}</small></div>
+      <div class="detail-metric"><span>見学率</span><strong>${percent(fair.tourRate)}</strong><small>見学取得 / 接触</small></div>
+      <div class="detail-metric"><span>接触単価</span><strong>${formatCurrency.format(fair.contactCost)}</strong><small>費用 / 接触数</small></div>
+      <div class="detail-metric"><span>関連学生</span><strong>${relatedStudents.length}</strong><small>個別管理シート連携</small></div>
+    </div>
+    <div class="related-list">
+      <strong>関連する学生フォロー</strong>
+      ${relatedStudents.length ? relatedStudents.map((student) => `
+        <p>${student.name} / ${student.school} / ${student.nextAction || "次アクション未設定"}</p>
+      `).join("") : "<p>このフェアに紐づく学生データはまだありません。</p>"}
+    </div>
+  `;
 }
 
 function renderSchools() {
@@ -519,9 +568,53 @@ function renderSchools() {
           <span class="promise-pill ${promise.className}">${promise.label}</span>
           <span class="score-text">有望度スコア ${promise.score}</span>
         </div>
+        <button class="detail-button" type="button" data-school-name="${school.name}">詳細を見る</button>
       </article>
     `;
   }).join("");
+
+  document.querySelectorAll("[data-school-name]").forEach((button) => {
+    button.addEventListener("click", () => {
+      const selectedSchool = schoolData.find((school) => school.name === button.dataset.schoolName);
+      renderSchoolDetail(selectedSchool);
+    });
+  });
+
+  renderSchoolDetail([...schoolData].sort((a, b) => getSchoolPromise(b).score - getSchoolPromise(a).score)[0]);
+}
+
+function renderSchoolDetail(school) {
+  const detail = document.getElementById("schoolDetail");
+
+  if (!school) {
+    detail.innerHTML = "";
+    return;
+  }
+
+  const promise = getSchoolPromise(school);
+  const relatedStudents = studentData.filter((student) => student.school === school.name);
+  const tourRate = safeDivide(school.salonTours, school.contacts);
+  const offerRate = safeDivide(school.offers, school.contacts);
+
+  detail.innerHTML = `
+    <div>
+      <p class="section-kicker">School Drilldown</p>
+      <h3>${school.name}</h3>
+      <p class="detail-lead">有望度は「${promise.label}」です。見学・面接・内定につながる接点を優先して、学校訪問や先生との関係づくりを判断します。</p>
+    </div>
+    <div class="detail-grid">
+      <div class="detail-metric"><span>有望度</span><strong>${promise.score}</strong><small>${promise.label}</small></div>
+      <div class="detail-metric"><span>見学率</span><strong>${percent(tourRate)}</strong><small>見学 / 接触</small></div>
+      <div class="detail-metric"><span>内定率</span><strong>${percent(offerRate)}</strong><small>内定 / 接触</small></div>
+      <div class="detail-metric"><span>関連学生</span><strong>${relatedStudents.length}</strong><small>個別管理シート連携</small></div>
+    </div>
+    <div class="related-list">
+      <strong>この学校の学生フォロー</strong>
+      ${relatedStudents.length ? relatedStudents.map((student) => `
+        <p>${student.name} / ${student.grade} / ${student.nextAction || "次アクション未設定"}</p>
+      `).join("") : "<p>この学校に紐づく学生データはまだありません。</p>"}
+    </div>
+  `;
 }
 
 function generateActionCards() {
