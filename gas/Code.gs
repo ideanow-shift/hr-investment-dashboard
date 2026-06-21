@@ -38,10 +38,13 @@ function createResponse(data, e) {
 }
 
 function getDashboardData() {
+  const students = getStudentData();
   return {
     config: getConfig(),
     fairs: getFairData(),
-    schools: getSchoolData()
+    schools: getSchoolData(),
+    students: students,
+    studentSummary: buildStudentSummary(students)
   };
 }
 
@@ -98,6 +101,48 @@ function getSchoolData() {
   }));
 }
 
+function getStudentData() {
+  const sheet = getRequiredSheet("学生管理");
+  const values = sheet.getDataRange().getValues();
+  const rows = values.slice(1).filter((row) => row[0]);
+
+  return rows.map((row) => ({
+    studentId: String(row[0] || ""),
+    name: String(row[1] || ""),
+    school: String(row[2] || ""),
+    grade: String(row[3] || ""),
+    source: String(row[4] || ""),
+    contactDate: formatDateValue(row[5]),
+    lineStatus: String(row[6] || ""),
+    salonTourStatus: String(row[7] || ""),
+    interviewStatus: String(row[8] || ""),
+    resultStatus: String(row[9] || ""),
+    offerStatus: String(row[10] || ""),
+    expectedJoinStatus: String(row[11] || ""),
+    owner: String(row[12] || ""),
+    nextAction: String(row[13] || ""),
+    nextActionDate: formatDateValue(row[14]),
+    memo: String(row[15] || "")
+  }));
+}
+
+function buildStudentSummary(students) {
+  return students.reduce((summary, student) => {
+    if (student.nextAction && !student.nextActionDate) summary.needsFollowUp += 1;
+    if (student.salonTourStatus === "予定") summary.salonTourScheduled += 1;
+    if (student.interviewStatus === "予定") summary.interviewScheduled += 1;
+    if (student.offerStatus === "内定") summary.offered += 1;
+    if (student.expectedJoinStatus === "入社予定") summary.expectedJoiners += 1;
+    return summary;
+  }, {
+    needsFollowUp: 0,
+    salonTourScheduled: 0,
+    interviewScheduled: 0,
+    offered: 0,
+    expectedJoiners: 0
+  });
+}
+
 function setupSampleSheets() {
   const ss = SpreadsheetApp.getActiveSpreadsheet();
 
@@ -126,6 +171,34 @@ function setupSampleSheets() {
       ["高山美容専門学校", 18, 14, 4, 2, 1, 1],
       ["横浜ビューティーアート専門学校", 29, 26, 9, 4, 3, 2],
       ["マリールイズ美容専門学校", 16, 12, 3, 1, 1, 0]
+    ]
+  );
+
+  setupSheet(ss, "学生管理",
+    [
+      "学生ID",
+      "氏名",
+      "学校名",
+      "学年",
+      "流入元",
+      "接触日",
+      "LINE登録",
+      "見学ステータス",
+      "面接ステータス",
+      "選考結果",
+      "内定ステータス",
+      "入社予定",
+      "担当者",
+      "次アクション",
+      "次アクション日",
+      "メモ"
+    ],
+    [
+      ["S-0001", "山田 花", "国際文化理容美容専門学校 国分寺校", "2年", "ヘアワークス 新宿", new Date(2026, 5, 3), "登録済", "実施済", "実施済", "合格", "内定", "入社予定", "総務人事", "内定後フォロー面談", new Date(2026, 6, 5), "BASSA池袋に関心"],
+      ["S-0002", "佐藤 美咲", "山野美容専門学校", "2年", "東京総合", new Date(2026, 5, 15), "登録済", "予定", "未設定", "未定", "未定", "未定", "総務人事", "見学前リマインド", new Date(2026, 5, 25), "カラー教育に興味"],
+      ["S-0003", "鈴木 里奈", "横浜ビューティーアート専門学校", "2年", "学校訪問", new Date(2026, 5, 10), "登録済", "実施済", "予定", "未定", "未定", "未定", "総務人事", "面接日程確認", new Date(2026, 5, 28), ""],
+      ["S-0004", "田中 優", "パリ総合美容専門学校", "2年", "さんぽう美容就職フェア 高田馬場", new Date(2026, 3, 18), "登録済", "未設定", "未設定", "未定", "未定", "未定", "総務人事", "見学誘導LINE送信", "", "LINE反応あり"],
+      ["S-0005", "高橋 杏", "高山美容専門学校", "1年", "エイド 代々木", new Date(2026, 4, 24), "登録済", "未設定", "未設定", "未定", "未定", "未定", "総務人事", "学校訪問時に再接点", "", "次年度候補"]
     ]
   );
 
