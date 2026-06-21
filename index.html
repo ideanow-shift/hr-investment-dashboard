@@ -24,7 +24,14 @@
   </header>
 
   <main class="dashboard-shell">
-    <section class="section-block" aria-labelledby="summaryTitle">
+    <nav class="dashboard-tabs" aria-label="ダッシュボード表示切り替え">
+      <button class="dashboard-tab active" type="button" data-view="overview">全体サマリー</button>
+      <button class="dashboard-tab" type="button" data-view="fair">フェア分析</button>
+      <button class="dashboard-tab" type="button" data-view="school">学校分析</button>
+      <button class="dashboard-tab" type="button" data-view="student">学生フォロー</button>
+    </nav>
+
+    <section class="section-block dashboard-view" data-view="overview" aria-labelledby="summaryTitle">
       <div class="section-heading">
         <div>
           <p class="section-kicker">Summary Dashboard</p>
@@ -35,7 +42,7 @@
       <div id="kpiGrid" class="kpi-grid"></div>
     </section>
 
-    <section class="section-grid">
+    <section class="section-grid dashboard-view" data-view="overview">
       <div class="section-block" aria-labelledby="funnelTitle">
         <div class="section-heading compact">
           <div>
@@ -57,7 +64,7 @@
       </div>
     </section>
 
-    <section class="section-block" aria-labelledby="fairTitle">
+    <section class="section-block dashboard-view view-hidden" data-view="fair" aria-labelledby="fairTitle">
       <div class="section-heading">
         <div>
           <p class="section-kicker">Fair ROI Ranking</p>
@@ -86,7 +93,7 @@
       </div>
     </section>
 
-    <section class="section-block" aria-labelledby="schoolTitle">
+    <section class="section-block dashboard-view view-hidden" data-view="school" aria-labelledby="schoolTitle">
       <div class="section-heading">
         <div>
           <p class="section-kicker">School Analysis</p>
@@ -97,7 +104,7 @@
       <div id="schoolGrid" class="school-grid"></div>
     </section>
 
-    <section class="section-block" aria-labelledby="studentTitle">
+    <section class="section-block dashboard-view view-hidden" data-view="student" aria-labelledby="studentTitle">
       <div class="section-heading">
         <div>
           <p class="section-kicker">Student Follow-up</p>

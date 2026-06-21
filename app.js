@@ -612,6 +612,25 @@ function renderStudentActions() {
   `).join("");
 }
 
+function setupTabs() {
+  const tabs = Array.from(document.querySelectorAll(".dashboard-tab"));
+  const views = Array.from(document.querySelectorAll(".dashboard-view"));
+
+  tabs.forEach((tab) => {
+    tab.addEventListener("click", () => {
+      const targetView = tab.dataset.view;
+
+      tabs.forEach((item) => {
+        item.classList.toggle("active", item === tab);
+      });
+
+      views.forEach((view) => {
+        view.classList.toggle("view-hidden", view.dataset.view !== targetView);
+      });
+    });
+  });
+}
+
 function updateDataSourceStatus(isConnected) {
   const badge = document.querySelector(".header-badge");
   const footerStatus = document.getElementById("footerStatus");
@@ -641,6 +660,7 @@ function updateDataSourceStatus(isConnected) {
 }
 
 async function initDashboard() {
+  setupTabs();
   const isConnected = await fetchDashboardData();
   updateDataSourceStatus(isConnected);
   document.getElementById("appTitle").textContent = dashboardConfig.appName;
