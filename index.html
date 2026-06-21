@@ -16,9 +16,12 @@
           求人費・就職フェア・学校接点・学生接触データをもとに、採用活動を「人材投資」として判断するための社内ダッシュボードです。
         </p>
       </div>
-      <div class="header-badge">
-        <span>Loading Data</span>
-        <strong>...</strong>
+      <div class="header-actions">
+        <button id="dataRefreshButton" class="refresh-button" type="button">データ更新</button>
+        <div class="header-badge">
+          <span>Loading Data</span>
+          <strong>...</strong>
+        </div>
       </div>
     </div>
   </header>
@@ -176,8 +179,8 @@
             <tbody>
               <tr>
                 <td>年度設定</td>
-                <td>年度、採用目標人数、採用予算、入社予定数</td>
-                <td>予算は円記号なし。年度は西暦で入力。</td>
+                <td>年度、採用目標人数、接触人数目標、面接成約目標、採用予算、入社予定数</td>
+                <td>接触人数目標と面接成約目標は年間目標として入力。</td>
               </tr>
               <tr>
                 <td>フェア実績</td>
@@ -191,8 +194,8 @@
               </tr>
               <tr>
                 <td>学生管理</td>
-                <td>学生ID、氏名、学校名、流入元、各ステータス、次アクション</td>
-                <td>同じ学生を複数行に分けない。次アクションは空欄にしない。</td>
+                <td>学生ID、氏名、性別、学校名、流入元、各ステータス、次アクション</td>
+                <td>性別はプルダウンから選ぶ。同じ学生を複数行に分けない。</td>
               </tr>
             </tbody>
           </table>
@@ -206,6 +209,8 @@
           <dl class="status-list">
             <dt>LINE登録</dt>
             <dd>未登録 / 登録済</dd>
+            <dt>性別</dt>
+            <dd>男性 / 女性 / その他 / 未回答</dd>
             <dt>見学・面接</dt>
             <dd>未設定 / 予定 / 実施済 / キャンセル</dd>
             <dt>選考結果</dt>
@@ -221,6 +226,7 @@
             <li>翌営業日：見学取得数、次アクション、次アクション日を更新。</li>
             <li>学校訪問後：学校別分析と学生管理の流入元を更新。</li>
             <li>月次：重点投資フェア、見直し候補フェア、優先学校を確認。</li>
+            <li>データ反映：右上の「データ更新」ボタンでGASから再取得。</li>
           </ul>
         </article>
       </div>

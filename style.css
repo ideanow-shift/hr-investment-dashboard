@@ -57,6 +57,34 @@ body.modal-open {
   gap: 24px;
 }
 
+.header-actions {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex: 0 0 auto;
+}
+
+.refresh-button {
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: #ffffff;
+  color: var(--text);
+  cursor: pointer;
+  font: inherit;
+  padding: 8px 12px;
+  white-space: nowrap;
+}
+
+.refresh-button:hover {
+  border-color: var(--accent);
+  background: var(--accent-soft);
+}
+
+.refresh-button:disabled {
+  cursor: wait;
+  opacity: .65;
+}
+
 .eyebrow,
 .section-kicker {
   margin: 0 0 8px;
@@ -1123,6 +1151,7 @@ td {
   }
 
   .header-inner,
+  .header-actions,
   .section-heading,
   .school-card-footer {
     align-items: flex-start;

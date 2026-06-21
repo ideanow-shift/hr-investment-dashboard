@@ -3,6 +3,8 @@ const GAS_API_URL = "https://script.google.com/macros/s/AKfycbx0X9DvO6zydd8txe_M
 let dashboardConfig = {
   appName: "NOV Talent",
   targetHires: 18,
+  targetContacts: 220,
+  targetInterviews: 30,
   hiringBudget: 1200000,
   expectedJoiners: 9
 };
@@ -111,6 +113,7 @@ let studentData = [
   {
     studentId: "S-0001",
     name: "山田 花",
+    gender: "女性",
     school: "国際文化理容美容専門学校 国分寺校",
     grade: "2年",
     source: "ヘアワークス 新宿",
@@ -129,6 +132,7 @@ let studentData = [
   {
     studentId: "S-0002",
     name: "佐藤 美咲",
+    gender: "女性",
     school: "山野美容専門学校",
     grade: "2年",
     source: "東京総合",
@@ -147,6 +151,7 @@ let studentData = [
   {
     studentId: "S-0003",
     name: "鈴木 里奈",
+    gender: "女性",
     school: "横浜ビューティーアート専門学校",
     grade: "2年",
     source: "学校訪問",
@@ -165,6 +170,7 @@ let studentData = [
   {
     studentId: "S-0004",
     name: "田中 優",
+    gender: "男性",
     school: "パリ総合美容専門学校",
     grade: "2年",
     source: "さんぽう美容就職フェア 高田馬場",
@@ -183,6 +189,7 @@ let studentData = [
   {
     studentId: "S-0005",
     name: "高橋 杏",
+    gender: "女性",
     school: "高山美容専門学校",
     grade: "1年",
     source: "エイド 代々木",
@@ -265,6 +272,8 @@ function applyDashboardData(data) {
     dashboardConfig = {
       appName: normalizeAppName(data.config.appName),
       targetHires: Number(data.config.targetHires) || 0,
+      targetContacts: Number(data.config.targetContacts) || dashboardConfig.targetContacts || 0,
+      targetInterviews: Number(data.config.targetInterviews) || dashboardConfig.targetInterviews || 0,
       hiringBudget: Number(data.config.hiringBudget) || 0,
       expectedJoiners: Number(data.config.expectedJoiners) || 0
     };
@@ -297,6 +306,7 @@ function applyDashboardData(data) {
     studentData = data.students.map((student) => ({
       studentId: String(student.studentId || ""),
       name: String(student.name || ""),
+      gender: String(student.gender || ""),
       school: String(student.school || ""),
       grade: String(student.grade || ""),
       source: String(student.source || ""),
@@ -392,12 +402,16 @@ function buildMetrics() {
 
   return {
     targetHires: dashboardConfig.targetHires,
+    targetContacts: dashboardConfig.targetContacts,
+    targetInterviews: dashboardConfig.targetInterviews,
     currentOffers: schoolTotals.offers,
     achievementRate: safeDivide(schoolTotals.offers, dashboardConfig.targetHires),
     contacts: fairTotals.contacts,
+    contactAchievementRate: safeDivide(fairTotals.contacts, dashboardConfig.targetContacts),
     lineRegistrations: fairTotals.lineRegistrations,
     salonTours: fairTotals.salonTours,
     interviews: schoolTotals.interviews,
+    interviewAchievementRate: safeDivide(schoolTotals.interviews, dashboardConfig.targetInterviews),
     passed: schoolTotals.passed,
     hiringBudget: dashboardConfig.hiringBudget,
     spentBudget: fairTotals.cost,
@@ -413,13 +427,17 @@ function buildStudentSummary(students) {
     if (student.interviewStatus === "予定") summary.interviewScheduled += 1;
     if (student.offerStatus === "内定") summary.offered += 1;
     if (student.expectedJoinStatus === "入社予定") summary.expectedJoiners += 1;
+    if (student.gender === "男性") summary.male += 1;
+    if (student.gender === "女性") summary.female += 1;
     return summary;
   }, {
     needsFollowUp: 0,
     salonTourScheduled: 0,
     interviewScheduled: 0,
     offered: 0,
-    expectedJoiners: 0
+    expectedJoiners: 0,
+    male: 0,
+    female: 0
   });
 }
 
@@ -434,10 +452,26 @@ function renderKpis(metrics) {
       sub: "現在内定数 / 採用目標人数",
       status: metrics.achievementRate >= 0.5 ? "good" : "caution"
     },
+    { label: "接触人数目標", value: metrics.targetContacts, unit: "名", sub: "今年度の学生接点目標" },
     { label: "接触学生数", value: metrics.contacts, unit: "名", sub: "フェア接点の合計" },
+    {
+      label: "接触達成率",
+      value: percent(metrics.contactAchievementRate),
+      unit: "",
+      sub: "接触学生数 / 接触人数目標",
+      status: metrics.contactAchievementRate >= 0.7 ? "good" : "caution"
+    },
+    { label: "面接成約目標", value: metrics.targetInterviews, unit: "件", sub: "今年度の面接化目標" },
     { label: "LINE登録数", value: metrics.lineRegistrations, unit: "名", sub: `登録率 ${percent(safeDivide(metrics.lineRegistrations, metrics.contacts))}` },
     { label: "サロン見学数", value: metrics.salonTours, unit: "名", sub: `見学率 ${percent(safeDivide(metrics.salonTours, metrics.contacts))}` },
     { label: "面接数", value: metrics.interviews, unit: "件", sub: "学校別分析の合計" },
+    {
+      label: "面接成約達成率",
+      value: percent(metrics.interviewAchievementRate),
+      unit: "",
+      sub: "面接数 / 面接成約目標",
+      status: metrics.interviewAchievementRate >= 0.7 ? "good" : "caution"
+    },
     { label: "合格数", value: metrics.passed, unit: "名", sub: "将来の活躍人材候補" },
     { label: "採用予算", value: formatCurrency.format(metrics.hiringBudget), unit: "", sub: "年間想定投資枠" },
     { label: "使用済み予算", value: formatCurrency.format(metrics.spentBudget), unit: "", sub: `予算消化率 ${percent(safeDivide(metrics.spentBudget, metrics.hiringBudget))}` },
@@ -718,7 +752,9 @@ function renderStudentSummary() {
     { label: "見学予定者", value: studentSummary.salonTourScheduled || 0, sub: "サロン見学につなげる学生" },
     { label: "面接予定者", value: studentSummary.interviewScheduled || 0, sub: "選考フォロー対象" },
     { label: "内定者", value: studentSummary.offered || 0, sub: "内定後フォロー対象" },
-    { label: "入社予定者", value: studentSummary.expectedJoiners || 0, sub: "入社準備フォロー対象" }
+    { label: "入社予定者", value: studentSummary.expectedJoiners || 0, sub: "入社準備フォロー対象" },
+    { label: "男性", value: studentSummary.male || 0, sub: "学生管理の性別区分" },
+    { label: "女性", value: studentSummary.female || 0, sub: "学生管理の性別区分" }
   ];
 
   document.getElementById("studentSummaryGrid").innerHTML = summaryItems.map((item) => `
@@ -768,7 +804,9 @@ function getStudentFilters() {
     { key: "salonTour", label: "見学予定", predicate: (student) => student.salonTourStatus === "予定" },
     { key: "interview", label: "面接予定", predicate: (student) => student.interviewStatus === "予定" },
     { key: "offered", label: "内定", predicate: (student) => student.offerStatus === "内定" },
-    { key: "expectedJoin", label: "入社予定", predicate: (student) => student.expectedJoinStatus === "入社予定" }
+    { key: "expectedJoin", label: "入社予定", predicate: (student) => student.expectedJoinStatus === "入社予定" },
+    { key: "male", label: "男性", predicate: (student) => student.gender === "男性" },
+    { key: "female", label: "女性", predicate: (student) => student.gender === "女性" }
   ];
 }
 
@@ -830,7 +868,7 @@ function renderStudentList(activeKey = "all") {
           <div>
             <span class="priority-pill ${priority.className}">${priority.label}</span>
             <h3>${student.name || "氏名未設定"}</h3>
-            <p>${student.school || "学校未設定"} / ${student.grade || "学年未設定"}</p>
+            <p>${student.school || "学校未設定"} / ${student.grade || "学年未設定"} / ${student.gender || "性別未設定"}</p>
           </div>
           <div class="student-card-status">
             <span>LINE：${student.lineStatus || "未設定"}</span>
@@ -875,6 +913,7 @@ function openStudentModal(student) {
     <div class="modal-status-grid">
       <div><span>接点</span><strong>${student.source || "未設定"}</strong></div>
       <div><span>接触日</span><strong>${student.contactDate || "未設定"}</strong></div>
+      <div><span>性別</span><strong>${student.gender || "未設定"}</strong></div>
       <div><span>担当</span><strong>${student.owner || "未設定"}</strong></div>
       <div><span>学生ID</span><strong>${student.studentId || "未設定"}</strong></div>
     </div>
@@ -934,6 +973,40 @@ function setupStudentModal() {
   });
 }
 
+function renderDashboard(isConnected) {
+  updateDataSourceStatus(isConnected);
+  document.getElementById("appTitle").textContent = dashboardConfig.appName;
+  document.title = dashboardConfig.appName;
+
+  const metrics = buildMetrics();
+  renderKpis(metrics);
+  renderDecisionSummary(metrics);
+  renderFunnel(metrics);
+  renderFairTable();
+  renderSchools();
+  generateActionCards();
+  renderStudentSummary();
+  renderStudentActions();
+  renderStudentList();
+}
+
+async function refreshDashboardData() {
+  const refreshButton = document.getElementById("dataRefreshButton");
+
+  if (refreshButton) {
+    refreshButton.disabled = true;
+    refreshButton.textContent = "更新中...";
+  }
+
+  const isConnected = await fetchDashboardData();
+  renderDashboard(isConnected);
+
+  if (refreshButton) {
+    refreshButton.disabled = false;
+    refreshButton.textContent = "データ更新";
+  }
+}
+
 function setupTabs() {
   const tabs = Array.from(document.querySelectorAll(".dashboard-tab"));
   const views = Array.from(document.querySelectorAll(".dashboard-view"));
@@ -951,6 +1024,16 @@ function setupTabs() {
       });
     });
   });
+}
+
+function setupDataRefresh() {
+  const refreshButton = document.getElementById("dataRefreshButton");
+
+  if (refreshButton) {
+    refreshButton.addEventListener("click", refreshDashboardData);
+  }
+
+  window.setInterval(refreshDashboardData, 24 * 60 * 60 * 1000);
 }
 
 function updateDataSourceStatus(isConnected) {
@@ -984,21 +1067,8 @@ function updateDataSourceStatus(isConnected) {
 async function initDashboard() {
   setupTabs();
   setupStudentModal();
-  const isConnected = await fetchDashboardData();
-  updateDataSourceStatus(isConnected);
-  document.getElementById("appTitle").textContent = dashboardConfig.appName;
-  document.title = dashboardConfig.appName;
-
-  const metrics = buildMetrics();
-  renderKpis(metrics);
-  renderDecisionSummary(metrics);
-  renderFunnel(metrics);
-  renderFairTable();
-  renderSchools();
-  generateActionCards();
-  renderStudentSummary();
-  renderStudentActions();
-  renderStudentList();
+  setupDataRefresh();
+  await refreshDashboardData();
 }
 
 document.addEventListener("DOMContentLoaded", initDashboard);

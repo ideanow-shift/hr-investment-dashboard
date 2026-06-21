@@ -56,6 +56,8 @@ function getConfig() {
     return {
       appName: APP_NAME,
       targetHires: 0,
+      targetContacts: 0,
+      targetInterviews: 0,
       hiringBudget: 0,
       expectedJoiners: 0
     };
@@ -65,8 +67,10 @@ function getConfig() {
   return {
     appName: APP_NAME,
     targetHires: Number(row[1]) || 0,
-    hiringBudget: Number(row[2]) || 0,
-    expectedJoiners: Number(row[3]) || 0
+    targetContacts: Number(row[2]) || 0,
+    targetInterviews: Number(row[3]) || 0,
+    hiringBudget: Number(row[4]) || 0,
+    expectedJoiners: Number(row[5]) || 0
   };
 }
 
@@ -109,20 +113,21 @@ function getStudentData() {
   return rows.map((row) => ({
     studentId: String(row[0] || ""),
     name: String(row[1] || ""),
-    school: String(row[2] || ""),
-    grade: String(row[3] || ""),
-    source: String(row[4] || ""),
-    contactDate: formatDateValue(row[5]),
-    lineStatus: String(row[6] || ""),
-    salonTourStatus: String(row[7] || ""),
-    interviewStatus: String(row[8] || ""),
-    resultStatus: String(row[9] || ""),
-    offerStatus: String(row[10] || ""),
-    expectedJoinStatus: String(row[11] || ""),
-    owner: String(row[12] || ""),
-    nextAction: String(row[13] || ""),
-    nextActionDate: formatDateValue(row[14]),
-    memo: String(row[15] || "")
+    gender: String(row[2] || ""),
+    school: String(row[3] || ""),
+    grade: String(row[4] || ""),
+    source: String(row[5] || ""),
+    contactDate: formatDateValue(row[6]),
+    lineStatus: String(row[7] || ""),
+    salonTourStatus: String(row[8] || ""),
+    interviewStatus: String(row[9] || ""),
+    resultStatus: String(row[10] || ""),
+    offerStatus: String(row[11] || ""),
+    expectedJoinStatus: String(row[12] || ""),
+    owner: String(row[13] || ""),
+    nextAction: String(row[14] || ""),
+    nextActionDate: formatDateValue(row[15]),
+    memo: String(row[16] || "")
   }));
 }
 
@@ -133,13 +138,17 @@ function buildStudentSummary(students) {
     if (student.interviewStatus === "予定") summary.interviewScheduled += 1;
     if (student.offerStatus === "内定") summary.offered += 1;
     if (student.expectedJoinStatus === "入社予定") summary.expectedJoiners += 1;
+    if (student.gender === "男性") summary.male += 1;
+    if (student.gender === "女性") summary.female += 1;
     return summary;
   }, {
     needsFollowUp: 0,
     salonTourScheduled: 0,
     interviewScheduled: 0,
     offered: 0,
-    expectedJoiners: 0
+    expectedJoiners: 0,
+    male: 0,
+    female: 0
   });
 }
 
@@ -147,8 +156,8 @@ function setupSampleSheets() {
   const ss = SpreadsheetApp.getActiveSpreadsheet();
 
   setupSheet(ss, "年度設定",
-    ["年度", "採用目標人数", "採用予算", "入社予定数"],
-    [["2026", 18, 1200000, 9]]
+    ["年度", "採用目標人数", "接触人数目標", "面接成約目標", "採用予算", "入社予定数"],
+    [["2026", 18, 220, 30, 1200000, 9]]
   );
 
   setupSheet(ss, "フェア実績",
@@ -178,6 +187,7 @@ function setupSampleSheets() {
     [
       "学生ID",
       "氏名",
+      "性別",
       "学校名",
       "学年",
       "流入元",
@@ -194,11 +204,11 @@ function setupSampleSheets() {
       "メモ"
     ],
     [
-      ["S-0001", "山田 花", "国際文化理容美容専門学校 国分寺校", "2年", "ヘアワークス 新宿", new Date(2026, 5, 3), "登録済", "実施済", "実施済", "合格", "内定", "入社予定", "総務人事", "内定後フォロー面談", new Date(2026, 6, 5), "BASSA池袋に関心"],
-      ["S-0002", "佐藤 美咲", "山野美容専門学校", "2年", "東京総合", new Date(2026, 5, 15), "登録済", "予定", "未設定", "未定", "未定", "未定", "総務人事", "見学前リマインド", new Date(2026, 5, 25), "カラー教育に興味"],
-      ["S-0003", "鈴木 里奈", "横浜ビューティーアート専門学校", "2年", "学校訪問", new Date(2026, 5, 10), "登録済", "実施済", "予定", "未定", "未定", "未定", "総務人事", "面接日程確認", new Date(2026, 5, 28), ""],
-      ["S-0004", "田中 優", "パリ総合美容専門学校", "2年", "さんぽう美容就職フェア 高田馬場", new Date(2026, 3, 18), "登録済", "未設定", "未設定", "未定", "未定", "未定", "総務人事", "見学誘導LINE送信", "", "LINE反応あり"],
-      ["S-0005", "高橋 杏", "高山美容専門学校", "1年", "エイド 代々木", new Date(2026, 4, 24), "登録済", "未設定", "未設定", "未定", "未定", "未定", "総務人事", "学校訪問時に再接点", "", "次年度候補"]
+      ["S-0001", "山田 花", "女性", "国際文化理容美容専門学校 国分寺校", "2年", "ヘアワークス 新宿", new Date(2026, 5, 3), "登録済", "実施済", "実施済", "合格", "内定", "入社予定", "総務人事", "内定後フォロー面談", new Date(2026, 6, 5), "BASSA池袋に関心"],
+      ["S-0002", "佐藤 美咲", "女性", "山野美容専門学校", "2年", "東京総合", new Date(2026, 5, 15), "登録済", "予定", "未設定", "未定", "未定", "未定", "総務人事", "見学前リマインド", new Date(2026, 5, 25), "カラー教育に興味"],
+      ["S-0003", "鈴木 里奈", "女性", "横浜ビューティーアート専門学校", "2年", "学校訪問", new Date(2026, 5, 10), "登録済", "実施済", "予定", "未定", "未定", "未定", "総務人事", "面接日程確認", new Date(2026, 5, 28), ""],
+      ["S-0004", "田中 優", "男性", "パリ総合美容専門学校", "2年", "さんぽう美容就職フェア 高田馬場", new Date(2026, 3, 18), "登録済", "未設定", "未設定", "未定", "未定", "未定", "総務人事", "見学誘導LINE送信", "", "LINE反応あり"],
+      ["S-0005", "高橋 杏", "女性", "高山美容専門学校", "1年", "エイド 代々木", new Date(2026, 4, 24), "登録済", "未設定", "未設定", "未定", "未定", "未定", "総務人事", "学校訪問時に再接点", "", "次年度候補"]
     ]
   );
 
@@ -228,13 +238,13 @@ function setupSheet(ss, sheetName, headers, rows) {
 }
 
 function applySheetRules(ss) {
-  formatBasicSheet(ss.getSheetByName("年度設定"), 4);
+  formatBasicSheet(ss.getSheetByName("年度設定"), 6);
   formatBasicSheet(ss.getSheetByName("フェア実績"), 6);
   formatBasicSheet(ss.getSheetByName("学校別分析"), 7);
-  formatBasicSheet(ss.getSheetByName("学生管理"), 16);
+  formatBasicSheet(ss.getSheetByName("学生管理"), 17);
 
   const configSheet = ss.getSheetByName("年度設定");
-  configSheet.getRange("B2:D100").setNumberFormat("0");
+  configSheet.getRange("B2:F100").setNumberFormat("0");
 
   const fairSheet = ss.getSheetByName("フェア実績");
   fairSheet.getRange("B2:B1000").setNumberFormat("yyyy/mm/dd");
@@ -244,16 +254,17 @@ function applySheetRules(ss) {
   schoolSheet.getRange("B2:G1000").setNumberFormat("0");
 
   const studentSheet = ss.getSheetByName("学生管理");
-  studentSheet.getRange("F2:F1000").setNumberFormat("yyyy/mm/dd");
-  studentSheet.getRange("O2:O1000").setNumberFormat("yyyy/mm/dd");
+  studentSheet.getRange("G2:G1000").setNumberFormat("yyyy/mm/dd");
+  studentSheet.getRange("P2:P1000").setNumberFormat("yyyy/mm/dd");
 
-  setDropdown(studentSheet, "D2:D1000", ["1年", "2年", "既卒", "その他"]);
-  setDropdown(studentSheet, "G2:G1000", ["未登録", "登録済"]);
-  setDropdown(studentSheet, "H2:H1000", ["未設定", "予定", "実施済", "キャンセル"]);
+  setDropdown(studentSheet, "C2:C1000", ["男性", "女性", "その他", "未回答"]);
+  setDropdown(studentSheet, "E2:E1000", ["1年", "2年", "既卒", "その他"]);
+  setDropdown(studentSheet, "H2:H1000", ["未登録", "登録済"]);
   setDropdown(studentSheet, "I2:I1000", ["未設定", "予定", "実施済", "キャンセル"]);
-  setDropdown(studentSheet, "J2:J1000", ["未定", "合格", "不合格", "辞退"]);
-  setDropdown(studentSheet, "K2:K1000", ["未定", "内定", "承諾", "辞退"]);
-  setDropdown(studentSheet, "L2:L1000", ["未定", "入社予定", "入社済", "辞退"]);
+  setDropdown(studentSheet, "J2:J1000", ["未設定", "予定", "実施済", "キャンセル"]);
+  setDropdown(studentSheet, "K2:K1000", ["未定", "合格", "不合格", "辞退"]);
+  setDropdown(studentSheet, "L2:L1000", ["未定", "内定", "承諾", "辞退"]);
+  setDropdown(studentSheet, "M2:M1000", ["未定", "入社予定", "入社済", "辞退"]);
 }
 
 function formatBasicSheet(sheet, columnCount) {
