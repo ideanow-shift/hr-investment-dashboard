@@ -705,6 +705,94 @@ function renderStudentActions() {
   `).join("");
 }
 
+function getStudentFilters() {
+  return [
+    { key: "all", label: "すべて", predicate: () => true },
+    { key: "needsFollowUp", label: "要フォロー", predicate: (student) => student.nextAction && !student.nextActionDate },
+    { key: "salonTour", label: "見学予定", predicate: (student) => student.salonTourStatus === "予定" },
+    { key: "interview", label: "面接予定", predicate: (student) => student.interviewStatus === "予定" },
+    { key: "offered", label: "内定", predicate: (student) => student.offerStatus === "内定" },
+    { key: "expectedJoin", label: "入社予定", predicate: (student) => student.expectedJoinStatus === "入社予定" }
+  ];
+}
+
+function renderStudentFilters(activeKey = "all") {
+  const filters = getStudentFilters();
+  const filterWrap = document.getElementById("studentFilters");
+
+  filterWrap.innerHTML = filters.map((filter) => {
+    const count = studentData.filter(filter.predicate).length;
+    return `
+      <button class="student-filter ${filter.key === activeKey ? "active" : ""}" type="button" data-student-filter="${filter.key}">
+        ${filter.label}<span>${count}</span>
+      </button>
+    `;
+  }).join("");
+
+  filterWrap.querySelectorAll("[data-student-filter]").forEach((button) => {
+    button.addEventListener("click", () => {
+      renderStudentList(button.dataset.studentFilter);
+    });
+  });
+}
+
+function getStudentPriority(student) {
+  if (student.nextAction && !student.nextActionDate) return { label: "要日程設定", className: "priority-high" };
+  if (student.salonTourStatus === "予定" || student.interviewStatus === "予定") return { label: "予定フォロー", className: "priority-middle" };
+  if (student.offerStatus === "内定" || student.expectedJoinStatus === "入社予定") return { label: "内定後フォロー", className: "priority-good" };
+  return { label: "通常フォロー", className: "priority-low" };
+}
+
+function renderStudentList(activeKey = "all") {
+  renderStudentFilters(activeKey);
+
+  const filters = getStudentFilters();
+  const activeFilter = filters.find((filter) => filter.key === activeKey) || filters[0];
+  const students = studentData
+    .filter(activeFilter.predicate)
+    .sort((a, b) => {
+      if (!a.nextActionDate && b.nextActionDate) return 1;
+      if (a.nextActionDate && !b.nextActionDate) return -1;
+      return (a.nextActionDate || "9999-12-31").localeCompare(b.nextActionDate || "9999-12-31");
+    });
+
+  document.getElementById("studentFilterCount").textContent = `${activeFilter.label}：${students.length}名`;
+
+  if (students.length === 0) {
+    document.getElementById("studentList").innerHTML = `
+      <div class="student-empty">該当する学生はいません。</div>
+    `;
+    return;
+  }
+
+  document.getElementById("studentList").innerHTML = students.map((student) => {
+    const priority = getStudentPriority(student);
+
+    return `
+      <article class="student-card">
+        <div class="student-card-main">
+          <div>
+            <span class="priority-pill ${priority.className}">${priority.label}</span>
+            <h3>${student.name || "氏名未設定"}</h3>
+            <p>${student.school || "学校未設定"} / ${student.grade || "学年未設定"}</p>
+          </div>
+          <div class="student-card-status">
+            <span>LINE：${student.lineStatus || "未設定"}</span>
+            <span>見学：${student.salonTourStatus || "未設定"}</span>
+            <span>面接：${student.interviewStatus || "未設定"}</span>
+            <span>内定：${student.offerStatus || "未定"}</span>
+          </div>
+        </div>
+        <div class="student-next-action">
+          <span>${student.nextActionDate || "日付未設定"}</span>
+          <strong>${student.nextAction || "次アクション未設定"}</strong>
+          <small>${student.source || "接点未設定"} / 担当：${student.owner || "未設定"}</small>
+        </div>
+      </article>
+    `;
+  }).join("");
+}
+
 function setupTabs() {
   const tabs = Array.from(document.querySelectorAll(".dashboard-tab"));
   const views = Array.from(document.querySelectorAll(".dashboard-view"));
@@ -766,6 +854,7 @@ async function initDashboard() {
   generateActionCards();
   renderStudentSummary();
   renderStudentActions();
+  renderStudentList();
 }
 
 document.addEventListener("DOMContentLoaded", initDashboard);
