@@ -177,7 +177,7 @@ h3 {
   border-bottom-color: var(--accent);
 }
 
-.view-hidden {
+.dashboard-view.view-hidden {
   display: none;
 }
 
