@@ -612,18 +612,37 @@ function renderStudentActions() {
   `).join("");
 }
 
-function updateHeaderBadge(isConnected) {
+function updateDataSourceStatus(isConnected) {
   const badge = document.querySelector(".header-badge");
-  if (!badge) return;
+  const footerStatus = document.getElementById("footerStatus");
+  const status = isConnected
+    ? {
+      label: "● GAS Connected",
+      version: "v0.2",
+      footer: "GAS Connected v0.2",
+      color: "#047857"
+    }
+    : {
+      label: "Sample Data",
+      version: "v0.1",
+      footer: "Sample Data v0.1",
+      color: ""
+    };
 
-  badge.innerHTML = isConnected
-    ? `<span style="color:#047857;">● GAS Connected</span><strong>v0.2</strong>`
-    : `<span>Sample Data</span><strong>v0.1</strong>`;
+  if (badge) {
+    badge.innerHTML = status.color
+      ? `<span style="color:${status.color};">${status.label}</span><strong>${status.version}</strong>`
+      : `<span>${status.label}</span><strong>${status.version}</strong>`;
+  }
+
+  if (footerStatus) {
+    footerStatus.textContent = status.footer;
+  }
 }
 
 async function initDashboard() {
   const isConnected = await fetchDashboardData();
-  updateHeaderBadge(isConnected);
+  updateDataSourceStatus(isConnected);
   document.getElementById("appTitle").textContent = dashboardConfig.appName;
 
   const metrics = buildMetrics();
