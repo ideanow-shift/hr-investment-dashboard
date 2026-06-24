@@ -387,7 +387,8 @@ function getActiveSheetName() {
 }
 
 function isActiveCohortEditable() {
-  return getActiveSheetName() !== "学生管理_全件参考";
+  const sheetName = getActiveSheetName();
+  return sheetName !== "学生管理_全件参考" && sheetName !== "Supabase_全件参考";
 }
 
 const formatNumber = new Intl.NumberFormat("ja-JP");

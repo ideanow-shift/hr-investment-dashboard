@@ -145,6 +145,188 @@ function getSupabaseRows_(tableName, queryString) {
   return JSON.parse(body);
 }
 
+function isSupabaseConfigured_() {
+  const props = PropertiesService.getScriptProperties();
+  return Boolean(props.getProperty("SUPABASE_URL") && props.getProperty("SUPABASE_SERVICE_ROLE_KEY"));
+}
+
+function getSupabaseConfig_() {
+  const props = PropertiesService.getScriptProperties();
+  const baseUrl = String(props.getProperty("SUPABASE_URL") || "").replace(/\/$/, "");
+  const serviceRoleKey = props.getProperty("SUPABASE_SERVICE_ROLE_KEY");
+
+  if (!baseUrl || !serviceRoleKey) {
+    throw new Error("SUPABASE_URL または SUPABASE_SERVICE_ROLE_KEY が未設定です。");
+  }
+
+  return { baseUrl, serviceRoleKey };
+}
+
+function requestSupabase_(method, tableName, queryString, payload) {
+  const config = getSupabaseConfig_();
+  const query = queryString ? `?${queryString}` : "";
+  const response = UrlFetchApp.fetch(`${config.baseUrl}/rest/v1/${tableName}${query}`, {
+    method: method,
+    muteHttpExceptions: true,
+    payload: payload === undefined ? undefined : JSON.stringify(payload),
+    headers: {
+      apikey: config.serviceRoleKey,
+      Authorization: `Bearer ${config.serviceRoleKey}`,
+      "Content-Type": "application/json",
+      Prefer: "return=representation"
+    }
+  });
+
+  const status = response.getResponseCode();
+  const body = response.getContentText();
+  if (status < 200 || status >= 300) {
+    throw new Error(`Supabase ${tableName} ${method}失敗: ${status} ${body}`);
+  }
+
+  if (!body) return [];
+  return JSON.parse(body);
+}
+
+function getSupabaseCohortFromSheetName_(sheetName) {
+  const targetSheetName = sanitizeText(sheetName) || "Supabase_27卒";
+  if (targetSheetName === "Supabase_全件参考" || targetSheetName === "学生管理_全件参考") {
+    throw new Error("全件参考タブは編集できません。27卒、28卒、サロン実習の各タブで編集してください。");
+  }
+
+  if (targetSheetName.indexOf("28") !== -1) return "28卒";
+  if (targetSheetName.indexOf("サロン実習") !== -1) return "サロン実習";
+  return "27卒";
+}
+
+function getSupabaseSheetNameFromCohort_(cohort) {
+  if (cohort === "28卒") return "Supabase_28卒";
+  if (cohort === "サロン実習") return "Supabase_サロン実習";
+  return "Supabase_27卒";
+}
+
+function buildSupabaseStudentPayload_(params, baseValues) {
+  const schoolName = sanitizeText(params.school);
+  const sourceName = sanitizeText(params.source);
+  const schoolId = resolveSupabaseSchoolId_(schoolName);
+  const fair = resolveSupabaseFair_(sourceName);
+  const sourceType = fair ? "フェア" : (baseValues.cohort === "サロン実習" ? "サロン実習" : "その他");
+
+  return Object.assign({}, baseValues, {
+    full_name: sanitizeText(params.name),
+    gender: sanitizeText(params.gender) || "未回答",
+    school_id: schoolId,
+    school_name_snapshot: schoolName,
+    grade: sanitizeText(params.grade),
+    source_type: sourceType,
+    source_name_snapshot: sourceName,
+    fair_id: fair ? fair.id : null,
+    contact_date: normalizeSupabaseDate_(params.contactDate),
+    line_status: sanitizeText(params.lineStatus) || "未登録",
+    salon_tour_status: sanitizeText(params.salonTourStatus) || "未設定",
+    interview_status: sanitizeText(params.interviewStatus) || "未設定",
+    result_status: sanitizeText(params.resultStatus) || "未定",
+    offer_status: sanitizeText(params.offerStatus) || "未定",
+    expected_join_status: sanitizeText(params.expectedJoinStatus) || "未定",
+    next_action: sanitizeText(params.nextAction),
+    next_action_date: normalizeSupabaseDate_(params.nextActionDate),
+    memo: sanitizeText(params.memo),
+    management_status: sanitizeText(params.managementStatus) || "有効"
+  });
+}
+
+function normalizeSupabaseDate_(value) {
+  const text = sanitizeText(value);
+  if (!text) return null;
+
+  const match = text.match(/^(\d{4})-(\d{2})-(\d{2})$/);
+  if (!match) return null;
+  return text;
+}
+
+function resolveSupabaseSchoolId_(schoolName) {
+  if (!schoolName) return null;
+
+  const rows = getSupabaseRows_("talent_schools", `name=eq.${encodeURIComponent(schoolName)}&limit=1`);
+  if (rows.length) return rows[0].id;
+
+  const createdRows = requestSupabase_("post", "talent_schools", "", {
+    name: schoolName,
+    display_name: schoolName,
+    memo: "ダッシュボードから学生登録時に自動作成",
+    is_active: true
+  });
+  return createdRows[0] ? createdRows[0].id : null;
+}
+
+function resolveSupabaseFair_(fairName) {
+  if (!fairName) return null;
+
+  const rows = getSupabaseRows_("talent_fairs", `name=eq.${encodeURIComponent(fairName)}&limit=1`);
+  return rows[0] || null;
+}
+
+function getSupabaseStudentByCode_(studentId) {
+  const rows = getSupabaseRows_("talent_students", `student_code=eq.${encodeURIComponent(studentId)}&limit=1`);
+  return rows[0] || null;
+}
+
+function generateNextSupabaseStudentId_() {
+  const rows = getSupabaseRows_("talent_students", "student_code=not.is.null");
+  const maxNumber = rows.reduce((max, row) => {
+    const match = String(row.student_code || "").match(/^S-(\d+)$/);
+    return match ? Math.max(max, Number(match[1])) : max;
+  }, 0);
+  return `S-${String(maxNumber + 1).padStart(4, "0")}`;
+}
+
+function validateSupabaseStudentPayload_(params, currentStudentId, cohort) {
+  validateStudentStatusRules_(params);
+
+  const duplicateId = findDuplicateSupabaseStudentId_(
+    sanitizeText(params.name),
+    sanitizeText(params.school),
+    currentStudentId,
+    cohort
+  );
+  if (duplicateId) {
+    throw new Error(`同じ氏名・学校名の学生が既にいます: ${duplicateId}`);
+  }
+}
+
+function findDuplicateSupabaseStudentId_(name, school, currentStudentId, cohort) {
+  const rows = getSupabaseRows_("talent_students", `cohort=eq.${encodeURIComponent(cohort)}&management_status=eq.${encodeURIComponent("有効")}`);
+  const normalizedName = normalizeForDuplicateCheck(name);
+  const normalizedSchool = normalizeForDuplicateCheck(school);
+
+  for (let index = 0; index < rows.length; index += 1) {
+    const row = rows[index];
+    const studentId = String(row.student_code || "").trim();
+    if (currentStudentId && studentId === currentStudentId) continue;
+
+    const rowName = normalizeForDuplicateCheck(row.full_name);
+    const rowSchool = normalizeForDuplicateCheck(row.school_name_snapshot);
+    if (rowName === normalizedName && rowSchool === normalizedSchool) {
+      return studentId;
+    }
+  }
+
+  return "";
+}
+
+function appendSupabaseOperationLog_(action, recordId, studentId, studentCode, studentName, detail, beforeData, afterData) {
+  requestSupabase_("post", "talent_operation_logs", "", {
+    action: action,
+    table_name: "talent_students",
+    record_id: recordId || null,
+    student_id: studentId || null,
+    student_code: studentCode || "",
+    student_name_snapshot: studentName || "",
+    detail: detail,
+    before_data: beforeData || null,
+    after_data: afterData || null
+  });
+}
+
 function convertSupabaseConfig_(row) {
   if (!row) {
     return {
@@ -407,6 +589,22 @@ function handleWriteAction(params) {
 }
 
 function addStudentFromDashboard(params) {
+  if (isSupabaseConfigured_()) {
+    return addSupabaseStudentFromDashboard_(params);
+  }
+
+  return addSpreadsheetStudentFromDashboard_(params);
+}
+
+function updateStudentFromDashboard(params) {
+  if (isSupabaseConfigured_()) {
+    return updateSupabaseStudentFromDashboard_(params);
+  }
+
+  return updateSpreadsheetStudentFromDashboard_(params);
+}
+
+function addSpreadsheetStudentFromDashboard_(params) {
   const sheet = getWritableStudentSheet(params.sheetName);
   ensureStudentAuditColumns(sheet);
   const name = sanitizeText(params.name);
@@ -459,7 +657,7 @@ function addStudentFromDashboard(params) {
   };
 }
 
-function updateStudentFromDashboard(params) {
+function updateSpreadsheetStudentFromDashboard_(params) {
   const sheet = getWritableStudentSheet(params.sheetName);
   ensureStudentAuditColumns(sheet);
   const studentId = sanitizeText(params.studentId);
@@ -506,6 +704,81 @@ function updateStudentFromDashboard(params) {
     ok: true,
     action: "updateStudent",
     sheetName: sheet.getName(),
+    studentId: studentId
+  };
+}
+
+function addSupabaseStudentFromDashboard_(params) {
+  const cohort = getSupabaseCohortFromSheetName_(params.sheetName);
+  const studentId = generateNextSupabaseStudentId_();
+  validateSupabaseStudentPayload_(params, "", cohort);
+
+  const studentPayload = buildSupabaseStudentPayload_(params, {
+    student_code: studentId,
+    cohort: cohort
+  });
+  const insertedRows = requestSupabase_("post", "talent_students", "", studentPayload);
+  const inserted = insertedRows[0] || {};
+
+  appendSupabaseOperationLog_(
+    "追加",
+    inserted.id,
+    inserted.id,
+    studentId,
+    studentPayload.full_name,
+    "ダッシュボードから学生を追加",
+    null,
+    inserted
+  );
+
+  return {
+    ok: true,
+    action: "addStudent",
+    sheetName: getSupabaseSheetNameFromCohort_(cohort),
+    studentId: studentId
+  };
+}
+
+function updateSupabaseStudentFromDashboard_(params) {
+  const studentId = sanitizeText(params.studentId);
+  if (!studentId) {
+    throw new Error("学生IDが見つかりません。");
+  }
+
+  getSupabaseCohortFromSheetName_(params.sheetName);
+  const existing = getSupabaseStudentByCode_(studentId);
+  if (!existing) {
+    throw new Error(`学生ID「${studentId}」が見つかりません。`);
+  }
+
+  const cohort = existing.cohort || getSupabaseCohortFromSheetName_(params.sheetName);
+  validateSupabaseStudentPayload_(params, studentId, cohort);
+  const studentPayload = buildSupabaseStudentPayload_(params, {
+    cohort: cohort
+  });
+  const updatedRows = requestSupabase_(
+    "patch",
+    "talent_students",
+    `student_code=eq.${encodeURIComponent(studentId)}`,
+    studentPayload
+  );
+  const updated = updatedRows[0] || {};
+
+  appendSupabaseOperationLog_(
+    "更新",
+    updated.id || existing.id,
+    updated.id || existing.id,
+    studentId,
+    studentPayload.full_name,
+    "ダッシュボードから学生情報を更新",
+    existing,
+    updated
+  );
+
+  return {
+    ok: true,
+    action: "updateStudent",
+    sheetName: getSupabaseSheetNameFromCohort_(cohort),
     studentId: studentId
   };
 }
@@ -573,6 +846,17 @@ function updateStudentRowValues(sheet, rowNumber, valuesByHeader) {
 }
 
 function validateStudentPayload(params, sheet, currentStudentId) {
+  validateStudentStatusRules_(params);
+
+  const name = sanitizeText(params.name);
+  const school = sanitizeText(params.school);
+  const duplicateId = findDuplicateStudentId(sheet, name, school, currentStudentId);
+  if (duplicateId) {
+    throw new Error(`同じ氏名・学校名の学生が既にいます: ${duplicateId}`);
+  }
+}
+
+function validateStudentStatusRules_(params) {
   const name = sanitizeText(params.name);
   const school = sanitizeText(params.school);
   const interviewStatus = sanitizeText(params.interviewStatus);
@@ -584,11 +868,6 @@ function validateStudentPayload(params, sheet, currentStudentId) {
 
   if (!name) throw new Error("氏名を入力してください。");
   if (!school) throw new Error("学校名を入力してください。");
-
-  const duplicateId = findDuplicateStudentId(sheet, name, school, currentStudentId);
-  if (duplicateId) {
-    throw new Error(`同じ氏名・学校名の学生が既にいます: ${duplicateId}`);
-  }
 
   if ((offerStatus === "内定" || offerStatus === "承諾") && interviewStatus !== "実施済") {
     throw new Error("内定・承諾にする場合は、面接ステータスを「実施済」にしてください。");
