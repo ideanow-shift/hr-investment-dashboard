@@ -929,6 +929,38 @@ function getStudentFormPayload(form) {
   };
 }
 
+function getStudentValidationErrors(payload, mode) {
+  const errors = [];
+  const students = getActiveStudents();
+  const normalizedName = payload.name.replace(/\s+/g, "");
+  const normalizedSchool = payload.school.replace(/\s+/g, "");
+  const duplicate = students.find((student) => {
+    if (mode !== "add" && student.studentId === payload.studentId) return false;
+    return student.name.replace(/\s+/g, "") === normalizedName
+      && student.school.replace(/\s+/g, "") === normalizedSchool;
+  });
+
+  if (!payload.name) errors.push("氏名を入力してください。");
+  if (!payload.school) errors.push("学校名を入力してください。");
+  if (mode === "add" && duplicate) {
+    errors.push(`同じ氏名・学校名の学生が既にいます：${duplicate.studentId}`);
+  }
+  if ((payload.offerStatus === "内定" || payload.offerStatus === "承諾") && payload.interviewStatus !== "実施済") {
+    errors.push("内定・承諾にする場合は、面接ステータスを「実施済」にしてください。");
+  }
+  if ((payload.expectedJoinStatus === "入社予定" || payload.expectedJoinStatus === "入社済") && !["内定", "承諾"].includes(payload.offerStatus)) {
+    errors.push("入社予定・入社済にする場合は、内定ステータスを「内定」または「承諾」にしてください。");
+  }
+  if (payload.resultStatus === "不合格" && ["内定", "承諾"].includes(payload.offerStatus)) {
+    errors.push("選考結果が不合格の場合、内定ステータスは「未定」または「辞退」にしてください。");
+  }
+  if ((payload.salonTourStatus === "予定" || payload.interviewStatus === "予定") && !payload.nextActionDate) {
+    errors.push("見学予定・面接予定の場合は、次アクション日を入力してください。");
+  }
+
+  return errors;
+}
+
 function renderStudentForm(student = {}, mode = "update") {
   const isAdd = mode === "add";
   const disabled = isActiveCohortEditable() ? "" : "disabled";
@@ -1009,8 +1041,9 @@ function setupRenderedStudentForm() {
       return;
     }
 
-    if (mode === "add" && (!payload.name || !payload.school)) {
-      status.textContent = "氏名と学校名は必須です。";
+    const validationErrors = getStudentValidationErrors(payload, mode);
+    if (validationErrors.length) {
+      status.innerHTML = validationErrors.map((error) => `・${escapeHtml(error)}`).join("<br>");
       return;
     }
 

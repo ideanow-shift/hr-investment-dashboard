@@ -216,6 +216,8 @@ function addStudentFromDashboard(params) {
     throw new Error("学校名を入力してください。");
   }
 
+  validateStudentPayload(params, sheet, "");
+
   const studentId = generateNextStudentId(sheet);
   const row = [
     studentId,
@@ -266,6 +268,8 @@ function updateStudentFromDashboard(params) {
   if (!rowNumber) {
     throw new Error(`学生ID「${studentId}」が見つかりません。`);
   }
+
+  validateStudentPayload(params, sheet, studentId);
 
   const updates = [
     { col: 2, value: sanitizeText(params.name) },
@@ -321,6 +325,67 @@ function getWritableStudentSheet(sheetName) {
   }
 
   return getRequiredSheet(targetSheetName);
+}
+
+function validateStudentPayload(params, sheet, currentStudentId) {
+  const name = sanitizeText(params.name);
+  const school = sanitizeText(params.school);
+  const interviewStatus = sanitizeText(params.interviewStatus);
+  const resultStatus = sanitizeText(params.resultStatus);
+  const offerStatus = sanitizeText(params.offerStatus);
+  const expectedJoinStatus = sanitizeText(params.expectedJoinStatus);
+  const salonTourStatus = sanitizeText(params.salonTourStatus);
+  const nextActionDate = sanitizeText(params.nextActionDate);
+
+  if (!name) throw new Error("氏名を入力してください。");
+  if (!school) throw new Error("学校名を入力してください。");
+
+  const duplicateId = findDuplicateStudentId(sheet, name, school, currentStudentId);
+  if (duplicateId) {
+    throw new Error(`同じ氏名・学校名の学生が既にいます: ${duplicateId}`);
+  }
+
+  if ((offerStatus === "内定" || offerStatus === "承諾") && interviewStatus !== "実施済") {
+    throw new Error("内定・承諾にする場合は、面接ステータスを「実施済」にしてください。");
+  }
+
+  if ((expectedJoinStatus === "入社予定" || expectedJoinStatus === "入社済") && offerStatus !== "内定" && offerStatus !== "承諾") {
+    throw new Error("入社予定・入社済にする場合は、内定ステータスを「内定」または「承諾」にしてください。");
+  }
+
+  if (resultStatus === "不合格" && (offerStatus === "内定" || offerStatus === "承諾")) {
+    throw new Error("選考結果が不合格の場合、内定ステータスは「未定」または「辞退」にしてください。");
+  }
+
+  if ((salonTourStatus === "予定" || interviewStatus === "予定") && !nextActionDate) {
+    throw new Error("見学予定・面接予定の場合は、次アクション日を入力してください。");
+  }
+}
+
+function findDuplicateStudentId(sheet, name, school, currentStudentId) {
+  const lastRow = sheet.getLastRow();
+  if (lastRow < 2) return "";
+
+  const rows = sheet.getRange(2, 1, lastRow - 1, 4).getValues();
+  const normalizedName = normalizeForDuplicateCheck(name);
+  const normalizedSchool = normalizeForDuplicateCheck(school);
+
+  for (let index = 0; index < rows.length; index += 1) {
+    const studentId = String(rows[index][0] || "").trim();
+    if (currentStudentId && studentId === currentStudentId) continue;
+
+    const rowName = normalizeForDuplicateCheck(rows[index][1]);
+    const rowSchool = normalizeForDuplicateCheck(rows[index][3]);
+    if (rowName === normalizedName && rowSchool === normalizedSchool) {
+      return studentId;
+    }
+  }
+
+  return "";
+}
+
+function normalizeForDuplicateCheck(value) {
+  return String(value || "").replace(/\s+/g, "").trim();
 }
 
 function ensureStudentAuditColumns(sheet) {
