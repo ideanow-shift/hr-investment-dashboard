@@ -1,4 +1,4 @@
-/**
+﻿/**
  * 人材投資管理システム - GAS WebアプリAPI
  *
  * このCode.gsは、必ず対象のGoogleスプレッドシートから
@@ -335,7 +335,8 @@ function convertSupabaseConfig_(row) {
       targetContacts: 0,
       targetInterviews: 0,
       hiringBudget: 0,
-      expectedJoiners: 0
+      expectedJoiners: 0,
+      fiscalYear: String(new Date().getFullYear())
     };
   }
 
@@ -345,7 +346,8 @@ function convertSupabaseConfig_(row) {
     targetContacts: Number(row.target_contacts) || 0,
     targetInterviews: Number(row.target_interviews) || 0,
     hiringBudget: Number(row.hiring_budget) || 0,
-    expectedJoiners: Number(row.expected_joiners) || 0
+    expectedJoiners: Number(row.expected_joiners) || 0,
+    fiscalYear: String(row.fiscal_year || new Date().getFullYear())
   };
 }
 
@@ -461,7 +463,8 @@ function getConfig() {
       targetContacts: 0,
       targetInterviews: 0,
       hiringBudget: 0,
-      expectedJoiners: 0
+      expectedJoiners: 0,
+      fiscalYear: String(new Date().getFullYear())
     };
   }
 
@@ -472,7 +475,8 @@ function getConfig() {
     targetContacts: Number(row[2]) || 0,
     targetInterviews: Number(row[3]) || 0,
     hiringBudget: Number(row[4]) || 0,
-    expectedJoiners: Number(row[5]) || 0
+    expectedJoiners: Number(row[5]) || 0,
+    fiscalYear: String(row[0] || new Date().getFullYear())
   };
 }
 
@@ -604,6 +608,97 @@ function updateStudentFromDashboard(params) {
   return updateSpreadsheetStudentFromDashboard_(params);
 }
 
+function updateSettingsFromDashboard(params) {
+  if (isSupabaseConfigured_()) {
+    return updateSupabaseSettingsFromDashboard_(params);
+  }
+
+  return updateSpreadsheetSettingsFromDashboard_(params);
+}
+
+function buildSettingsPayload_(params) {
+  const fiscalYear = sanitizeText(params.fiscalYear) || String(new Date().getFullYear());
+  const appName = sanitizeText(params.appName) || APP_NAME;
+  const payload = {
+    fiscal_year: fiscalYear,
+    app_name: appName,
+    target_hires: parseNonNegativeInteger_(params.targetHires),
+    target_contacts: parseNonNegativeInteger_(params.targetContacts),
+    target_interviews: parseNonNegativeInteger_(params.targetInterviews),
+    hiring_budget: parseNonNegativeInteger_(params.hiringBudget),
+    expected_joiners: parseNonNegativeInteger_(params.expectedJoiners),
+    is_active: true
+  };
+
+  if (!payload.fiscal_year) throw new Error("年度を入力してください。");
+  if (!payload.app_name) throw new Error("アプリ名を入力してください。");
+  return payload;
+}
+
+function parseNonNegativeInteger_(value) {
+  const number = Number(String(value || "0").replace(/,/g, ""));
+  if (!Number.isFinite(number) || number < 0) {
+    throw new Error("目標値は0以上の数値で入力してください。");
+  }
+  return Math.round(number);
+}
+
+function updateSupabaseSettingsFromDashboard_(params) {
+  const payload = buildSettingsPayload_(params);
+  const existingRows = getSupabaseRows_(
+    "talent_investment_settings",
+    `fiscal_year=eq.${encodeURIComponent(payload.fiscal_year)}&corporation_id=is.null&limit=1`
+  );
+  const existing = existingRows[0] || null;
+  const savedRows = existing
+    ? requestSupabase_("patch", "talent_investment_settings", `id=eq.${existing.id}`, payload)
+    : requestSupabase_("post", "talent_investment_settings", "", payload);
+  const saved = savedRows[0] || existing || payload;
+
+  requestSupabase_("post", "talent_operation_logs", "", {
+    action: "更新",
+    table_name: "talent_investment_settings",
+    record_id: saved.id || null,
+    student_id: null,
+    student_code: "",
+    student_name_snapshot: "",
+    detail: `ダッシュボードから年度目標を更新: ${payload.fiscal_year}`,
+    before_data: existing,
+    after_data: saved
+  });
+
+  return {
+    ok: true,
+    action: "updateSettings",
+    fiscalYear: payload.fiscal_year,
+    settingId: saved.id || ""
+  };
+}
+
+function updateSpreadsheetSettingsFromDashboard_(params) {
+  const payload = buildSettingsPayload_(params);
+  const sheet = getRequiredSheet("年度設定");
+  const values = sheet.getDataRange().getValues();
+  const rowIndex = Math.max(values.findIndex((row, index) => index > 0 && String(row[0] || "") === payload.fiscal_year) + 1, 0);
+  const targetRow = rowIndex || Math.max(sheet.getLastRow() + 1, 2);
+  const operator = getOperatorName();
+
+  sheet.getRange(targetRow, 1, 1, 6).setValues([[
+    payload.fiscal_year,
+    payload.target_hires,
+    payload.target_contacts,
+    payload.target_interviews,
+    payload.hiring_budget,
+    payload.expected_joiners
+  ]]);
+  appendOperationLog("更新", "年度設定", payload.fiscal_year, payload.app_name, operator, "ダッシュボードから年度目標を更新");
+
+  return {
+    ok: true,
+    action: "updateSettings",
+    fiscalYear: payload.fiscal_year
+  };
+}
 function addSpreadsheetStudentFromDashboard_(params) {
   const sheet = getWritableStudentSheet(params.sheetName);
   ensureStudentAuditColumns(sheet);
@@ -1310,3 +1405,4 @@ function formatDateTimeValue(value) {
   }
   return String(value || "");
 }
+

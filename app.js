@@ -1,4 +1,4 @@
-const GAS_API_URL = "https://script.google.com/macros/s/AKfycbx0X9DvO6zydd8txe_Mgme1COTfltp7ZxueJyrIPQsJSwWCvbVrM2otmlgarPTDmU5iWg/exec";
+﻿const GAS_API_URL = "https://script.google.com/macros/s/AKfycbx0X9DvO6zydd8txe_Mgme1COTfltp7ZxueJyrIPQsJSwWCvbVrM2otmlgarPTDmU5iWg/exec";
 
 let dashboardConfig = {
   appName: "NOV Talent",
@@ -292,7 +292,8 @@ function applyDashboardData(data) {
       targetContacts: Number(data.config.targetContacts) || dashboardConfig.targetContacts || 0,
       targetInterviews: Number(data.config.targetInterviews) || dashboardConfig.targetInterviews || 0,
       hiringBudget: Number(data.config.hiringBudget) || 0,
-      expectedJoiners: Number(data.config.expectedJoiners) || 0
+      expectedJoiners: Number(data.config.expectedJoiners) || 0,
+      fiscalYear: String(data.config.fiscalYear || dashboardConfig.fiscalYear || new Date().getFullYear())
     };
   }
 
@@ -931,6 +932,170 @@ function buildStudentSaveConfirmMessage(payload, mode) {
   ].join("\n");
 }
 
+function renderSettingsNumberField(name, label, value, unit, helpText) {
+  return `
+    <label>
+      <span>${escapeHtml(label)}</span>
+      <input name="${escapeHtml(name)}" type="number" min="0" step="1" value="${Number(value) || 0}" inputmode="numeric">
+      <small>${escapeHtml(helpText || unit || "")}</small>
+    </label>
+  `;
+}
+
+function renderSettingsForm() {
+  return `
+    <form class="student-edit-form settings-edit-form" data-settings-form>
+      <div class="student-form-heading">
+        <div>
+          <h3>年度目標を編集</h3>
+          <p>Supabaseの年度設定に保存します。保存後、サマリーKPIへ反映されます。</p>
+        </div>
+      </div>
+      <div class="student-form-guide">
+        <strong>入力のポイント</strong>
+        <ul>
+          <li>年度目標は経営判断の基準値です。月次確認前に最新化してください。</li>
+          <li>採用目標・接触目標・面接成約目標は、サマリーの達成率計算に使います。</li>
+          <li>保存後は右上バッジがGAS Connectedの状態で再取得されます。</li>
+        </ul>
+      </div>
+      <div class="student-form-grid">
+        <label>
+          <span>年度</span>
+          <input name="fiscalYear" value="${escapeHtml(dashboardConfig.fiscalYear || String(new Date().getFullYear()))}" placeholder="例：2026">
+        </label>
+        <label>
+          <span>アプリ名</span>
+          <input name="appName" value="${escapeHtml(dashboardConfig.appName || "NOV Talent")}" placeholder="NOV Talent">
+        </label>
+        ${renderSettingsNumberField("targetHires", "採用目標人数", dashboardConfig.targetHires, "名", "今年度の内定・採用目標")}
+        ${renderSettingsNumberField("targetContacts", "接触人数目標", dashboardConfig.targetContacts, "名", "フェア・学校接点の目標")}
+        ${renderSettingsNumberField("targetInterviews", "面接成約目標", dashboardConfig.targetInterviews, "件", "面接化の目標")}
+        ${renderSettingsNumberField("hiringBudget", "採用予算", dashboardConfig.hiringBudget, "円", "年間の人材投資予算")}
+        ${renderSettingsNumberField("expectedJoiners", "入社予定数", dashboardConfig.expectedJoiners, "名", "入社準備・配属計画の目安")}
+      </div>
+      <div class="student-form-actions">
+        <p class="student-form-status" aria-live="polite"></p>
+        <button class="refresh-button" type="submit">目標を保存</button>
+      </div>
+    </form>
+  `;
+}
+
+function getSettingsFormPayload(form) {
+  const formData = new FormData(form);
+  const toNumber = (name) => Number(String(formData.get(name) || "0").replace(/,/g, "")) || 0;
+  return {
+    fiscalYear: String(formData.get("fiscalYear") || "").trim(),
+    appName: String(formData.get("appName") || "").trim(),
+    targetHires: toNumber("targetHires"),
+    targetContacts: toNumber("targetContacts"),
+    targetInterviews: toNumber("targetInterviews"),
+    hiringBudget: toNumber("hiringBudget"),
+    expectedJoiners: toNumber("expectedJoiners")
+  };
+}
+
+function getSettingsValidationErrors(payload) {
+  const errors = [];
+  if (!payload.fiscalYear) errors.push("年度を入力してください。");
+  if (!payload.appName) errors.push("アプリ名を入力してください。");
+  [
+    ["採用目標人数", payload.targetHires],
+    ["接触人数目標", payload.targetContacts],
+    ["面接成約目標", payload.targetInterviews],
+    ["採用予算", payload.hiringBudget],
+    ["入社予定数", payload.expectedJoiners]
+  ].forEach(([label, value]) => {
+    if (!Number.isFinite(value) || value < 0) errors.push(`${label}は0以上の数値で入力してください。`);
+  });
+  return errors;
+}
+
+function buildSettingsSaveConfirmMessage(payload) {
+  return [
+    "年度目標を保存します。",
+    "",
+    `年度：${payload.fiscalYear}`,
+    `採用目標人数：${formatNumber.format(payload.targetHires)}名`,
+    `接触人数目標：${formatNumber.format(payload.targetContacts)}名`,
+    `面接成約目標：${formatNumber.format(payload.targetInterviews)}件`,
+    `採用予算：${formatCurrency.format(payload.hiringBudget)}`,
+    `入社予定数：${formatNumber.format(payload.expectedJoiners)}名`,
+    "",
+    "保存してよろしいですか？"
+  ].join("\n");
+}
+
+function openSettingsModal() {
+  const modal = document.getElementById("studentModal");
+  const content = document.getElementById("studentModalContent");
+
+  content.innerHTML = `
+    <div class="modal-header">
+      <div>
+        <p class="section-kicker">Investment Settings</p>
+        <h2 id="studentModalTitle">年度目標編集</h2>
+        <p>採用目標・接触人数目標・面接成約目標・予算をダッシュボードから更新します。</p>
+      </div>
+    </div>
+    ${renderSettingsForm()}
+  `;
+
+  modal.classList.add("is-open");
+  modal.setAttribute("aria-hidden", "false");
+  document.body.classList.add("modal-open");
+  setupRenderedSettingsForm();
+}
+
+function setupRenderedSettingsForm() {
+  const form = document.querySelector("[data-settings-form]");
+  if (!form) return;
+
+  form.addEventListener("submit", async (event) => {
+    event.preventDefault();
+    const submitButton = form.querySelector("button[type='submit']");
+    const status = form.querySelector(".student-form-status");
+    const payload = getSettingsFormPayload(form);
+    const validationErrors = getSettingsValidationErrors(payload);
+
+    if (validationErrors.length) {
+      status.classList.add("is-error");
+      status.innerHTML = validationErrors.map((error) => `・${escapeHtml(error)}`).join("<br>");
+      return;
+    }
+
+    if (!window.confirm(buildSettingsSaveConfirmMessage(payload))) {
+      status.classList.remove("is-error");
+      status.textContent = "保存をキャンセルしました。";
+      return;
+    }
+
+    try {
+      submitButton.disabled = true;
+      status.classList.remove("is-error");
+      status.textContent = "保存中...";
+      const result = await callGasAction("updateSettings", payload);
+      if (!result || result.ok === false || result.error) {
+        throw new Error(result?.error || "保存に失敗しました");
+      }
+      status.textContent = "保存しました。データを再取得しています...";
+      closeStudentModal();
+      await refreshDashboardData();
+    } catch (error) {
+      status.classList.add("is-error");
+      status.textContent = `保存できませんでした：${error.message}`;
+      submitButton.disabled = false;
+    }
+  });
+}
+
+function setupSettingsModal() {
+  const settingsButton = document.getElementById("settingsEditButton");
+  if (settingsButton) {
+    settingsButton.addEventListener("click", openSettingsModal);
+  }
+}
 function getStudentFormPayload(form) {
   const formData = new FormData(form);
   return {
@@ -1457,8 +1622,10 @@ function updateDataSourceStatus(isConnected) {
 async function initDashboard() {
   setupTabs();
   setupStudentModal();
+  setupSettingsModal();
   setupDataRefresh();
   await refreshDashboardData();
 }
 
 document.addEventListener("DOMContentLoaded", initDashboard);
+
