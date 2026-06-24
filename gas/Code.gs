@@ -49,11 +49,13 @@ function createResponse(data, e) {
 
 function getDashboardData() {
   const students = getStudentData();
+  const studentCohorts = getStudentCohorts();
   return {
     config: getConfig(),
     fairs: getFairData(),
     schools: getSchoolData(),
     students: students,
+    studentCohorts: studentCohorts,
     studentSummary: buildStudentSummary(students)
   };
 }
@@ -116,12 +118,49 @@ function getSchoolData() {
 }
 
 function getStudentData() {
-  const sheet = getRequiredSheet("学生管理");
+  return getStudentDataFromSheet("学生管理", "27卒");
+}
+
+function getStudentCohorts() {
+  const cohorts = [];
+  const cohortSheets = [
+    { key: "27", label: "27卒", sheetName: "学生管理_27卒" },
+    { key: "28", label: "28卒", sheetName: "学生管理_28卒" },
+    { key: "intern", label: "サロン実習", sheetName: "学生管理_サロン実習" },
+    { key: "all", label: "全件参考", sheetName: "学生管理_全件参考" }
+  ];
+
+  cohortSheets.forEach((cohort) => {
+    if (getOptionalSheet(cohort.sheetName)) {
+      cohorts.push({
+        key: cohort.key,
+        label: cohort.label,
+        sheetName: cohort.sheetName,
+        students: getStudentDataFromSheet(cohort.sheetName, cohort.label)
+      });
+    }
+  });
+
+  if (cohorts.length === 0) {
+    cohorts.push({
+      key: "standard",
+      label: "学生管理",
+      sheetName: "学生管理",
+      students: getStudentDataFromSheet("学生管理", "学生管理")
+    });
+  }
+
+  return cohorts;
+}
+
+function getStudentDataFromSheet(sheetName, cohortLabel) {
+  const sheet = getRequiredSheet(sheetName);
   const values = sheet.getDataRange().getValues();
   const rows = values.slice(1).filter((row) => row[0]);
 
   return rows.map((row) => ({
     studentId: String(row[0] || ""),
+    cohort: String(cohortLabel || ""),
     name: String(row[1] || ""),
     gender: String(row[2] || ""),
     school: String(row[3] || ""),
@@ -333,18 +372,29 @@ function applySheetRules(ss) {
   const schoolSheet = ss.getSheetByName("学校別分析");
   schoolSheet.getRange("B2:G1000").setNumberFormat("0");
 
-  const studentSheet = ss.getSheetByName("学生管理");
-  studentSheet.getRange("G2:G1000").setNumberFormat("yyyy/mm/dd");
-  studentSheet.getRange("P2:P1000").setNumberFormat("yyyy/mm/dd");
+  [
+    "学生管理",
+    "学生管理_27卒",
+    "学生管理_28卒",
+    "学生管理_サロン実習",
+    "学生管理_全件参考"
+  ].forEach((sheetName) => {
+    const studentSheet = ss.getSheetByName(sheetName);
+    if (!studentSheet) return;
 
-  setDropdown(studentSheet, "C2:C1000", ["男性", "女性", "その他", "未回答"]);
-  setDropdown(studentSheet, "E2:E1000", ["1年", "2年", "既卒", "その他"]);
-  setDropdown(studentSheet, "H2:H1000", ["未登録", "登録済"]);
-  setDropdown(studentSheet, "I2:I1000", ["未設定", "予定", "実施済", "キャンセル"]);
-  setDropdown(studentSheet, "J2:J1000", ["未設定", "予定", "実施済", "キャンセル"]);
-  setDropdown(studentSheet, "K2:K1000", ["未定", "合格", "不合格", "辞退"]);
-  setDropdown(studentSheet, "L2:L1000", ["未定", "内定", "承諾", "辞退"]);
-  setDropdown(studentSheet, "M2:M1000", ["未定", "入社予定", "入社済", "辞退"]);
+    formatBasicSheet(studentSheet, 17);
+    studentSheet.getRange("G2:G1000").setNumberFormat("yyyy/mm/dd");
+    studentSheet.getRange("P2:P1000").setNumberFormat("yyyy/mm/dd");
+
+    setDropdown(studentSheet, "C2:C1000", ["男性", "女性", "その他", "未回答"]);
+    setDropdown(studentSheet, "E2:E1000", ["1年", "2年", "既卒", "その他"]);
+    setDropdown(studentSheet, "H2:H1000", ["未登録", "登録済"]);
+    setDropdown(studentSheet, "I2:I1000", ["未設定", "予定", "実施済", "キャンセル"]);
+    setDropdown(studentSheet, "J2:J1000", ["未設定", "予定", "実施済", "キャンセル"]);
+    setDropdown(studentSheet, "K2:K1000", ["未定", "合格", "不合格", "辞退"]);
+    setDropdown(studentSheet, "L2:L1000", ["未定", "内定", "承諾", "辞退"]);
+    setDropdown(studentSheet, "M2:M1000", ["未定", "入社予定", "入社済", "辞退"]);
+  });
 }
 
 function formatBasicSheet(sheet, columnCount) {
@@ -381,6 +431,10 @@ function getRequiredSheet(sheetName) {
     throw new Error(`シート「${sheetName}」が見つかりません。setupSampleSheets() を実行してください。`);
   }
   return sheet;
+}
+
+function getOptionalSheet(sheetName) {
+  return SpreadsheetApp.getActiveSpreadsheet().getSheetByName(sheetName);
 }
 
 function formatDateValue(value) {

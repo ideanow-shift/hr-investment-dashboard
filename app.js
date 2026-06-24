@@ -207,6 +207,10 @@ let studentData = [
   }
 ];
 
+let studentCohorts = [
+  { key: "standard", label: "学生管理", students: studentData }
+];
+let activeStudentCohort = "standard";
 let studentSummary = buildStudentSummary(studentData);
 
 async function fetchDashboardData() {
@@ -302,29 +306,55 @@ function applyDashboardData(data) {
     }));
   }
 
-  if (Array.isArray(data.students)) {
-    studentData = data.students.map((student) => ({
-      studentId: String(student.studentId || ""),
-      name: String(student.name || ""),
-      gender: String(student.gender || ""),
-      school: String(student.school || ""),
-      grade: String(student.grade || ""),
-      source: String(student.source || ""),
-      contactDate: String(student.contactDate || ""),
-      lineStatus: String(student.lineStatus || ""),
-      salonTourStatus: String(student.salonTourStatus || ""),
-      interviewStatus: String(student.interviewStatus || ""),
-      resultStatus: String(student.resultStatus || ""),
-      offerStatus: String(student.offerStatus || ""),
-      expectedJoinStatus: String(student.expectedJoinStatus || ""),
-      owner: String(student.owner || ""),
-      nextAction: String(student.nextAction || ""),
-      nextActionDate: String(student.nextActionDate || ""),
-      memo: String(student.memo || "")
-    }));
+  if (Array.isArray(data.studentCohorts) && data.studentCohorts.length) {
+    studentCohorts = data.studentCohorts.map((cohort) => ({
+      key: String(cohort.key || cohort.label || ""),
+      label: String(cohort.label || cohort.sheetName || "学生管理"),
+      students: Array.isArray(cohort.students) ? cohort.students.map(normalizeStudent) : []
+    })).filter((cohort) => cohort.key);
+    if (!studentCohorts.some((cohort) => cohort.key === activeStudentCohort)) {
+      activeStudentCohort = studentCohorts[0]?.key || "standard";
+    }
+    studentData = getActiveStudents();
+  } else if (Array.isArray(data.students)) {
+    studentData = data.students.map(normalizeStudent);
+    studentCohorts = [{ key: "standard", label: "学生管理", students: studentData }];
+    activeStudentCohort = "standard";
   }
 
-  studentSummary = data.studentSummary || buildStudentSummary(studentData);
+  studentSummary = buildStudentSummary(getActiveStudents());
+}
+
+function normalizeStudent(student) {
+  return {
+    studentId: String(student.studentId || ""),
+    cohort: String(student.cohort || ""),
+    name: String(student.name || ""),
+    gender: String(student.gender || ""),
+    school: String(student.school || ""),
+    grade: String(student.grade || ""),
+    source: String(student.source || ""),
+    contactDate: String(student.contactDate || ""),
+    lineStatus: String(student.lineStatus || ""),
+    salonTourStatus: String(student.salonTourStatus || ""),
+    interviewStatus: String(student.interviewStatus || ""),
+    resultStatus: String(student.resultStatus || ""),
+    offerStatus: String(student.offerStatus || ""),
+    expectedJoinStatus: String(student.expectedJoinStatus || ""),
+    owner: String(student.owner || ""),
+    nextAction: String(student.nextAction || ""),
+    nextActionDate: String(student.nextActionDate || ""),
+    memo: String(student.memo || "")
+  };
+}
+
+function getActiveStudents() {
+  const activeCohort = studentCohorts.find((cohort) => cohort.key === activeStudentCohort) || studentCohorts[0];
+  return activeCohort ? activeCohort.students : studentData;
+}
+
+function getActiveCohortLabel() {
+  return (studentCohorts.find((cohort) => cohort.key === activeStudentCohort) || studentCohorts[0])?.label || "学生管理";
 }
 
 const formatNumber = new Intl.NumberFormat("ja-JP");
@@ -611,7 +641,7 @@ function renderFairDetail(fair) {
     return;
   }
 
-  const relatedStudents = studentData.filter((student) => student.source === fair.name);
+  const relatedStudents = getActiveStudents().filter((student) => student.source === fair.name);
   const investmentDecision = fair.rank.rank === "S" || fair.rank.rank === "A"
     ? "次年度も参加候補。事前告知と見学予約導線を強化すると、さらに投資効果が伸びます。"
     : fair.rank.rank === "D"
@@ -682,7 +712,7 @@ function renderSchoolDetail(school) {
   }
 
   const promise = getSchoolPromise(school);
-  const relatedStudents = studentData.filter((student) => student.school === school.name);
+  const relatedStudents = getActiveStudents().filter((student) => student.school === school.name);
   const tourRate = safeDivide(school.salonTours, school.contacts);
   const offerRate = safeDivide(school.offers, school.contacts);
 
@@ -747,6 +777,7 @@ function generateActionCards() {
 }
 
 function renderStudentSummary() {
+  studentSummary = buildStudentSummary(getActiveStudents());
   const summaryItems = [
     { label: "要フォロー", value: studentSummary.needsFollowUp || 0, sub: "次アクション日未設定" },
     { label: "見学予定者", value: studentSummary.salonTourScheduled || 0, sub: "サロン見学につなげる学生" },
@@ -766,8 +797,35 @@ function renderStudentSummary() {
   `).join("");
 }
 
+function renderStudentCohortTabs() {
+  const tabs = document.getElementById("studentCohortTabs");
+  if (!tabs) return;
+
+  if (studentCohorts.length <= 1) {
+    tabs.innerHTML = "";
+    return;
+  }
+
+  tabs.innerHTML = studentCohorts.map((cohort) => `
+    <button class="student-cohort-tab ${cohort.key === activeStudentCohort ? "active" : ""}" type="button" data-student-cohort="${cohort.key}">
+      ${cohort.label}<span>${formatNumber.format(cohort.students.length)}</span>
+    </button>
+  `).join("");
+
+  tabs.querySelectorAll("[data-student-cohort]").forEach((button) => {
+    button.addEventListener("click", () => {
+      activeStudentCohort = button.dataset.studentCohort;
+      studentData = getActiveStudents();
+      renderStudentSummary();
+      renderStudentActions();
+      renderStudentList();
+      renderStudentCohortTabs();
+    });
+  });
+}
+
 function renderStudentActions() {
-  const actionStudents = studentData
+  const actionStudents = getActiveStudents()
     .filter((student) => student.nextAction)
     .sort((a, b) => {
       if (!a.nextActionDate) return 1;
@@ -815,7 +873,7 @@ function renderStudentFilters(activeKey = "all") {
   const filterWrap = document.getElementById("studentFilters");
 
   filterWrap.innerHTML = filters.map((filter) => {
-    const count = studentData.filter(filter.predicate).length;
+    const count = getActiveStudents().filter(filter.predicate).length;
     return `
       <button class="student-filter ${filter.key === activeKey ? "active" : ""}" type="button" data-student-filter="${filter.key}">
         ${filter.label}<span>${count}</span>
@@ -842,7 +900,7 @@ function renderStudentList(activeKey = "all") {
 
   const filters = getStudentFilters();
   const activeFilter = filters.find((filter) => filter.key === activeKey) || filters[0];
-  const students = studentData
+  const students = getActiveStudents()
     .filter(activeFilter.predicate)
     .sort((a, b) => {
       if (!a.nextActionDate && b.nextActionDate) return 1;
@@ -850,7 +908,7 @@ function renderStudentList(activeKey = "all") {
       return (a.nextActionDate || "9999-12-31").localeCompare(b.nextActionDate || "9999-12-31");
     });
 
-  document.getElementById("studentFilterCount").textContent = `${activeFilter.label}：${students.length}名`;
+  document.getElementById("studentFilterCount").textContent = `${getActiveCohortLabel()} / ${activeFilter.label}：${students.length}名`;
 
   if (students.length === 0) {
     document.getElementById("studentList").innerHTML = `
@@ -888,7 +946,7 @@ function renderStudentList(activeKey = "all") {
 
   document.querySelectorAll("[data-student-id]").forEach((card) => {
     card.addEventListener("click", () => {
-      const selectedStudent = studentData.find((student) => student.studentId === card.dataset.studentId);
+      const selectedStudent = getActiveStudents().find((student) => student.studentId === card.dataset.studentId);
       openStudentModal(selectedStudent);
     });
   });
@@ -985,6 +1043,7 @@ function renderDashboard(isConnected) {
   renderFairTable();
   renderSchools();
   generateActionCards();
+  renderStudentCohortTabs();
   renderStudentSummary();
   renderStudentActions();
   renderStudentList();
