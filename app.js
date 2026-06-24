@@ -512,9 +512,58 @@ function buildMetrics() {
   };
 }
 
+function getOpenFollowups(student) {
+  return (Array.isArray(student.followups) ? student.followups : [])
+    .filter((followup) => !["完了", "不要"].includes(followup.status || "未対応"));
+}
+
+function hasOpenFollowup(student) {
+  return getOpenFollowups(student).length > 0;
+}
+
+function getActionSortDate(value) {
+  return value || "9999-12-31";
+}
+
+function getStudentActionItems(student) {
+  const items = [];
+  if (student.nextAction) {
+    items.push({
+      student,
+      title: student.nextAction,
+      dueDate: student.nextActionDate || "",
+      status: student.nextActionDate ? "予定" : "日程未設定",
+      sourceLabel: "学生管理",
+      isFollowup: false
+    });
+  }
+
+  getOpenFollowups(student).forEach((followup) => {
+    items.push({
+      student,
+      title: followup.actionTitle || "フォロー内容未設定",
+      dueDate: followup.dueDate || "",
+      status: followup.status || "未対応",
+      sourceLabel: "フォロー履歴",
+      isFollowup: true
+    });
+  });
+
+  return items;
+}
+
+function getPrimaryStudentAction(student) {
+  const items = getStudentActionItems(student).sort((a, b) => {
+    const dateCompare = getActionSortDate(a.dueDate).localeCompare(getActionSortDate(b.dueDate));
+    if (dateCompare !== 0) return dateCompare;
+    return Number(b.isFollowup) - Number(a.isFollowup);
+  });
+  return items[0] || null;
+}
+
 function buildStudentSummary(students) {
   return students.reduce((summary, student) => {
-    if (student.nextAction && !student.nextActionDate) summary.needsFollowUp += 1;
+    if ((student.nextAction && !student.nextActionDate) || hasOpenFollowup(student)) summary.needsFollowUp += 1;
     if (student.salonTourStatus === "予定") summary.salonTourScheduled += 1;
     if (student.interviewStatus === "予定") summary.interviewScheduled += 1;
     if (student.offerStatus === "内定") summary.offered += 1;
@@ -1191,7 +1240,7 @@ function generateActionCards() {
 function renderStudentSummary() {
   studentSummary = buildStudentSummary(getManagedStudents());
   const summaryItems = [
-    { label: "要フォロー", value: studentSummary.needsFollowUp || 0, sub: "次アクション日未設定" },
+    { label: "要フォロー", value: studentSummary.needsFollowUp || 0, sub: "未対応・対応中フォロー" },
     { label: "見学予定者", value: studentSummary.salonTourScheduled || 0, sub: "サロン見学につなげる学生" },
     { label: "面接予定者", value: studentSummary.interviewScheduled || 0, sub: "選考フォロー対象" },
     { label: "内定者", value: studentSummary.offered || 0, sub: "内定後フォロー対象" },
@@ -1800,31 +1849,32 @@ function setupRenderedStudentForm() {
 }
 
 function renderStudentActions() {
-  const actionStudents = getManagedStudents()
-    .filter((student) => student.nextAction)
+  const actionItems = getManagedStudents()
+    .flatMap(getStudentActionItems)
     .sort((a, b) => {
-      if (!a.nextActionDate) return 1;
-      if (!b.nextActionDate) return -1;
-      return a.nextActionDate.localeCompare(b.nextActionDate);
+      const dateCompare = getActionSortDate(a.dueDate).localeCompare(getActionSortDate(b.dueDate));
+      if (dateCompare !== 0) return dateCompare;
+      return Number(b.isFollowup) - Number(a.isFollowup);
     })
     .slice(0, 8);
 
-  if (actionStudents.length === 0) {
+  if (actionItems.length === 0) {
     document.getElementById("studentActionList").innerHTML = `
       <div class="student-empty">次アクションが登録されている学生はいません。</div>
     `;
     return;
   }
 
-  document.getElementById("studentActionList").innerHTML = actionStudents.map((student) => `
+  document.getElementById("studentActionList").innerHTML = actionItems.map((item) => `
     <article class="student-action-item">
       <div>
-        <strong>${student.name}</strong>
-        <p>${student.school} / ${student.source}</p>
+        <strong>${escapeHtml(item.student.name || "氏名未設定")}</strong>
+        <p>${escapeHtml(item.student.school || "学校未設定")} / ${escapeHtml(item.student.source || "接点未設定")} / ${escapeHtml(item.sourceLabel)}</p>
       </div>
       <div class="student-action-meta">
-        <span>${student.nextActionDate || "日付未設定"}</span>
-        <b>${student.nextAction}</b>
+        <span>${escapeHtml(item.dueDate || "日付未設定")}</span>
+        <b>${escapeHtml(item.title)}</b>
+        <small>${escapeHtml(item.status)}</small>
       </div>
     </article>
   `).join("");
@@ -1833,7 +1883,7 @@ function renderStudentActions() {
 function getStudentFilters() {
   return [
     { key: "all", label: "すべて", predicate: () => true },
-    { key: "needsFollowUp", label: "要フォロー", predicate: (student) => student.nextAction && !student.nextActionDate },
+    { key: "needsFollowUp", label: "要フォロー", predicate: (student) => (student.nextAction && !student.nextActionDate) || hasOpenFollowup(student) },
     { key: "salonTour", label: "見学予定", predicate: (student) => student.salonTourStatus === "予定" },
     { key: "interview", label: "面接予定", predicate: (student) => student.interviewStatus === "予定" },
     { key: "offered", label: "内定", predicate: (student) => student.offerStatus === "内定" },
@@ -1866,7 +1916,7 @@ function renderStudentFilters(activeKey = "all") {
 }
 
 function getStudentPriority(student) {
-  if (student.nextAction && !student.nextActionDate) return { label: "要日程設定", className: "priority-high" };
+  if ((student.nextAction && !student.nextActionDate) || hasOpenFollowup(student)) return { label: "要フォロー", className: "priority-high" };
   if (student.salonTourStatus === "予定" || student.interviewStatus === "予定") return { label: "予定フォロー", className: "priority-middle" };
   if (student.offerStatus === "内定" || student.expectedJoinStatus === "入社予定") return { label: "内定後フォロー", className: "priority-good" };
   return { label: "通常フォロー", className: "priority-low" };
@@ -1881,9 +1931,9 @@ function renderStudentList(activeKey = "all") {
   const students = sourceStudents
     .filter(activeFilter.predicate)
     .sort((a, b) => {
-      if (!a.nextActionDate && b.nextActionDate) return 1;
-      if (a.nextActionDate && !b.nextActionDate) return -1;
-      return (a.nextActionDate || "9999-12-31").localeCompare(b.nextActionDate || "9999-12-31");
+      const aAction = getPrimaryStudentAction(a);
+      const bAction = getPrimaryStudentAction(b);
+      return getActionSortDate(aAction?.dueDate).localeCompare(getActionSortDate(bAction?.dueDate));
     });
 
   document.getElementById("studentFilterCount").textContent = `${getActiveCohortLabel()} / ${activeFilter.label}：${students.length}名`;
@@ -1897,6 +1947,7 @@ function renderStudentList(activeKey = "all") {
 
   document.getElementById("studentList").innerHTML = students.map((student) => {
     const priority = getStudentPriority(student);
+    const primaryAction = getPrimaryStudentAction(student);
 
     return `
       <article class="student-card" data-student-id="${student.studentId}">
@@ -1915,9 +1966,9 @@ function renderStudentList(activeKey = "all") {
           </div>
         </div>
         <div class="student-next-action">
-          <span>${student.nextActionDate || "日付未設定"}</span>
-          <strong>${student.nextAction || "次アクション未設定"}</strong>
-          <small>${student.source || "接点未設定"} / 担当：${student.owner || "未設定"}</small>
+          <span>${escapeHtml(primaryAction?.dueDate || "日付未設定")}</span>
+          <strong>${escapeHtml(primaryAction?.title || "次アクション未設定")}</strong>
+          <small>${escapeHtml(primaryAction?.sourceLabel || student.source || "接点未設定")} / 担当：${escapeHtml(student.owner || "未設定")}</small>
         </div>
       </article>
     `;
@@ -2158,6 +2209,8 @@ async function initDashboard() {
 }
 
 document.addEventListener("DOMContentLoaded", initDashboard);
+
+
 
 
 
