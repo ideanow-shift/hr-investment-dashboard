@@ -211,6 +211,15 @@ v0.1
 
 - Firebase連携
 - 認証機能
+- Supabase DB移行
+
+Supabase移行に関する設計資料は以下にあります。
+
+```text
+Supabase移行設計書.md
+supabase/schema.sql
+supabase/migration_plan.md
+```
 
 ## 今後追加予定の機能
 
