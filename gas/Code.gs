@@ -337,10 +337,16 @@ function normalizeUuid_(value) {
 }
 
 function getDashboardOperator_(params) {
+  const actorEmployeeId = (params && params.actorEmployeeId) || (params && params.operatorEmployeeId);
+  const actorEmail = sanitizeText(params && params.actorEmail);
+  const actorName = sanitizeText((params && params.actorName) || (params && params.operatorName));
+  const actorEmployeeCode = sanitizeText((params && params.actorEmployeeNumber) || (params && params.operatorEmployeeCode));
+  const displayName = actorEmail || (actorName && actorEmployeeCode ? `${actorName} (${actorEmployeeCode})` : actorName);
+
   return {
-    employeeId: normalizeUuid_(params && params.operatorEmployeeId),
-    name: sanitizeText(params && params.operatorName) || getOperatorName(),
-    employeeCode: sanitizeText(params && params.operatorEmployeeCode)
+    employeeId: normalizeUuid_(actorEmployeeId),
+    name: displayName || getOperatorName(),
+    employeeCode: actorEmployeeCode
   };
 }
 
@@ -731,6 +737,7 @@ function parseNonNegativeInteger_(value) {
 }
 
 function updateSupabaseSettingsFromDashboard_(params) {
+  const operator = getDashboardOperator_(params);
   const payload = buildSettingsPayload_(params);
   const existingRows = getSupabaseRows_(
     "talent_investment_settings",
@@ -751,7 +758,8 @@ function updateSupabaseSettingsFromDashboard_(params) {
     student_name_snapshot: "",
     detail: `ダッシュボードから年度目標を更新: ${payload.fiscal_year}`,
     before_data: existing,
-    after_data: saved
+    after_data: saved,
+    actor_employee_id: operator.employeeId || null
   });
 
   return {
@@ -768,7 +776,7 @@ function updateSpreadsheetSettingsFromDashboard_(params) {
   const values = sheet.getDataRange().getValues();
   const rowIndex = Math.max(values.findIndex((row, index) => index > 0 && String(row[0] || "") === payload.fiscal_year) + 1, 0);
   const targetRow = rowIndex || Math.max(sheet.getLastRow() + 1, 2);
-  const operator = getOperatorName();
+  const operator = getDashboardOperator_(params).name;
 
   sheet.getRange(targetRow, 1, 1, 6).setValues([[
     payload.fiscal_year,
@@ -948,16 +956,18 @@ function setFairSheetRow_(sheet, rowNumber, payload) {
 
 function addSpreadsheetFairFromDashboard_(params) {
   const payload = buildFairPayload_(params);
+  const operator = getDashboardOperator_(params).name;
   const sheet = getFairSheet_();
   if (findFairRow_(sheet, payload.name)) throw new Error(`同じフェア名が既にあります: ${payload.name}`);
   const rowNumber = Math.max(sheet.getLastRow() + 1, 2);
   setFairSheetRow_(sheet, rowNumber, payload);
-  appendOperationLog("追加", "フェア実績", payload.name, payload.name, getOperatorName(), "ダッシュボードからフェアを追加");
+  appendOperationLog("追加", "フェア実績", payload.name, payload.name, operator, "ダッシュボードからフェアを追加");
   return { ok: true, action: "addFair", fairName: payload.name };
 }
 
 function updateSpreadsheetFairFromDashboard_(params) {
   const payload = buildFairPayload_(params);
+  const operator = getDashboardOperator_(params).name;
   const sheet = getFairSheet_();
   const originalName = sanitizeText(params.originalName) || payload.name;
   const rowNumber = findFairRow_(sheet, originalName);
@@ -965,7 +975,7 @@ function updateSpreadsheetFairFromDashboard_(params) {
   const duplicateRow = findFairRow_(sheet, payload.name);
   if (duplicateRow && duplicateRow !== rowNumber) throw new Error(`同じフェア名が既にあります: ${payload.name}`);
   setFairSheetRow_(sheet, rowNumber, payload);
-  appendOperationLog("更新", "フェア実績", payload.name, payload.name, getOperatorName(), "ダッシュボードからフェアを更新");
+  appendOperationLog("更新", "フェア実績", payload.name, payload.name, operator, "ダッシュボードからフェアを更新");
   return { ok: true, action: "updateFair", fairName: payload.name };
 }
 function addSchoolFromDashboard(params) {
@@ -1077,15 +1087,17 @@ function findSchoolRow_(sheet, schoolName) {
 
 function addSpreadsheetSchoolFromDashboard_(params) {
   const payload = buildSchoolPayload_(params);
+  const operator = getDashboardOperator_(params).name;
   const sheet = getSchoolSheet_();
   if (findSchoolRow_(sheet, payload.name)) throw new Error(`同じ学校名が既にあります: ${payload.name}`);
   sheet.appendRow([payload.name, 0, 0, 0, 0, 0, 0]);
-  appendOperationLog("追加", "学校別分析", payload.name, payload.name, getOperatorName(), "ダッシュボードから学校を追加");
+  appendOperationLog("追加", "学校別分析", payload.name, payload.name, operator, "ダッシュボードから学校を追加");
   return { ok: true, action: "addSchool", schoolName: payload.name };
 }
 
 function updateSpreadsheetSchoolFromDashboard_(params) {
   const payload = buildSchoolPayload_(params);
+  const operator = getDashboardOperator_(params).name;
   const sheet = getSchoolSheet_();
   const originalName = sanitizeText(params.originalName) || payload.name;
   const rowNumber = findSchoolRow_(sheet, originalName);
@@ -1093,7 +1105,7 @@ function updateSpreadsheetSchoolFromDashboard_(params) {
   const duplicateRow = findSchoolRow_(sheet, payload.name);
   if (duplicateRow && duplicateRow !== rowNumber) throw new Error(`同じ学校名が既にあります: ${payload.name}`);
   sheet.getRange(rowNumber, 1).setValue(payload.name);
-  appendOperationLog("更新", "学校別分析", payload.name, payload.name, getOperatorName(), "ダッシュボードから学校を更新");
+  appendOperationLog("更新", "学校別分析", payload.name, payload.name, operator, "ダッシュボードから学校を更新");
   return { ok: true, action: "updateSchool", schoolName: payload.name };
 }
 function addFollowupFromDashboard(params) {

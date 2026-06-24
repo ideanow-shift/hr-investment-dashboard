@@ -1,5 +1,8 @@
 ﻿const GAS_API_URL = "https://script.google.com/macros/s/AKfycbx0X9DvO6zydd8txe_Mgme1COTfltp7ZxueJyrIPQsJSwWCvbVrM2otmlgarPTDmU5iWg/exec";
 
+const HUB_CONTEXT_KEY = "novHub.currentEmployee";
+const HUB_CONTEXT_MAX_AGE_MS = 12 * 60 * 60 * 1000;
+
 let dashboardConfig = {
   appName: "NOV Talent",
   targetHires: 18,
@@ -2198,8 +2201,33 @@ function setupDataRefresh() {
   window.setInterval(refreshDashboardData, 24 * 60 * 60 * 1000);
 }
 
+function readStoredHubContext(storage) {
+  try {
+    const raw = storage.getItem(HUB_CONTEXT_KEY);
+    if (!raw) return null;
+    const context = JSON.parse(raw);
+    const storedAt = Date.parse(context.storedAt || "");
+    if (storedAt && Date.now() - storedAt > HUB_CONTEXT_MAX_AGE_MS) {
+      storage.removeItem(HUB_CONTEXT_KEY);
+      return null;
+    }
+    return context;
+  } catch (error) {
+    try {
+      storage.removeItem(HUB_CONTEXT_KEY);
+    } catch (_) {
+      // Ignore storage cleanup errors.
+    }
+    return null;
+  }
+}
+
 function getHubCurrentEmployee() {
-  return window.novHub?.currentEmployee || window.NOV_HUB_CURRENT_EMPLOYEE || null;
+  return window.novHub?.currentEmployee
+    || window.NOV_HUB_CURRENT_EMPLOYEE
+    || readStoredHubContext(window.sessionStorage)
+    || readStoredHubContext(window.localStorage)
+    || null;
 }
 
 function getHubOperatorParams() {
@@ -2208,8 +2236,13 @@ function getHubOperatorParams() {
 
   const displayName = employee.displayName || employee.name || employee.fullName || employee.employeeName || "";
   return {
-    operatorEmployeeId: employee.id || "",
-    operatorEmployeeCode: employee.employee_id || employee.employeeId || employee.employeeCode || employee.staffCode || "",
+    actorEmployeeId: employee.coreEmployeeId || employee.id || "",
+    actorEmployeeNumber: employee.employeeNumber || employee.employee_id || employee.employeeId || employee.employeeCode || employee.staffCode || "",
+    actorEmail: employee.email || "",
+    actorName: displayName,
+    actorRoleKeys: Array.isArray(employee.roleKeys) ? employee.roleKeys.join(",") : "",
+    operatorEmployeeId: employee.coreEmployeeId || employee.id || "",
+    operatorEmployeeCode: employee.employeeNumber || employee.employee_id || employee.employeeId || employee.employeeCode || employee.staffCode || "",
     operatorName: displayName,
     operatorDepartmentName: employee.departmentName || "",
     operatorPositionName: employee.positionName || ""
