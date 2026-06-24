@@ -273,7 +273,7 @@ function callGasAction(action, params = {}) {
     return Promise.reject(new Error("GAS API URLが未設定です"));
   }
 
-  return loadJsonp(GAS_API_URL, { action, ...params });
+  return loadJsonp(GAS_API_URL, { action, ...getHubOperatorParams(), ...params });
 }
 
 function applyDashboardData(data) {
@@ -2202,6 +2202,20 @@ function getHubCurrentEmployee() {
   return window.novHub?.currentEmployee || window.NOV_HUB_CURRENT_EMPLOYEE || null;
 }
 
+function getHubOperatorParams() {
+  const employee = getHubCurrentEmployee();
+  if (!employee || typeof employee !== "object") return {};
+
+  const displayName = employee.displayName || employee.name || employee.fullName || employee.employeeName || "";
+  return {
+    operatorEmployeeId: employee.id || "",
+    operatorEmployeeCode: employee.employee_id || employee.employeeId || employee.employeeCode || employee.staffCode || "",
+    operatorName: displayName,
+    operatorDepartmentName: employee.departmentName || "",
+    operatorPositionName: employee.positionName || ""
+  };
+}
+
 function renderHubContextBadge() {
   const badge = document.getElementById("hubContextBadge");
   if (!badge) return;
@@ -2257,6 +2271,7 @@ async function initDashboard() {
 }
 
 document.addEventListener("DOMContentLoaded", initDashboard);
+
 
 
 

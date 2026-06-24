@@ -314,8 +314,8 @@ function findDuplicateSupabaseStudentId_(name, school, currentStudentId, cohort)
   return "";
 }
 
-function appendSupabaseOperationLog_(action, recordId, studentId, studentCode, studentName, detail, beforeData, afterData) {
-  requestSupabase_("post", "talent_operation_logs", "", {
+function appendSupabaseOperationLog_(action, recordId, studentId, studentCode, studentName, detail, beforeData, afterData, actorEmployeeId) {
+  const payload = {
     action: action,
     table_name: "talent_students",
     record_id: recordId || null,
@@ -325,7 +325,23 @@ function appendSupabaseOperationLog_(action, recordId, studentId, studentCode, s
     detail: detail,
     before_data: beforeData || null,
     after_data: afterData || null
-  });
+  };
+  const validActorEmployeeId = normalizeUuid_(actorEmployeeId);
+  if (validActorEmployeeId) payload.actor_employee_id = validActorEmployeeId;
+  requestSupabase_("post", "talent_operation_logs", "", payload);
+}
+
+function normalizeUuid_(value) {
+  const text = sanitizeText(value);
+  return /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(text) ? text : "";
+}
+
+function getDashboardOperator_(params) {
+  return {
+    employeeId: normalizeUuid_(params && params.operatorEmployeeId),
+    name: sanitizeText(params && params.operatorName) || getOperatorName(),
+    employeeCode: sanitizeText(params && params.operatorEmployeeCode)
+  };
 }
 
 function convertSupabaseConfig_(row) {
@@ -827,6 +843,7 @@ function validateSupabaseFairDuplicate_(name, currentId) {
 }
 
 function addSupabaseFairFromDashboard_(params) {
+  const operator = getDashboardOperator_(params);
   const payload = buildFairPayload_(params);
   validateSupabaseFairDuplicate_(payload.name, "");
   const insertedRows = requestSupabase_("post", "talent_fairs", "", payload);
@@ -841,7 +858,8 @@ function addSupabaseFairFromDashboard_(params) {
     student_name_snapshot: "",
     detail: `ダッシュボードからフェアを追加: ${payload.name}`,
     before_data: null,
-    after_data: inserted
+    after_data: inserted,
+    actor_employee_id: operator.employeeId || null
   });
 
   return {
@@ -853,6 +871,7 @@ function addSupabaseFairFromDashboard_(params) {
 }
 
 function updateSupabaseFairFromDashboard_(params) {
+  const operator = getDashboardOperator_(params);
   const fairId = sanitizeText(params.fairId);
   const originalName = sanitizeText(params.originalName);
   const payload = buildFairPayload_(params);
@@ -874,7 +893,8 @@ function updateSupabaseFairFromDashboard_(params) {
     student_name_snapshot: "",
     detail: `ダッシュボードからフェアを更新: ${payload.name}`,
     before_data: existing,
-    after_data: updated
+    after_data: updated,
+    actor_employee_id: operator.employeeId || null
   });
 
   return {
@@ -996,6 +1016,7 @@ function validateSupabaseSchoolDuplicate_(name, currentId) {
 }
 
 function addSupabaseSchoolFromDashboard_(params) {
+  const operator = getDashboardOperator_(params);
   const payload = buildSchoolPayload_(params);
   validateSupabaseSchoolDuplicate_(payload.name, "");
   const insertedRows = requestSupabase_("post", "talent_schools", "", payload);
@@ -1009,12 +1030,14 @@ function addSupabaseSchoolFromDashboard_(params) {
     student_name_snapshot: "",
     detail: `ダッシュボードから学校を追加: ${payload.name}`,
     before_data: null,
-    after_data: inserted
+    after_data: inserted,
+    actor_employee_id: operator.employeeId || null
   });
   return { ok: true, action: "addSchool", schoolId: inserted.id || "", schoolName: payload.name };
 }
 
 function updateSupabaseSchoolFromDashboard_(params) {
+  const operator = getDashboardOperator_(params);
   const schoolId = sanitizeText(params.schoolId);
   const originalName = sanitizeText(params.originalName);
   const payload = buildSchoolPayload_(params);
@@ -1032,7 +1055,8 @@ function updateSupabaseSchoolFromDashboard_(params) {
     student_name_snapshot: "",
     detail: `ダッシュボードから学校を更新: ${payload.name}`,
     before_data: existing,
-    after_data: updated
+    after_data: updated,
+    actor_employee_id: operator.employeeId || null
   });
   return { ok: true, action: "updateSchool", schoolId: updated.id || existing.id, schoolName: payload.name };
 }
@@ -1102,9 +1126,15 @@ function addSupabaseFollowupFromDashboard_(params) {
     : getSupabaseStudentByCode_(studentCode);
   if (!student) throw new Error("対象学生が見つかりません。");
 
+  const operator = getDashboardOperator_(params);
   const payload = Object.assign(buildFollowupPayload_(params), {
     student_id: student.id
   });
+  if (operator.employeeId) {
+    payload.owner_employee_id = operator.employeeId;
+    payload.created_by_employee_id = operator.employeeId;
+    payload.updated_by_employee_id = operator.employeeId;
+  }
   const insertedRows = requestSupabase_("post", "talent_student_followups", "", payload);
   const inserted = insertedRows[0] || {};
 
@@ -1117,7 +1147,8 @@ function addSupabaseFollowupFromDashboard_(params) {
     student_name_snapshot: String(student.full_name || ""),
     detail: `ダッシュボードからフォロー履歴を追加: ${payload.action_title}`,
     before_data: null,
-    after_data: inserted
+    after_data: inserted,
+    actor_employee_id: operator.employeeId || null
   });
 
   return {
@@ -1131,7 +1162,8 @@ function addSupabaseFollowupFromDashboard_(params) {
 function addSpreadsheetFollowupFromDashboard_(params) {
   const payload = buildFollowupPayload_(params);
   const studentCode = sanitizeText(params.studentId);
-  appendOperationLog("追加", "フォロー履歴", studentCode, studentCode, getOperatorName(), `ダッシュボードからフォロー履歴を追加: ${payload.action_title}`);
+  const operator = getDashboardOperator_(params);
+  appendOperationLog("追加", "フォロー履歴", studentCode, studentCode, operator.name, `ダッシュボードからフォロー履歴を追加: ${payload.action_title}`);
   return { ok: true, action: "addFollowup", studentId: studentCode };
 }
 
@@ -1157,7 +1189,9 @@ function updateSupabaseFollowupFromDashboard_(params) {
   const existing = getSupabaseRows_("talent_student_followups", `id=eq.${encodeURIComponent(followupId)}&limit=1`)[0];
   if (!existing) throw new Error("更新対象のフォロー履歴が見つかりません。");
 
+  const operator = getDashboardOperator_(params);
   const payload = buildFollowupStatusPayload_(params);
+  if (operator.employeeId) payload.updated_by_employee_id = operator.employeeId;
   const updatedRows = requestSupabase_("patch", "talent_student_followups", `id=eq.${encodeURIComponent(followupId)}`, payload);
   const updated = updatedRows[0] || Object.assign({}, existing, payload);
 
@@ -1170,7 +1204,8 @@ function updateSupabaseFollowupFromDashboard_(params) {
     student_name_snapshot: "",
     detail: `ダッシュボードからフォロー状態を更新: ${existing.status || "未対応"} → ${payload.status}`,
     before_data: existing,
-    after_data: updated
+    after_data: updated,
+    actor_employee_id: operator.employeeId || null
   });
 
   return { ok: true, action: "updateFollowup", followupId: followupId, status: payload.status };
@@ -1179,7 +1214,8 @@ function updateSupabaseFollowupFromDashboard_(params) {
 function updateSpreadsheetFollowupFromDashboard_(params) {
   const payload = buildFollowupStatusPayload_(params);
   const followupId = sanitizeText(params.followupId);
-  appendOperationLog("更新", "フォロー履歴", followupId, followupId, getOperatorName(), `ダッシュボードからフォロー状態を更新: ${payload.status}`);
+  const operator = getDashboardOperator_(params);
+  appendOperationLog("更新", "フォロー履歴", followupId, followupId, operator.name, `ダッシュボードからフォロー状態を更新: ${payload.status}`);
   return { ok: true, action: "updateFollowup", followupId: followupId, status: payload.status };
 }
 function addSpreadsheetStudentFromDashboard_(params) {
@@ -1187,7 +1223,7 @@ function addSpreadsheetStudentFromDashboard_(params) {
   ensureStudentAuditColumns(sheet);
   const name = sanitizeText(params.name);
   const school = sanitizeText(params.school);
-  const operator = getOperatorName();
+  const operator = getDashboardOperator_(params).name;
   const updatedAt = new Date();
   const studentId = generateNextStudentId(sheet);
   const rowValues = buildStudentRowValues(sheet, {
@@ -1239,7 +1275,7 @@ function updateSpreadsheetStudentFromDashboard_(params) {
   const sheet = getWritableStudentSheet(params.sheetName);
   ensureStudentAuditColumns(sheet);
   const studentId = sanitizeText(params.studentId);
-  const operator = getOperatorName();
+  const operator = getDashboardOperator_(params).name;
   const updatedAt = new Date();
 
   if (!studentId) {
@@ -1291,10 +1327,15 @@ function addSupabaseStudentFromDashboard_(params) {
   const studentId = generateNextSupabaseStudentId_();
   validateSupabaseStudentPayload_(params, "", cohort);
 
+  const operator = getDashboardOperator_(params);
   const studentPayload = buildSupabaseStudentPayload_(params, {
     student_code: studentId,
     cohort: cohort
   });
+  if (operator.employeeId) {
+    studentPayload.created_by_employee_id = operator.employeeId;
+    studentPayload.updated_by_employee_id = operator.employeeId;
+  }
   const insertedRows = requestSupabase_("post", "talent_students", "", studentPayload);
   const inserted = insertedRows[0] || {};
 
@@ -1306,7 +1347,8 @@ function addSupabaseStudentFromDashboard_(params) {
     studentPayload.full_name,
     "ダッシュボードから学生を追加",
     null,
-    inserted
+    inserted,
+    operator.employeeId
   );
 
   return {
@@ -1331,9 +1373,11 @@ function updateSupabaseStudentFromDashboard_(params) {
 
   const cohort = existing.cohort || getSupabaseCohortFromSheetName_(params.sheetName);
   validateSupabaseStudentPayload_(params, studentId, cohort);
+  const operator = getDashboardOperator_(params);
   const studentPayload = buildSupabaseStudentPayload_(params, {
     cohort: cohort
   });
+  if (operator.employeeId) studentPayload.updated_by_employee_id = operator.employeeId;
   const updatedRows = requestSupabase_(
     "patch",
     "talent_students",
@@ -1350,7 +1394,8 @@ function updateSupabaseStudentFromDashboard_(params) {
     studentPayload.full_name,
     "ダッシュボードから学生情報を更新",
     existing,
-    updated
+    updated,
+    operator.employeeId
   );
 
   return {
@@ -1888,6 +1933,8 @@ function formatDateTimeValue(value) {
   }
   return String(value || "");
 }
+
+
 
 
 
