@@ -6,6 +6,28 @@
  */
 
 const APP_NAME = "NOV Talent";
+const STUDENT_HEADERS = [
+  "学生ID",
+  "氏名",
+  "性別",
+  "学校名",
+  "学年",
+  "流入元",
+  "接触日",
+  "LINE登録",
+  "見学ステータス",
+  "面接ステータス",
+  "選考結果",
+  "内定ステータス",
+  "入社予定",
+  "担当者",
+  "次アクション",
+  "次アクション日",
+  "メモ",
+  "管理状態",
+  "更新日時",
+  "更新者"
+];
 
 function onOpen() {
   SpreadsheetApp.getUi()
@@ -160,30 +182,31 @@ function getStudentCohorts() {
 function getStudentDataFromSheet(sheetName, cohortLabel) {
   const sheet = getRequiredSheet(sheetName);
   const values = sheet.getDataRange().getValues();
+  const columnMap = getStudentColumnMap(sheet);
   const rows = values.slice(1).filter((row) => row[0]);
 
   return rows.map((row) => ({
-    studentId: String(row[0] || ""),
+    studentId: String(getRowValue(row, columnMap, "学生ID") || ""),
     cohort: String(cohortLabel || ""),
-    name: String(row[1] || ""),
-    gender: String(row[2] || ""),
-    school: String(row[3] || ""),
-    grade: String(row[4] || ""),
-    source: String(row[5] || ""),
-    contactDate: formatDateValue(row[6]),
-    lineStatus: String(row[7] || ""),
-    salonTourStatus: String(row[8] || ""),
-    interviewStatus: String(row[9] || ""),
-    resultStatus: String(row[10] || ""),
-    offerStatus: String(row[11] || ""),
-    expectedJoinStatus: String(row[12] || ""),
-    owner: String(row[13] || ""),
-    nextAction: String(row[14] || ""),
-    nextActionDate: formatDateValue(row[15]),
-    memo: String(row[16] || ""),
-    managementStatus: String(row[17] || "有効"),
-    updatedAt: formatDateTimeValue(row[18]),
-    updatedBy: String(row[19] || "")
+    name: String(getRowValue(row, columnMap, "氏名") || ""),
+    gender: String(getRowValue(row, columnMap, "性別") || ""),
+    school: String(getRowValue(row, columnMap, "学校名") || ""),
+    grade: String(getRowValue(row, columnMap, "学年") || ""),
+    source: String(getRowValue(row, columnMap, "流入元") || ""),
+    contactDate: formatDateValue(getRowValue(row, columnMap, "接触日")),
+    lineStatus: String(getRowValue(row, columnMap, "LINE登録") || ""),
+    salonTourStatus: String(getRowValue(row, columnMap, "見学ステータス") || ""),
+    interviewStatus: String(getRowValue(row, columnMap, "面接ステータス") || ""),
+    resultStatus: String(getRowValue(row, columnMap, "選考結果") || ""),
+    offerStatus: String(getRowValue(row, columnMap, "内定ステータス") || ""),
+    expectedJoinStatus: String(getRowValue(row, columnMap, "入社予定") || ""),
+    owner: String(getRowValue(row, columnMap, "担当者") || ""),
+    nextAction: String(getRowValue(row, columnMap, "次アクション") || ""),
+    nextActionDate: formatDateValue(getRowValue(row, columnMap, "次アクション日")),
+    memo: String(getRowValue(row, columnMap, "メモ") || ""),
+    managementStatus: String(getRowValue(row, columnMap, "管理状態") || "有効"),
+    updatedAt: formatDateTimeValue(getRowValue(row, columnMap, "更新日時")),
+    updatedBy: String(getRowValue(row, columnMap, "更新者") || "")
   }));
 }
 
@@ -208,6 +231,29 @@ function addStudentFromDashboard(params) {
   const school = sanitizeText(params.school);
   const operator = getOperatorName();
   const updatedAt = new Date();
+  const studentId = generateNextStudentId(sheet);
+  const rowValues = buildStudentRowValues(sheet, {
+    "学生ID": studentId,
+    "氏名": name,
+    "性別": sanitizeText(params.gender) || "未回答",
+    "学校名": school,
+    "学年": sanitizeText(params.grade),
+    "流入元": sanitizeText(params.source),
+    "接触日": parseDateOrText(params.contactDate),
+    "LINE登録": sanitizeText(params.lineStatus) || "未登録",
+    "見学ステータス": sanitizeText(params.salonTourStatus) || "未設定",
+    "面接ステータス": sanitizeText(params.interviewStatus) || "未設定",
+    "選考結果": sanitizeText(params.resultStatus) || "未定",
+    "内定ステータス": sanitizeText(params.offerStatus) || "未定",
+    "入社予定": sanitizeText(params.expectedJoinStatus) || "未定",
+    "担当者": sanitizeText(params.owner) || "総務人事",
+    "次アクション": sanitizeText(params.nextAction),
+    "次アクション日": parseDateOrText(params.nextActionDate),
+    "メモ": sanitizeText(params.memo),
+    "管理状態": sanitizeText(params.managementStatus) || "有効",
+    "更新日時": updatedAt,
+    "更新者": operator
+  });
 
   if (!name) {
     throw new Error("氏名を入力してください。");
@@ -219,31 +265,7 @@ function addStudentFromDashboard(params) {
 
   validateStudentPayload(params, sheet, "");
 
-  const studentId = generateNextStudentId(sheet);
-  const row = [
-    studentId,
-    name,
-    sanitizeText(params.gender) || "未回答",
-    school,
-    sanitizeText(params.grade),
-    sanitizeText(params.source),
-    parseDateOrText(params.contactDate),
-    sanitizeText(params.lineStatus) || "未登録",
-    sanitizeText(params.salonTourStatus) || "未設定",
-    sanitizeText(params.interviewStatus) || "未設定",
-    sanitizeText(params.resultStatus) || "未定",
-    sanitizeText(params.offerStatus) || "未定",
-    sanitizeText(params.expectedJoinStatus) || "未定",
-    sanitizeText(params.owner) || "総務人事",
-    sanitizeText(params.nextAction),
-    parseDateOrText(params.nextActionDate),
-    sanitizeText(params.memo),
-    sanitizeText(params.managementStatus) || "有効",
-    updatedAt,
-    operator
-  ];
-
-  sheet.appendRow(row);
+  sheet.appendRow(rowValues);
   applySheetRules(SpreadsheetApp.getActiveSpreadsheet());
   appendOperationLog("追加", sheet.getName(), studentId, name, operator, "ダッシュボードから学生を追加");
 
@@ -273,30 +295,26 @@ function updateStudentFromDashboard(params) {
 
   validateStudentPayload(params, sheet, studentId);
 
-  const updates = [
-    { col: 2, value: sanitizeText(params.name) },
-    { col: 3, value: sanitizeText(params.gender) || "未回答" },
-    { col: 4, value: sanitizeText(params.school) },
-    { col: 5, value: sanitizeText(params.grade) },
-    { col: 6, value: sanitizeText(params.source) },
-    { col: 7, value: parseDateOrText(params.contactDate) },
-    { col: 8, value: sanitizeText(params.lineStatus) || "未登録" },
-    { col: 9, value: sanitizeText(params.salonTourStatus) || "未設定" },
-    { col: 10, value: sanitizeText(params.interviewStatus) || "未設定" },
-    { col: 11, value: sanitizeText(params.resultStatus) || "未定" },
-    { col: 12, value: sanitizeText(params.offerStatus) || "未定" },
-    { col: 13, value: sanitizeText(params.expectedJoinStatus) || "未定" },
-    { col: 14, value: sanitizeText(params.owner) || "総務人事" },
-    { col: 15, value: sanitizeText(params.nextAction) },
-    { col: 16, value: parseDateOrText(params.nextActionDate) },
-    { col: 17, value: sanitizeText(params.memo) },
-    { col: 18, value: sanitizeText(params.managementStatus) || "有効" },
-    { col: 19, value: updatedAt },
-    { col: 20, value: operator }
-  ];
-
-  updates.forEach((update) => {
-    sheet.getRange(rowNumber, update.col).setValue(update.value);
+  updateStudentRowValues(sheet, rowNumber, {
+    "氏名": sanitizeText(params.name),
+    "性別": sanitizeText(params.gender) || "未回答",
+    "学校名": sanitizeText(params.school),
+    "学年": sanitizeText(params.grade),
+    "流入元": sanitizeText(params.source),
+    "接触日": parseDateOrText(params.contactDate),
+    "LINE登録": sanitizeText(params.lineStatus) || "未登録",
+    "見学ステータス": sanitizeText(params.salonTourStatus) || "未設定",
+    "面接ステータス": sanitizeText(params.interviewStatus) || "未設定",
+    "選考結果": sanitizeText(params.resultStatus) || "未定",
+    "内定ステータス": sanitizeText(params.offerStatus) || "未定",
+    "入社予定": sanitizeText(params.expectedJoinStatus) || "未定",
+    "担当者": sanitizeText(params.owner) || "総務人事",
+    "次アクション": sanitizeText(params.nextAction),
+    "次アクション日": parseDateOrText(params.nextActionDate),
+    "メモ": sanitizeText(params.memo),
+    "管理状態": sanitizeText(params.managementStatus) || "有効",
+    "更新日時": updatedAt,
+    "更新者": operator
   });
 
   applySheetRules(SpreadsheetApp.getActiveSpreadsheet());
@@ -328,6 +346,48 @@ function getWritableStudentSheet(sheetName) {
   }
 
   return getRequiredSheet(targetSheetName);
+}
+
+function getStudentColumnMap(sheet) {
+  const lastColumn = Math.max(sheet.getLastColumn(), STUDENT_HEADERS.length);
+  const headers = sheet.getRange(1, 1, 1, lastColumn).getValues()[0];
+  return headers.reduce((map, header, index) => {
+    const key = String(header || "").trim();
+    if (key) map[key] = index + 1;
+    return map;
+  }, {});
+}
+
+function getRowValue(row, columnMap, headerName) {
+  const columnIndex = columnMap[headerName];
+  if (!columnIndex) return "";
+  return row[columnIndex - 1];
+}
+
+function buildStudentRowValues(sheet, valuesByHeader) {
+  const columnMap = getStudentColumnMap(sheet);
+  const width = Math.max(sheet.getLastColumn(), STUDENT_HEADERS.length);
+  const rowValues = new Array(width).fill("");
+
+  Object.entries(valuesByHeader).forEach(([headerName, value]) => {
+    const columnIndex = columnMap[headerName];
+    if (columnIndex) {
+      rowValues[columnIndex - 1] = value;
+    }
+  });
+
+  return rowValues;
+}
+
+function updateStudentRowValues(sheet, rowNumber, valuesByHeader) {
+  const columnMap = getStudentColumnMap(sheet);
+
+  Object.entries(valuesByHeader).forEach(([headerName, value]) => {
+    const columnIndex = columnMap[headerName];
+    if (columnIndex) {
+      sheet.getRange(rowNumber, columnIndex).setValue(value);
+    }
+  });
 }
 
 function validateStudentPayload(params, sheet, currentStudentId) {
@@ -369,16 +429,17 @@ function findDuplicateStudentId(sheet, name, school, currentStudentId) {
   const lastRow = sheet.getLastRow();
   if (lastRow < 2) return "";
 
-  const rows = sheet.getRange(2, 1, lastRow - 1, 4).getValues();
+  const columnMap = getStudentColumnMap(sheet);
+  const rows = sheet.getDataRange().getValues().slice(1);
   const normalizedName = normalizeForDuplicateCheck(name);
   const normalizedSchool = normalizeForDuplicateCheck(school);
 
   for (let index = 0; index < rows.length; index += 1) {
-    const studentId = String(rows[index][0] || "").trim();
+    const studentId = String(getRowValue(rows[index], columnMap, "学生ID") || "").trim();
     if (currentStudentId && studentId === currentStudentId) continue;
 
-    const rowName = normalizeForDuplicateCheck(rows[index][1]);
-    const rowSchool = normalizeForDuplicateCheck(rows[index][3]);
+    const rowName = normalizeForDuplicateCheck(getRowValue(rows[index], columnMap, "氏名"));
+    const rowSchool = normalizeForDuplicateCheck(getRowValue(rows[index], columnMap, "学校名"));
     if (rowName === normalizedName && rowSchool === normalizedSchool) {
       return studentId;
     }
@@ -396,8 +457,13 @@ function ensureStudentAuditColumns(sheet) {
   fillBlankColumnValues(sheet, "管理状態", "有効", "学生ID");
   const updatedAtIndex = ensureColumnAfterHeader(sheet, "更新日時", "管理状態");
   const updatedByIndex = ensureColumnAfterHeader(sheet, "更新者", "更新日時");
+  const rowCount = Math.max(sheet.getMaxRows() - 1, 1);
+  const managementRule = SpreadsheetApp.newDataValidation()
+    .requireValueInList(["有効", "管理対象外"], true)
+    .setAllowInvalid(false)
+    .build();
+  sheet.getRange(2, managementStatusIndex, rowCount, 1).setDataValidation(managementRule);
   sheet.getRange(2, updatedAtIndex, Math.max(sheet.getMaxRows() - 1, 1), 1).setNumberFormat("yyyy/mm/dd hh:mm");
-  setDropdown(sheet, `R2:R${sheet.getMaxRows()}`, ["有効", "管理対象外"]);
   sheet.getRange(1, managementStatusIndex).setFontWeight("bold").setBackground("#eef5fc");
   sheet.getRange(1, updatedByIndex).setFontWeight("bold").setBackground("#eef5fc");
 }
@@ -451,7 +517,9 @@ function findStudentRow(sheet, studentId) {
   const lastRow = sheet.getLastRow();
   if (lastRow < 2) return 0;
 
-  const ids = sheet.getRange(2, 1, lastRow - 1, 1).getValues();
+  const columnMap = getStudentColumnMap(sheet);
+  const studentIdColumn = columnMap["学生ID"] || 1;
+  const ids = sheet.getRange(2, studentIdColumn, lastRow - 1, 1).getValues();
   for (let index = 0; index < ids.length; index += 1) {
     if (String(ids[index][0] || "").trim() === studentId) {
       return index + 2;
@@ -465,7 +533,9 @@ function generateNextStudentId(sheet) {
   const lastRow = sheet.getLastRow();
   if (lastRow < 2) return "S-0001";
 
-  const ids = sheet.getRange(2, 1, lastRow - 1, 1).getValues();
+  const columnMap = getStudentColumnMap(sheet);
+  const studentIdColumn = columnMap["学生ID"] || 1;
+  const ids = sheet.getRange(2, studentIdColumn, lastRow - 1, 1).getValues();
   const maxNumber = ids.reduce((max, row) => {
     const match = String(row[0] || "").match(/^S-(\d+)$/);
     return match ? Math.max(max, Number(match[1])) : max;
@@ -714,8 +784,6 @@ function applySheetRules(ss) {
     formatBasicSheet(studentSheet, 20);
     studentSheet.getRange("G2:G1000").setNumberFormat("yyyy/mm/dd");
     studentSheet.getRange("P2:P1000").setNumberFormat("yyyy/mm/dd");
-    setDropdown(studentSheet, "R2:R1000", ["有効", "管理対象外"]);
-    studentSheet.getRange("S2:S1000").setNumberFormat("yyyy/mm/dd hh:mm");
 
     setDropdown(studentSheet, "C2:C1000", ["男性", "女性", "その他", "未回答"]);
     setDropdown(studentSheet, "E2:E1000", ["1年", "2年", "既卒", "その他"]);
