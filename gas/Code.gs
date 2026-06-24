@@ -1,4 +1,4 @@
-﻿/**
+/**
  * 人材投資管理システム - GAS WebアプリAPI
  *
  * このCode.gsは、必ず対象のGoogleスプレッドシートから
@@ -353,12 +353,14 @@ function convertSupabaseConfig_(row) {
 
 function convertSupabaseFair_(row) {
   return {
+    id: String(row.id || ""),
     name: String(row.name || ""),
     date: String(row.held_date || ""),
     cost: Number(row.cost) || 0,
     contacts: Number(row.contacts) || 0,
     lineRegistrations: Number(row.line_registrations) || 0,
-    salonTours: Number(row.salon_tours) || 0
+    salonTours: Number(row.salon_tours) || 0,
+    memo: String(row.memo || "")
   };
 }
 
@@ -593,6 +595,14 @@ function handleWriteAction(params) {
     return updateSettingsFromDashboard(params);
   }
 
+  if (action === "addFair") {
+    return addFairFromDashboard(params);
+  }
+
+  if (action === "updateFair") {
+    return updateFairFromDashboard(params);
+  }
+
   throw new Error(`未対応の操作です: ${action}`);
 }
 
@@ -702,6 +712,184 @@ function updateSpreadsheetSettingsFromDashboard_(params) {
     action: "updateSettings",
     fiscalYear: payload.fiscal_year
   };
+}
+function addFairFromDashboard(params) {
+  if (isSupabaseConfigured_()) {
+    return addSupabaseFairFromDashboard_(params);
+  }
+
+  return addSpreadsheetFairFromDashboard_(params);
+}
+
+function updateFairFromDashboard(params) {
+  if (isSupabaseConfigured_()) {
+    return updateSupabaseFairFromDashboard_(params);
+  }
+
+  return updateSpreadsheetFairFromDashboard_(params);
+}
+
+function buildFairPayload_(params) {
+  const payload = {
+    name: sanitizeText(params.name),
+    held_date: sanitizeText(params.date) || null,
+    cost: parseNonNegativeInteger_(params.cost),
+    contacts: parseNonNegativeInteger_(params.contacts),
+    line_registrations: parseNonNegativeInteger_(params.lineRegistrations),
+    salon_tours: parseNonNegativeInteger_(params.salonTours),
+    memo: sanitizeText(params.memo),
+    is_active: true
+  };
+
+  if (!payload.name) throw new Error("フェア名を入力してください。");
+  if (payload.line_registrations > payload.contacts) throw new Error("LINE登録数は接触数以下にしてください。");
+  if (payload.salon_tours > payload.contacts) throw new Error("見学取得数は接触数以下にしてください。");
+  return payload;
+}
+
+function getSupabaseFairByIdOrName_(fairId, fairName) {
+  if (fairId) {
+    const rowsById = getSupabaseRows_("talent_fairs", `id=eq.${encodeURIComponent(fairId)}&limit=1`);
+    if (rowsById[0]) return rowsById[0];
+  }
+
+  if (fairName) {
+    const rowsByName = getSupabaseRows_("talent_fairs", `name=eq.${encodeURIComponent(fairName)}&limit=1`);
+    if (rowsByName[0]) return rowsByName[0];
+  }
+
+  return null;
+}
+
+function validateSupabaseFairDuplicate_(name, currentId) {
+  const rows = getSupabaseRows_("talent_fairs", `name=eq.${encodeURIComponent(name)}&is_active=eq.true&limit=2`);
+  const duplicate = rows.find((row) => !currentId || String(row.id) !== String(currentId));
+  if (duplicate) {
+    throw new Error(`同じフェア名が既にあります: ${name}`);
+  }
+}
+
+function addSupabaseFairFromDashboard_(params) {
+  const payload = buildFairPayload_(params);
+  validateSupabaseFairDuplicate_(payload.name, "");
+  const insertedRows = requestSupabase_("post", "talent_fairs", "", payload);
+  const inserted = insertedRows[0] || {};
+
+  requestSupabase_("post", "talent_operation_logs", "", {
+    action: "追加",
+    table_name: "talent_fairs",
+    record_id: inserted.id || null,
+    student_id: null,
+    student_code: "",
+    student_name_snapshot: "",
+    detail: `ダッシュボードからフェアを追加: ${payload.name}`,
+    before_data: null,
+    after_data: inserted
+  });
+
+  return {
+    ok: true,
+    action: "addFair",
+    fairId: inserted.id || "",
+    fairName: payload.name
+  };
+}
+
+function updateSupabaseFairFromDashboard_(params) {
+  const fairId = sanitizeText(params.fairId);
+  const originalName = sanitizeText(params.originalName);
+  const payload = buildFairPayload_(params);
+  const existing = getSupabaseFairByIdOrName_(fairId, originalName);
+  if (!existing) {
+    throw new Error("更新対象のフェアが見つかりません。");
+  }
+
+  validateSupabaseFairDuplicate_(payload.name, existing.id);
+  const updatedRows = requestSupabase_("patch", "talent_fairs", `id=eq.${encodeURIComponent(existing.id)}`, payload);
+  const updated = updatedRows[0] || existing;
+
+  requestSupabase_("post", "talent_operation_logs", "", {
+    action: "更新",
+    table_name: "talent_fairs",
+    record_id: updated.id || existing.id,
+    student_id: null,
+    student_code: "",
+    student_name_snapshot: "",
+    detail: `ダッシュボードからフェアを更新: ${payload.name}`,
+    before_data: existing,
+    after_data: updated
+  });
+
+  return {
+    ok: true,
+    action: "updateFair",
+    fairId: updated.id || existing.id,
+    fairName: payload.name
+  };
+}
+
+function getFairSheet_() {
+  return getRequiredSheet("フェア実績");
+}
+
+function getFairColumnMap_(sheet) {
+  const headers = sheet.getRange(1, 1, 1, Math.max(sheet.getLastColumn(), 6)).getValues()[0];
+  return headers.reduce((map, header, index) => {
+    const key = String(header || "").trim();
+    if (key) map[key] = index + 1;
+    return map;
+  }, {});
+}
+
+function findFairRow_(sheet, fairName) {
+  const lastRow = sheet.getLastRow();
+  if (lastRow < 2) return 0;
+  const columnMap = getFairColumnMap_(sheet);
+  const nameColumn = columnMap["フェア名"] || 1;
+  const values = sheet.getRange(2, nameColumn, lastRow - 1, 1).getValues();
+  for (let index = 0; index < values.length; index += 1) {
+    if (String(values[index][0] || "").trim() === fairName) return index + 2;
+  }
+  return 0;
+}
+
+function setFairSheetRow_(sheet, rowNumber, payload) {
+  const columnMap = getFairColumnMap_(sheet);
+  const values = {
+    "フェア名": payload.name,
+    "開催日": parseDateOrText(payload.held_date),
+    "費用": payload.cost,
+    "接触数": payload.contacts,
+    "LINE登録数": payload.line_registrations,
+    "見学取得数": payload.salon_tours
+  };
+  Object.entries(values).forEach(([header, value]) => {
+    const column = columnMap[header];
+    if (column) sheet.getRange(rowNumber, column).setValue(value);
+  });
+}
+
+function addSpreadsheetFairFromDashboard_(params) {
+  const payload = buildFairPayload_(params);
+  const sheet = getFairSheet_();
+  if (findFairRow_(sheet, payload.name)) throw new Error(`同じフェア名が既にあります: ${payload.name}`);
+  const rowNumber = Math.max(sheet.getLastRow() + 1, 2);
+  setFairSheetRow_(sheet, rowNumber, payload);
+  appendOperationLog("追加", "フェア実績", payload.name, payload.name, getOperatorName(), "ダッシュボードからフェアを追加");
+  return { ok: true, action: "addFair", fairName: payload.name };
+}
+
+function updateSpreadsheetFairFromDashboard_(params) {
+  const payload = buildFairPayload_(params);
+  const sheet = getFairSheet_();
+  const originalName = sanitizeText(params.originalName) || payload.name;
+  const rowNumber = findFairRow_(sheet, originalName);
+  if (!rowNumber) throw new Error("更新対象のフェアが見つかりません。");
+  const duplicateRow = findFairRow_(sheet, payload.name);
+  if (duplicateRow && duplicateRow !== rowNumber) throw new Error(`同じフェア名が既にあります: ${payload.name}`);
+  setFairSheetRow_(sheet, rowNumber, payload);
+  appendOperationLog("更新", "フェア実績", payload.name, payload.name, getOperatorName(), "ダッシュボードからフェアを更新");
+  return { ok: true, action: "updateFair", fairName: payload.name };
 }
 function addSpreadsheetStudentFromDashboard_(params) {
   const sheet = getWritableStudentSheet(params.sheetName);

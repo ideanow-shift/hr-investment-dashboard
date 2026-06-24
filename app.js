@@ -1,4 +1,4 @@
-﻿const GAS_API_URL = "https://script.google.com/macros/s/AKfycbx0X9DvO6zydd8txe_Mgme1COTfltp7ZxueJyrIPQsJSwWCvbVrM2otmlgarPTDmU5iWg/exec";
+const GAS_API_URL = "https://script.google.com/macros/s/AKfycbx0X9DvO6zydd8txe_Mgme1COTfltp7ZxueJyrIPQsJSwWCvbVrM2otmlgarPTDmU5iWg/exec";
 
 let dashboardConfig = {
   appName: "NOV Talent",
@@ -299,12 +299,14 @@ function applyDashboardData(data) {
 
   if (Array.isArray(data.fairs)) {
     fairData = data.fairs.map((fair) => ({
+      id: String(fair.id || ""),
       name: String(fair.name || ""),
       date: String(fair.date || ""),
       cost: Number(fair.cost) || 0,
       contacts: Number(fair.contacts) || 0,
       lineRegistrations: Number(fair.lineRegistrations) || 0,
-      salonTours: Number(fair.salonTours) || 0
+      salonTours: Number(fair.salonTours) || 0,
+      memo: String(fair.memo || "")
     }));
   }
 
@@ -647,14 +649,22 @@ function renderFunnel(metrics) {
   }).join("");
 }
 
+function getFairKey(fair) {
+  return fair?.id || fair?.name || "";
+}
+
+function findFairByKey(fairs, key) {
+  return fairs.find((fair) => getFairKey(fair) === key) || null;
+}
+
 function renderFairTable() {
   const rankedFairs = getRankedFairs();
 
   document.getElementById("fairTableBody").innerHTML = rankedFairs.map((fair) => `
     <tr>
       <td><span class="rank-pill ${fair.rank.className}">${fair.rank.rank}</span> ${fair.rank.label}</td>
-      <td><button class="detail-link" type="button" data-fair-name="${fair.name}">${fair.name}</button></td>
-      <td>${fair.date}</td>
+      <td><button class="detail-link" type="button" data-fair-key="${escapeHtml(getFairKey(fair))}">${escapeHtml(fair.name)}</button></td>
+      <td>${escapeHtml(fair.date)}</td>
       <td>${formatCurrency.format(fair.cost)}</td>
       <td>${formatNumber.format(fair.contacts)}</td>
       <td>${formatNumber.format(fair.lineRegistrations)} <span class="muted">(${percent(fair.lineRate)})</span></td>
@@ -665,9 +675,9 @@ function renderFairTable() {
     </tr>
   `).join("");
 
-  document.querySelectorAll("[data-fair-name]").forEach((button) => {
+  document.querySelectorAll("[data-fair-key]").forEach((button) => {
     button.addEventListener("click", () => {
-      const selectedFair = rankedFairs.find((fair) => fair.name === button.dataset.fairName);
+      const selectedFair = findFairByKey(rankedFairs, button.dataset.fairKey);
       renderFairDetail(selectedFair);
     });
   });
@@ -691,10 +701,13 @@ function renderFairDetail(fair) {
       : "改善余地あり。LINE登録後24時間以内の見学誘導と、当日の声かけ内容を見直してください。";
 
   detail.innerHTML = `
-    <div>
-      <p class="section-kicker">Fair Drilldown</p>
-      <h3>${fair.name}</h3>
-      <p class="detail-lead">${investmentDecision}</p>
+    <div class="detail-header-row">
+      <div>
+        <p class="section-kicker">Fair Drilldown</p>
+        <h3>${escapeHtml(fair.name)}</h3>
+        <p class="detail-lead">${investmentDecision}</p>
+      </div>
+      <button class="detail-button compact" type="button" data-fair-edit-key="${escapeHtml(getFairKey(fair))}">フェア編集</button>
     </div>
     <div class="detail-grid">
       <div class="detail-metric"><span>評価</span><strong>${fair.rank.rank}</strong><small>${fair.rank.label}</small></div>
@@ -705,10 +718,185 @@ function renderFairDetail(fair) {
     <div class="related-list">
       <strong>関連する学生フォロー</strong>
       ${relatedStudents.length ? relatedStudents.map((student) => `
-        <p>${student.name} / ${student.school} / ${student.nextAction || "次アクション未設定"}</p>
+        <p>${escapeHtml(student.name)} / ${escapeHtml(student.school)} / ${escapeHtml(student.nextAction || "次アクション未設定")}</p>
       `).join("") : "<p>このフェアに紐づく学生データはまだありません。</p>"}
     </div>
   `;
+
+  const editButton = detail.querySelector("[data-fair-edit-key]");
+  if (editButton) {
+    editButton.addEventListener("click", () => {
+      const selectedFair = findFairByKey(getRankedFairs(), editButton.dataset.fairEditKey);
+      openFairModal(selectedFair || fair, "update");
+    });
+  }
+}
+
+function getFairFormPayload(form) {
+  const formData = new FormData(form);
+  return {
+    fairId: String(formData.get("fairId") || ""),
+    originalName: String(formData.get("originalName") || ""),
+    name: String(formData.get("name") || "").trim(),
+    date: String(formData.get("date") || ""),
+    cost: Number(String(formData.get("cost") || "0").replace(/,/g, "")) || 0,
+    contacts: Number(String(formData.get("contacts") || "0").replace(/,/g, "")) || 0,
+    lineRegistrations: Number(String(formData.get("lineRegistrations") || "0").replace(/,/g, "")) || 0,
+    salonTours: Number(String(formData.get("salonTours") || "0").replace(/,/g, "")) || 0,
+    memo: String(formData.get("memo") || "").trim()
+  };
+}
+
+function getFairValidationErrors(payload, mode) {
+  const errors = [];
+  const duplicate = fairData.find((fair) => {
+    if (mode !== "add" && getFairKey(fair) === payload.fairId) return false;
+    if (mode !== "add" && fair.name === payload.originalName) return false;
+    return fair.name.replace(/\s+/g, "") === payload.name.replace(/\s+/g, "");
+  });
+
+  if (!payload.name) errors.push("フェア名を入力してください。");
+  ["cost", "contacts", "lineRegistrations", "salonTours"].forEach((key) => {
+    if (!Number.isFinite(payload[key]) || payload[key] < 0) {
+      errors.push("費用・人数は0以上の数値で入力してください。");
+    }
+  });
+  if (payload.lineRegistrations > payload.contacts) errors.push("LINE登録数は接触数以下にしてください。");
+  if (payload.salonTours > payload.contacts) errors.push("見学取得数は接触数以下にしてください。");
+  if (mode === "add" && duplicate) errors.push(`同じフェア名が既にあります：${duplicate.name}`);
+  if (mode === "update" && duplicate) errors.push(`変更後のフェア名は既に使われています：${duplicate.name}`);
+
+  return [...new Set(errors)];
+}
+
+function renderFairForm(fair = {}, mode = "update") {
+  const isAdd = mode === "add";
+  return `
+    <form class="student-edit-form" data-fair-form="${mode}">
+      <input type="hidden" name="fairId" value="${escapeHtml(getFairKey(fair))}">
+      <input type="hidden" name="originalName" value="${escapeHtml(fair.name || "")}">
+      <div class="student-form-heading">
+        <div>
+          <h3>${isAdd ? "フェアを追加" : "フェア実績を更新"}</h3>
+          <p>費用・接触数・LINE登録・見学取得を更新すると、ROIランキングへ反映されます。</p>
+        </div>
+      </div>
+      <div class="student-form-guide">
+        <strong>入力のポイント</strong>
+        <ul>
+          <li>フェア名は学生の流入元と紐づくため、表記をできるだけ統一してください。</li>
+          <li>LINE登録数・見学取得数は接触数以下で入力してください。</li>
+          <li>保存後、フェアROI・採用ファネル・次に取るべき行動へ再反映されます。</li>
+        </ul>
+      </div>
+      <div class="student-form-grid">
+        <label>
+          <span>${renderRequiredLabel("フェア名")}</span>
+          <input name="name" value="${escapeHtml(fair.name || "")}" placeholder="例：ヘアワークス 新宿" required>
+        </label>
+        <label>
+          <span>開催日</span>
+          <input name="date" type="date" value="${escapeHtml(fair.date || "")}">
+        </label>
+        <label>
+          <span>費用</span>
+          <input name="cost" type="number" min="0" step="1" value="${Number(fair.cost) || 0}">
+        </label>
+        <label>
+          <span>接触数</span>
+          <input name="contacts" type="number" min="0" step="1" value="${Number(fair.contacts) || 0}">
+        </label>
+        <label>
+          <span>LINE登録数</span>
+          <input name="lineRegistrations" type="number" min="0" step="1" value="${Number(fair.lineRegistrations) || 0}">
+        </label>
+        <label>
+          <span>見学取得数</span>
+          <input name="salonTours" type="number" min="0" step="1" value="${Number(fair.salonTours) || 0}">
+        </label>
+      </div>
+      <label class="student-form-full">
+        <span>メモ</span>
+        <textarea name="memo" rows="3" placeholder="次回判断・改善メモなど">${escapeHtml(fair.memo || "")}</textarea>
+      </label>
+      <div class="student-form-actions">
+        <p class="student-form-status" aria-live="polite"></p>
+        <button class="refresh-button" type="submit">${isAdd ? "フェアを追加" : "更新を保存"}</button>
+      </div>
+    </form>
+  `;
+}
+
+function openFairModal(fair = {}, mode = "update") {
+  const modal = document.getElementById("studentModal");
+  const content = document.getElementById("studentModalContent");
+  content.innerHTML = `
+    <div class="modal-header">
+      <div>
+        <p class="section-kicker">Fair Management</p>
+        <h2 id="studentModalTitle">${mode === "add" ? "フェア追加" : escapeHtml(fair?.name || "フェア編集")}</h2>
+        <p>フェア別投資判断に使う実績値を編集します。</p>
+      </div>
+    </div>
+    ${renderFairForm(fair, mode)}
+  `;
+  modal.classList.add("is-open");
+  modal.setAttribute("aria-hidden", "false");
+  document.body.classList.add("modal-open");
+  setupRenderedFairForm();
+}
+
+function setupRenderedFairForm() {
+  const form = document.querySelector("[data-fair-form]");
+  if (!form) return;
+
+  form.addEventListener("submit", async (event) => {
+    event.preventDefault();
+    const mode = form.dataset.fairForm;
+    const submitButton = form.querySelector("button[type='submit']");
+    const status = form.querySelector(".student-form-status");
+    const payload = getFairFormPayload(form);
+    const validationErrors = getFairValidationErrors(payload, mode);
+
+    if (validationErrors.length) {
+      status.classList.add("is-error");
+      status.innerHTML = validationErrors.map((error) => `・${escapeHtml(error)}`).join("<br>");
+      return;
+    }
+
+    const message = mode === "add"
+      ? `フェア「${payload.name}」を追加します。よろしいですか？`
+      : `フェア「${payload.name}」を更新します。よろしいですか？`;
+    if (!window.confirm(message)) {
+      status.classList.remove("is-error");
+      status.textContent = "保存をキャンセルしました。";
+      return;
+    }
+
+    try {
+      submitButton.disabled = true;
+      status.classList.remove("is-error");
+      status.textContent = "保存中...";
+      const result = await callGasAction(mode === "add" ? "addFair" : "updateFair", payload);
+      if (!result || result.ok === false || result.error) {
+        throw new Error(result?.error || "保存に失敗しました");
+      }
+      status.textContent = "保存しました。データを再取得しています...";
+      closeStudentModal();
+      await refreshDashboardData();
+    } catch (error) {
+      status.classList.add("is-error");
+      status.textContent = `保存できませんでした：${error.message}`;
+      submitButton.disabled = false;
+    }
+  });
+}
+
+function setupFairModal() {
+  const addButton = document.getElementById("addFairButton");
+  if (addButton) {
+    addButton.addEventListener("click", () => openFairModal({}, "add"));
+  }
 }
 
 function renderSchools() {
@@ -1623,6 +1811,7 @@ async function initDashboard() {
   setupTabs();
   setupStudentModal();
   setupSettingsModal();
+  setupFairModal();
   setupDataRefresh();
   await refreshDashboardData();
 }

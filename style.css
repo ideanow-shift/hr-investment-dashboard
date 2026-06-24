@@ -229,6 +229,30 @@ h3 {
 .section-heading.compact {
   margin-bottom: 14px;
 }
+.section-actions {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.section-actions .section-note {
+  margin-bottom: 0;
+}
+
+.detail-header-row {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 14px;
+}
+
+.detail-button.compact {
+  width: auto;
+  margin-top: 0;
+  white-space: nowrap;
+}
 
 .section-note {
   max-width: 460px;
