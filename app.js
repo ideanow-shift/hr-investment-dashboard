@@ -358,7 +358,9 @@ function normalizeStudent(student) {
     owner: String(student.owner || ""),
     nextAction: String(student.nextAction || ""),
     nextActionDate: String(student.nextActionDate || ""),
-    memo: String(student.memo || "")
+    memo: String(student.memo || ""),
+    updatedAt: String(student.updatedAt || ""),
+    updatedBy: String(student.updatedBy || "")
   };
 }
 
@@ -1179,6 +1181,8 @@ function openStudentModal(student) {
       <div><span>性別</span><strong>${escapeHtml(student.gender || "未設定")}</strong></div>
       <div><span>担当</span><strong>${escapeHtml(student.owner || "未設定")}</strong></div>
       <div><span>学生ID</span><strong>${escapeHtml(student.studentId || "未設定")}</strong></div>
+      <div><span>最終更新</span><strong>${escapeHtml(student.updatedAt || "未記録")}</strong></div>
+      <div><span>更新者</span><strong>${escapeHtml(student.updatedBy || "未記録")}</strong></div>
     </div>
     <div class="modal-progress">
       ${[

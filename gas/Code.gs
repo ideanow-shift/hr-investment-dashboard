@@ -180,7 +180,9 @@ function getStudentDataFromSheet(sheetName, cohortLabel) {
     owner: String(row[13] || ""),
     nextAction: String(row[14] || ""),
     nextActionDate: formatDateValue(row[15]),
-    memo: String(row[16] || "")
+    memo: String(row[16] || ""),
+    updatedAt: formatDateTimeValue(row[17]),
+    updatedBy: String(row[18] || "")
   }));
 }
 
@@ -200,8 +202,11 @@ function handleWriteAction(params) {
 
 function addStudentFromDashboard(params) {
   const sheet = getWritableStudentSheet(params.sheetName);
+  ensureStudentAuditColumns(sheet);
   const name = sanitizeText(params.name);
   const school = sanitizeText(params.school);
+  const operator = getOperatorName();
+  const updatedAt = new Date();
 
   if (!name) {
     throw new Error("氏名を入力してください。");
@@ -229,11 +234,14 @@ function addStudentFromDashboard(params) {
     sanitizeText(params.owner) || "総務人事",
     sanitizeText(params.nextAction),
     parseDateOrText(params.nextActionDate),
-    sanitizeText(params.memo)
+    sanitizeText(params.memo),
+    updatedAt,
+    operator
   ];
 
   sheet.appendRow(row);
   applySheetRules(SpreadsheetApp.getActiveSpreadsheet());
+  appendOperationLog("追加", sheet.getName(), studentId, name, operator, "ダッシュボードから学生を追加");
 
   return {
     ok: true,
@@ -245,7 +253,10 @@ function addStudentFromDashboard(params) {
 
 function updateStudentFromDashboard(params) {
   const sheet = getWritableStudentSheet(params.sheetName);
+  ensureStudentAuditColumns(sheet);
   const studentId = sanitizeText(params.studentId);
+  const operator = getOperatorName();
+  const updatedAt = new Date();
 
   if (!studentId) {
     throw new Error("学生IDが見つかりません。");
@@ -272,7 +283,9 @@ function updateStudentFromDashboard(params) {
     { col: 14, value: sanitizeText(params.owner) || "総務人事" },
     { col: 15, value: sanitizeText(params.nextAction) },
     { col: 16, value: parseDateOrText(params.nextActionDate) },
-    { col: 17, value: sanitizeText(params.memo) }
+    { col: 17, value: sanitizeText(params.memo) },
+    { col: 18, value: updatedAt },
+    { col: 19, value: operator }
   ];
 
   updates.forEach((update) => {
@@ -280,6 +293,7 @@ function updateStudentFromDashboard(params) {
   });
 
   applySheetRules(SpreadsheetApp.getActiveSpreadsheet());
+  appendOperationLog("更新", sheet.getName(), studentId, sanitizeText(params.name), operator, "ダッシュボードから学生情報を更新");
 
   return {
     ok: true,
@@ -307,6 +321,58 @@ function getWritableStudentSheet(sheetName) {
   }
 
   return getRequiredSheet(targetSheetName);
+}
+
+function ensureStudentAuditColumns(sheet) {
+  const updatedAtIndex = ensureColumnAfterHeader(sheet, "更新日時", "メモ");
+  const updatedByIndex = ensureColumnAfterHeader(sheet, "更新者", "更新日時");
+  sheet.getRange(2, updatedAtIndex, Math.max(sheet.getMaxRows() - 1, 1), 1).setNumberFormat("yyyy/mm/dd hh:mm");
+  sheet.getRange(1, updatedByIndex).setFontWeight("bold").setBackground("#eef5fc");
+}
+
+function appendOperationLog(action, sheetName, studentId, studentName, operator, detail) {
+  const ss = SpreadsheetApp.getActiveSpreadsheet();
+  const sheet = getOrCreateOperationLogSheet(ss);
+  sheet.appendRow([
+    new Date(),
+    action,
+    sheetName,
+    studentId,
+    studentName,
+    operator,
+    detail
+  ]);
+  sheet.getRange("A2:A1000").setNumberFormat("yyyy/mm/dd hh:mm");
+}
+
+function getOrCreateOperationLogSheet(ss) {
+  const headers = ["日時", "操作", "対象シート", "学生ID", "氏名", "更新者", "内容"];
+  let sheet = ss.getSheetByName("操作履歴");
+
+  if (!sheet) {
+    sheet = ss.insertSheet("操作履歴");
+    sheet.getRange(1, 1, 1, headers.length).setValues([headers]);
+  }
+
+  const currentHeaders = sheet.getRange(1, 1, 1, headers.length).getValues()[0];
+  const needsHeader = headers.some((header, index) => String(currentHeaders[index] || "") !== header);
+  if (needsHeader) {
+    sheet.getRange(1, 1, 1, headers.length).setValues([headers]);
+  }
+
+  formatBasicSheet(sheet, headers.length);
+  return sheet;
+}
+
+function getOperatorName() {
+  try {
+    const activeEmail = Session.getActiveUser().getEmail();
+    if (activeEmail) return activeEmail;
+  } catch (error) {
+    // Webアプリ実行条件によっては取得できないため、固定名にフォールバックする。
+  }
+
+  return "ダッシュボード";
 }
 
 function findStudentRow(sheet, studentId) {
@@ -420,18 +486,21 @@ function setupSampleSheets() {
       "担当者",
       "次アクション",
       "次アクション日",
-      "メモ"
+      "メモ",
+      "更新日時",
+      "更新者"
     ],
     [
-      ["S-0001", "山田 花", "女性", "国際文化理容美容専門学校 国分寺校", "2年", "ヘアワークス 新宿", new Date(2026, 5, 3), "登録済", "実施済", "実施済", "合格", "内定", "入社予定", "総務人事", "内定後フォロー面談", new Date(2026, 6, 5), "BASSA池袋に関心"],
-      ["S-0002", "佐藤 美咲", "女性", "山野美容専門学校", "2年", "東京総合", new Date(2026, 5, 15), "登録済", "予定", "未設定", "未定", "未定", "未定", "総務人事", "見学前リマインド", new Date(2026, 5, 25), "カラー教育に興味"],
-      ["S-0003", "鈴木 里奈", "女性", "横浜ビューティーアート専門学校", "2年", "学校訪問", new Date(2026, 5, 10), "登録済", "実施済", "予定", "未定", "未定", "未定", "総務人事", "面接日程確認", new Date(2026, 5, 28), ""],
-      ["S-0004", "田中 優", "男性", "パリ総合美容専門学校", "2年", "さんぽう美容就職フェア 高田馬場", new Date(2026, 3, 18), "登録済", "未設定", "未設定", "未定", "未定", "未定", "総務人事", "見学誘導LINE送信", "", "LINE反応あり"],
-      ["S-0005", "高橋 杏", "女性", "高山美容専門学校", "1年", "エイド 代々木", new Date(2026, 4, 24), "登録済", "未設定", "未設定", "未定", "未定", "未定", "総務人事", "学校訪問時に再接点", "", "次年度候補"]
+      ["S-0001", "山田 花", "女性", "国際文化理容美容専門学校 国分寺校", "2年", "ヘアワークス 新宿", new Date(2026, 5, 3), "登録済", "実施済", "実施済", "合格", "内定", "入社予定", "総務人事", "内定後フォロー面談", new Date(2026, 6, 5), "BASSA池袋に関心", new Date(), "初期データ"],
+      ["S-0002", "佐藤 美咲", "女性", "山野美容専門学校", "2年", "東京総合", new Date(2026, 5, 15), "登録済", "予定", "未設定", "未定", "未定", "未定", "総務人事", "見学前リマインド", new Date(2026, 5, 25), "カラー教育に興味", new Date(), "初期データ"],
+      ["S-0003", "鈴木 里奈", "女性", "横浜ビューティーアート専門学校", "2年", "学校訪問", new Date(2026, 5, 10), "登録済", "実施済", "予定", "未定", "未定", "未定", "総務人事", "面接日程確認", new Date(2026, 5, 28), "", new Date(), "初期データ"],
+      ["S-0004", "田中 優", "男性", "パリ総合美容専門学校", "2年", "さんぽう美容就職フェア 高田馬場", new Date(2026, 3, 18), "登録済", "未設定", "未設定", "未定", "未定", "未定", "総務人事", "見学誘導LINE送信", "", "LINE反応あり", new Date(), "初期データ"],
+      ["S-0005", "高橋 杏", "女性", "高山美容専門学校", "1年", "エイド 代々木", new Date(2026, 4, 24), "登録済", "未設定", "未設定", "未定", "未定", "未定", "総務人事", "学校訪問時に再接点", "", "次年度候補", new Date(), "初期データ"]
     ]
   );
 
   applySheetRules(ss);
+  getOrCreateOperationLogSheet(ss);
 
   Logger.log("人材投資管理システム用シートを作成しました。");
   return "人材投資管理システム用シートを作成しました。";
@@ -455,9 +524,25 @@ function upgradeExistingSheetsToLatestSchema() {
   fillBlankColumnValues(configSheet, "面接成約目標", 30, "年度");
 
   ensureColumnAfterHeader(studentSheet, "性別", "氏名");
+  ensureStudentAuditColumns(studentSheet);
   fillBlankColumnValues(studentSheet, "性別", "未回答", "学生ID");
 
+  [
+    "学生管理_27卒",
+    "学生管理_28卒",
+    "学生管理_サロン実習",
+    "学生管理_全件参考"
+  ].forEach((sheetName) => {
+    const sheet = ss.getSheetByName(sheetName);
+    if (sheet) {
+      ensureColumnAfterHeader(sheet, "性別", "氏名");
+      ensureStudentAuditColumns(sheet);
+      fillBlankColumnValues(sheet, "性別", "未回答", "学生ID");
+    }
+  });
+
   applySheetRules(ss);
+  getOrCreateOperationLogSheet(ss);
 
   ss.toast("既存シートを最新の列構成へ更新しました。", "NOV Talent", 5);
   Logger.log("既存シートを最新の列構成へ更新しました。既存データは保持されています。");
@@ -530,7 +615,7 @@ function applySheetRules(ss) {
   formatBasicSheet(ss.getSheetByName("年度設定"), 6);
   formatBasicSheet(ss.getSheetByName("フェア実績"), 6);
   formatBasicSheet(ss.getSheetByName("学校別分析"), 7);
-  formatBasicSheet(ss.getSheetByName("学生管理"), 17);
+  formatBasicSheet(ss.getSheetByName("学生管理"), 19);
 
   const configSheet = ss.getSheetByName("年度設定");
   configSheet.getRange("B2:F100").setNumberFormat("0");
@@ -552,9 +637,11 @@ function applySheetRules(ss) {
     const studentSheet = ss.getSheetByName(sheetName);
     if (!studentSheet) return;
 
-    formatBasicSheet(studentSheet, 17);
+    ensureStudentAuditColumns(studentSheet);
+    formatBasicSheet(studentSheet, 19);
     studentSheet.getRange("G2:G1000").setNumberFormat("yyyy/mm/dd");
     studentSheet.getRange("P2:P1000").setNumberFormat("yyyy/mm/dd");
+    studentSheet.getRange("R2:R1000").setNumberFormat("yyyy/mm/dd hh:mm");
 
     setDropdown(studentSheet, "C2:C1000", ["男性", "女性", "その他", "未回答"]);
     setDropdown(studentSheet, "E2:E1000", ["1年", "2年", "既卒", "その他"]);
@@ -610,6 +697,13 @@ function getOptionalSheet(sheetName) {
 function formatDateValue(value) {
   if (value instanceof Date) {
     return Utilities.formatDate(value, "Asia/Tokyo", "yyyy-MM-dd");
+  }
+  return String(value || "");
+}
+
+function formatDateTimeValue(value) {
+  if (value instanceof Date) {
+    return Utilities.formatDate(value, "Asia/Tokyo", "yyyy-MM-dd HH:mm");
   }
   return String(value || "");
 }
