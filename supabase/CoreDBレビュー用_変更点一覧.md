@@ -28,6 +28,18 @@ Core DB側で影響確認後に投入します。
 | 店舗名文字列 | `preferred_store_id` / `tour_store_id` / `expected_store_id` | 店舗正本はCore DB `stores.id` を参照 |
 | 法人名文字列 | `corporation_id` | 法人正本はCore DB `corporations.id` を参照 |
 | authenticated書き込みRLS | 作成しない | Phase 1はGAS backend + service_role経由 |
+| `unique (fiscal_year, corporation_id)` | 部分unique index 2本 | `corporation_id is null` の全社設定重複を防止 |
+| `talent_student_followups.student_id on delete cascade` | `on delete restrict` | 学生削除時にフォロー履歴が消えないようにする |
+
+## 2-1. Core DBレビュー後の追加修正
+
+Core DB側レビュー結果を受け、Supabase投入前に以下を修正済みです。
+
+- `talent_investment_settings` の年度uniqueをテーブル制約から部分unique indexへ変更
+- `corporation_id is not null` の法人別年度設定は `(fiscal_year, corporation_id)` で一意
+- `corporation_id is null` の全社年度設定は `fiscal_year` で一意
+- `talent_student_followups.student_id` を `on delete cascade` から `on delete restrict` へ変更
+- 実質マスタの `talent_investment_settings` / `talent_schools` / `talent_fairs` に `is_active boolean not null default true` を追加
 
 ## 3. Core DB参照カラム一覧
 
@@ -144,4 +156,3 @@ Phase 1では、GAS backendからSupabaseへ接続します。
 2. 総務人事部の操作確認完了
 3. スプレッドシートをバックアップ扱いへ変更
 4. GASのスプレッドシート書き込み処理を停止候補にする
-

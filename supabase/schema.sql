@@ -40,12 +40,20 @@ create table if not exists public.talent_investment_settings (
   hiring_budget integer not null default 0,
   expected_joiners integer not null default 0,
   memo text,
+  is_active boolean not null default true,
   created_by_employee_id uuid references public.employees(id) on delete set null,
   updated_by_employee_id uuid references public.employees(id) on delete set null,
   created_at timestamptz not null default now(),
-  updated_at timestamptz not null default now(),
-  constraint talent_investment_settings_year_corp_unique unique (fiscal_year, corporation_id)
+  updated_at timestamptz not null default now()
 );
+
+create unique index if not exists talent_investment_settings_year_corp_unique
+  on public.talent_investment_settings (fiscal_year, corporation_id)
+  where corporation_id is not null;
+
+create unique index if not exists talent_investment_settings_year_all_unique
+  on public.talent_investment_settings (fiscal_year)
+  where corporation_id is null;
 
 -- ============================================================
 -- 学校マスタ
@@ -59,6 +67,7 @@ create table if not exists public.talent_schools (
   area text,
   owner_employee_id uuid references public.employees(id) on delete set null,
   memo text,
+  is_active boolean not null default true,
   created_by_employee_id uuid references public.employees(id) on delete set null,
   updated_by_employee_id uuid references public.employees(id) on delete set null,
   created_at timestamptz not null default now(),
@@ -80,6 +89,7 @@ create table if not exists public.talent_fairs (
   line_registrations integer not null default 0,
   salon_tours integer not null default 0,
   memo text,
+  is_active boolean not null default true,
   created_by_employee_id uuid references public.employees(id) on delete set null,
   updated_by_employee_id uuid references public.employees(id) on delete set null,
   created_at timestamptz not null default now(),
@@ -209,7 +219,7 @@ create index if not exists talent_operation_logs_created_at_idx
 
 create table if not exists public.talent_student_followups (
   id uuid primary key default gen_random_uuid(),
-  student_id uuid not null references public.talent_students(id) on delete cascade,
+  student_id uuid not null references public.talent_students(id) on delete restrict,
   action_title text not null,
   due_date date,
   status text not null default '未対応',
@@ -324,4 +334,3 @@ alter table public.talent_student_followups enable row level security;
 
 -- Phase 1では明示的なanon/authenticated書き込みポリシーを作らない。
 -- 必要になった段階で、novHub.currentEmployee / Supabase Auth / employee_roles に合わせて追加する。
-
