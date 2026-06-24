@@ -97,7 +97,7 @@ function getSpreadsheetDashboardData() {
 }
 
 function getSupabaseDashboardData() {
-  const settings = getSupabaseRows_("talent_investment_settings", "is_active=eq.true&order=fiscal_year.desc&limit=1");
+  const settings = getSupabaseRows_("talent_investment_settings", "is_active=eq.true&corporation_id=is.null&order=fiscal_year.desc&limit=1");
   const schools = getSupabaseRows_("talent_schools", "is_active=eq.true&order=name.asc");
   const fairs = getSupabaseRows_("talent_fairs", "is_active=eq.true&order=held_date.asc");
   const students = getSupabaseRows_("talent_students", "order=cohort.asc,student_code.asc");
@@ -1409,5 +1409,6 @@ function formatDateTimeValue(value) {
   }
   return String(value || "");
 }
+
 
 
