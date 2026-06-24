@@ -208,7 +208,7 @@ let studentData = [
 ];
 
 let studentCohorts = [
-  { key: "standard", label: "学生管理", students: studentData }
+  { key: "standard", label: "学生管理", sheetName: "学生管理", students: studentData }
 ];
 let activeStudentCohort = "standard";
 let studentSummary = buildStudentSummary(studentData);
@@ -228,7 +228,7 @@ async function fetchDashboardData() {
   }
 }
 
-function loadJsonp(apiUrl) {
+function loadJsonp(apiUrl, params = {}) {
   return new Promise((resolve, reject) => {
     const callbackName = `talentInvestmentDashboard_${Date.now()}_${Math.random().toString(36).slice(2)}`;
     const script = document.createElement("script");
@@ -256,11 +256,24 @@ function loadJsonp(apiUrl) {
     };
 
     const url = new URL(apiUrl);
+    Object.entries(params).forEach(([key, value]) => {
+      if (value !== undefined && value !== null) {
+        url.searchParams.set(key, String(value));
+      }
+    });
     url.searchParams.set("callback", callbackName);
     url.searchParams.set("_", String(Date.now()));
     script.src = url.toString();
     document.head.appendChild(script);
   });
+}
+
+function callGasAction(action, params = {}) {
+  if (!GAS_API_URL) {
+    return Promise.reject(new Error("GAS API URLが未設定です"));
+  }
+
+  return loadJsonp(GAS_API_URL, { action, ...params });
 }
 
 function applyDashboardData(data) {
@@ -310,6 +323,7 @@ function applyDashboardData(data) {
     studentCohorts = data.studentCohorts.map((cohort) => ({
       key: String(cohort.key || cohort.label || ""),
       label: String(cohort.label || cohort.sheetName || "学生管理"),
+      sheetName: String(cohort.sheetName || "学生管理"),
       students: Array.isArray(cohort.students) ? cohort.students.map(normalizeStudent) : []
     })).filter((cohort) => cohort.key);
     if (!studentCohorts.some((cohort) => cohort.key === activeStudentCohort)) {
@@ -318,7 +332,7 @@ function applyDashboardData(data) {
     studentData = getActiveStudents();
   } else if (Array.isArray(data.students)) {
     studentData = data.students.map(normalizeStudent);
-    studentCohorts = [{ key: "standard", label: "学生管理", students: studentData }];
+    studentCohorts = [{ key: "standard", label: "学生管理", sheetName: "学生管理", students: studentData }];
     activeStudentCohort = "standard";
   }
 
@@ -353,8 +367,20 @@ function getActiveStudents() {
   return activeCohort ? activeCohort.students : studentData;
 }
 
+function getActiveCohort() {
+  return studentCohorts.find((cohort) => cohort.key === activeStudentCohort) || studentCohorts[0] || null;
+}
+
 function getActiveCohortLabel() {
-  return (studentCohorts.find((cohort) => cohort.key === activeStudentCohort) || studentCohorts[0])?.label || "学生管理";
+  return getActiveCohort()?.label || "学生管理";
+}
+
+function getActiveSheetName() {
+  return getActiveCohort()?.sheetName || "学生管理";
+}
+
+function isActiveCohortEditable() {
+  return getActiveSheetName() !== "学生管理_全件参考";
 }
 
 const formatNumber = new Intl.NumberFormat("ja-JP");
@@ -366,6 +392,13 @@ const formatCurrency = new Intl.NumberFormat("ja-JP", {
 
 const percent = (value) => `${Math.round(value * 100)}%`;
 const safeDivide = (numerator, denominator) => denominator ? numerator / denominator : 0;
+const escapeHtml = (value) => String(value ?? "").replace(/[&<>"']/g, (char) => ({
+  "&": "&amp;",
+  "<": "&lt;",
+  ">": "&gt;",
+  "\"": "&quot;",
+  "'": "&#39;"
+})[char]);
 const normalizeAppName = (name) => {
   if (!name || name === "Talent Investment Dashboard") return "NOV Talent";
   return String(name);
@@ -803,6 +836,7 @@ function renderStudentCohortTabs() {
 
   if (studentCohorts.length <= 1) {
     tabs.innerHTML = "";
+    renderStudentEditControls();
     return;
   }
 
@@ -820,7 +854,178 @@ function renderStudentCohortTabs() {
       renderStudentActions();
       renderStudentList();
       renderStudentCohortTabs();
+      renderStudentEditControls();
     });
+  });
+
+  renderStudentEditControls();
+}
+
+function renderStudentEditControls() {
+  const addButton = document.getElementById("addStudentButton");
+  const editNote = document.getElementById("studentEditNote");
+  const editable = isActiveCohortEditable();
+  const sheetName = getActiveSheetName();
+
+  if (addButton) {
+    addButton.disabled = !editable;
+    addButton.textContent = editable ? "学生追加" : "全件参考は編集不可";
+  }
+
+  if (editNote) {
+    editNote.textContent = editable
+      ? `${getActiveCohortLabel()}に学生を追加・更新します。保存後はスプレッドシートにも反映されます。`
+      : `${sheetName}は集約確認用です。追加・更新は27卒、28卒、サロン実習の各タブで行ってください。`;
+  }
+}
+
+const studentSelectOptions = {
+  gender: ["男性", "女性", "その他", "未回答"],
+  grade: ["1年", "2年", "既卒", "その他"],
+  lineStatus: ["未登録", "登録済"],
+  salonTourStatus: ["未設定", "予定", "実施済", "キャンセル"],
+  interviewStatus: ["未設定", "予定", "実施済", "キャンセル"],
+  resultStatus: ["未定", "合格", "不合格", "辞退"],
+  offerStatus: ["未定", "内定", "承諾", "辞退"],
+  expectedJoinStatus: ["未定", "入社予定", "入社済", "辞退"]
+};
+
+function renderSelectField(name, label, options, value = "", disabled = "") {
+  return `
+    <label>
+      <span>${label}</span>
+      <select name="${name}" ${disabled}>
+        ${options.map((option) => `
+          <option value="${escapeHtml(option)}" ${option === value ? "selected" : ""}>${escapeHtml(option)}</option>
+        `).join("")}
+      </select>
+    </label>
+  `;
+}
+
+function getStudentFormPayload(form) {
+  const formData = new FormData(form);
+  return {
+    sheetName: getActiveSheetName(),
+    studentId: String(formData.get("studentId") || ""),
+    name: String(formData.get("name") || "").trim(),
+    gender: String(formData.get("gender") || "未回答"),
+    school: String(formData.get("school") || "").trim(),
+    grade: String(formData.get("grade") || ""),
+    source: String(formData.get("source") || "").trim(),
+    contactDate: String(formData.get("contactDate") || ""),
+    lineStatus: String(formData.get("lineStatus") || "未登録"),
+    salonTourStatus: String(formData.get("salonTourStatus") || "未設定"),
+    interviewStatus: String(formData.get("interviewStatus") || "未設定"),
+    resultStatus: String(formData.get("resultStatus") || "未定"),
+    offerStatus: String(formData.get("offerStatus") || "未定"),
+    expectedJoinStatus: String(formData.get("expectedJoinStatus") || "未定"),
+    owner: String(formData.get("owner") || "総務人事").trim(),
+    nextAction: String(formData.get("nextAction") || "").trim(),
+    nextActionDate: String(formData.get("nextActionDate") || ""),
+    memo: String(formData.get("memo") || "").trim()
+  };
+}
+
+function renderStudentForm(student = {}, mode = "update") {
+  const isAdd = mode === "add";
+  const disabled = isActiveCohortEditable() ? "" : "disabled";
+  const submitText = isAdd ? "学生を追加" : "更新を保存";
+
+  return `
+    <form class="student-edit-form" data-student-form="${mode}">
+      <input type="hidden" name="studentId" value="${escapeHtml(student.studentId || "")}">
+      <div class="student-form-heading">
+        <div>
+          <h3>${isAdd ? "学生を追加" : "ステータスを更新"}</h3>
+          <p>${escapeHtml(getActiveCohortLabel())} / ${escapeHtml(getActiveSheetName())}</p>
+        </div>
+      </div>
+      <div class="student-form-grid">
+        <label>
+          <span>氏名</span>
+          <input name="name" value="${escapeHtml(student.name || "")}" placeholder="例：山田 花" ${isAdd ? "required" : ""} ${disabled}>
+        </label>
+        ${renderSelectField("gender", "性別", studentSelectOptions.gender, student.gender || "未回答", disabled)}
+        <label>
+          <span>学校名</span>
+          <input name="school" value="${escapeHtml(student.school || "")}" placeholder="例：山野美容専門学校" ${isAdd ? "required" : ""} ${disabled}>
+        </label>
+        ${renderSelectField("grade", "学年", studentSelectOptions.grade, student.grade || "2年", disabled)}
+        <label>
+          <span>流入元</span>
+          <input name="source" value="${escapeHtml(student.source || "")}" placeholder="フェア名・学校訪問など" ${disabled}>
+        </label>
+        <label>
+          <span>接触日</span>
+          <input name="contactDate" type="date" value="${escapeHtml(student.contactDate || "")}" ${disabled}>
+        </label>
+        ${renderSelectField("lineStatus", "LINE登録", studentSelectOptions.lineStatus, student.lineStatus || "未登録", disabled)}
+        ${renderSelectField("salonTourStatus", "見学ステータス", studentSelectOptions.salonTourStatus, student.salonTourStatus || "未設定", disabled)}
+        ${renderSelectField("interviewStatus", "面接ステータス", studentSelectOptions.interviewStatus, student.interviewStatus || "未設定", disabled)}
+        ${renderSelectField("resultStatus", "選考結果", studentSelectOptions.resultStatus, student.resultStatus || "未定", disabled)}
+        ${renderSelectField("offerStatus", "内定ステータス", studentSelectOptions.offerStatus, student.offerStatus || "未定", disabled)}
+        ${renderSelectField("expectedJoinStatus", "入社予定", studentSelectOptions.expectedJoinStatus, student.expectedJoinStatus || "未定", disabled)}
+        <label>
+          <span>担当者</span>
+          <input name="owner" value="${escapeHtml(student.owner || "総務人事")}" ${disabled}>
+        </label>
+        <label>
+          <span>次アクション日</span>
+          <input name="nextActionDate" type="date" value="${escapeHtml(student.nextActionDate || "")}" ${disabled}>
+        </label>
+      </div>
+      <label class="student-form-full">
+        <span>次アクション</span>
+        <input name="nextAction" value="${escapeHtml(student.nextAction || "")}" placeholder="例：見学前リマインド" ${disabled}>
+      </label>
+      <label class="student-form-full">
+        <span>メモ</span>
+        <textarea name="memo" rows="3" ${disabled}>${escapeHtml(student.memo || "")}</textarea>
+      </label>
+      <div class="student-form-actions">
+        <p class="student-form-status" aria-live="polite"></p>
+        <button class="refresh-button" type="submit" ${disabled}>${submitText}</button>
+      </div>
+    </form>
+  `;
+}
+
+function setupRenderedStudentForm() {
+  const form = document.querySelector("[data-student-form]");
+  if (!form) return;
+
+  form.addEventListener("submit", async (event) => {
+    event.preventDefault();
+    const mode = form.dataset.studentForm;
+    const submitButton = form.querySelector("button[type='submit']");
+    const status = form.querySelector(".student-form-status");
+    const payload = getStudentFormPayload(form);
+
+    if (!isActiveCohortEditable()) {
+      status.textContent = "全件参考シートは編集できません。";
+      return;
+    }
+
+    if (mode === "add" && (!payload.name || !payload.school)) {
+      status.textContent = "氏名と学校名は必須です。";
+      return;
+    }
+
+    try {
+      submitButton.disabled = true;
+      status.textContent = "保存中...";
+      const result = await callGasAction(mode === "add" ? "addStudent" : "updateStudent", payload);
+      if (!result || result.ok === false || result.error) {
+        throw new Error(result?.error || "保存に失敗しました");
+      }
+      status.textContent = "保存しました。データを再取得しています...";
+      closeStudentModal();
+      await refreshDashboardData();
+    } catch (error) {
+      status.textContent = `保存できませんでした：${error.message}`;
+      submitButton.disabled = false;
+    }
   });
 }
 
@@ -963,17 +1168,17 @@ function openStudentModal(student) {
     <div class="modal-header">
       <div>
         <p class="section-kicker">Student Detail</p>
-        <h2 id="studentModalTitle">${student.name || "氏名未設定"}</h2>
-        <p>${student.school || "学校未設定"} / ${student.grade || "学年未設定"}</p>
+        <h2 id="studentModalTitle">${escapeHtml(student.name || "氏名未設定")}</h2>
+        <p>${escapeHtml(student.school || "学校未設定")} / ${escapeHtml(student.grade || "学年未設定")}</p>
       </div>
-      <span class="priority-pill ${priority.className}">${priority.label}</span>
+      <span class="priority-pill ${priority.className}">${escapeHtml(priority.label)}</span>
     </div>
     <div class="modal-status-grid">
-      <div><span>接点</span><strong>${student.source || "未設定"}</strong></div>
-      <div><span>接触日</span><strong>${student.contactDate || "未設定"}</strong></div>
-      <div><span>性別</span><strong>${student.gender || "未設定"}</strong></div>
-      <div><span>担当</span><strong>${student.owner || "未設定"}</strong></div>
-      <div><span>学生ID</span><strong>${student.studentId || "未設定"}</strong></div>
+      <div><span>接点</span><strong>${escapeHtml(student.source || "未設定")}</strong></div>
+      <div><span>接触日</span><strong>${escapeHtml(student.contactDate || "未設定")}</strong></div>
+      <div><span>性別</span><strong>${escapeHtml(student.gender || "未設定")}</strong></div>
+      <div><span>担当</span><strong>${escapeHtml(student.owner || "未設定")}</strong></div>
+      <div><span>学生ID</span><strong>${escapeHtml(student.studentId || "未設定")}</strong></div>
     </div>
     <div class="modal-progress">
       ${[
@@ -985,25 +1190,58 @@ function openStudentModal(student) {
         ["入社予定", student.expectedJoinStatus]
       ].map(([label, value]) => `
         <div class="progress-chip">
-          <span>${label}</span>
-          <strong>${value || "未設定"}</strong>
+          <span>${escapeHtml(label)}</span>
+          <strong>${escapeHtml(value || "未設定")}</strong>
         </div>
       `).join("")}
     </div>
     <div class="modal-next-action">
       <span>次アクション</span>
-      <strong>${student.nextAction || "次アクション未設定"}</strong>
-      <p>${student.nextActionDate || "日付未設定"}</p>
+      <strong>${escapeHtml(student.nextAction || "次アクション未設定")}</strong>
+      <p>${escapeHtml(student.nextActionDate || "日付未設定")}</p>
     </div>
     <div class="modal-memo">
       <span>メモ</span>
-      <p>${student.memo || "メモはまだありません。"}</p>
+      <p>${escapeHtml(student.memo || "メモはまだありません。")}</p>
     </div>
+    ${renderStudentForm(student, "update")}
   `;
 
   modal.classList.add("is-open");
   modal.setAttribute("aria-hidden", "false");
   document.body.classList.add("modal-open");
+  setupRenderedStudentForm();
+}
+
+function openAddStudentModal() {
+  const modal = document.getElementById("studentModal");
+  const content = document.getElementById("studentModalContent");
+
+  content.innerHTML = `
+    <div class="modal-header">
+      <div>
+        <p class="section-kicker">Student Entry</p>
+        <h2 id="studentModalTitle">学生追加</h2>
+        <p>${escapeHtml(getActiveCohortLabel())}に新しい学生を登録します。</p>
+      </div>
+    </div>
+    ${renderStudentForm({
+      gender: "未回答",
+      grade: "2年",
+      lineStatus: "登録済",
+      salonTourStatus: "未設定",
+      interviewStatus: "未設定",
+      resultStatus: "未定",
+      offerStatus: "未定",
+      expectedJoinStatus: "未定",
+      owner: "総務人事"
+    }, "add")}
+  `;
+
+  modal.classList.add("is-open");
+  modal.setAttribute("aria-hidden", "false");
+  document.body.classList.add("modal-open");
+  setupRenderedStudentForm();
 }
 
 function closeStudentModal() {
@@ -1016,8 +1254,12 @@ function closeStudentModal() {
 function setupStudentModal() {
   const modal = document.getElementById("studentModal");
   const closeButton = modal.querySelector(".modal-close");
+  const addButton = document.getElementById("addStudentButton");
 
   closeButton.addEventListener("click", closeStudentModal);
+  if (addButton) {
+    addButton.addEventListener("click", openAddStudentModal);
+  }
   modal.addEventListener("click", (event) => {
     if (event.target === modal) {
       closeStudentModal();
@@ -1044,6 +1286,7 @@ function renderDashboard(isConnected) {
   renderSchools();
   generateActionCards();
   renderStudentCohortTabs();
+  renderStudentEditControls();
   renderStudentSummary();
   renderStudentActions();
   renderStudentList();

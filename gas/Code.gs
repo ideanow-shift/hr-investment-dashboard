@@ -19,10 +19,14 @@ function onOpen() {
 
 function doGet(e) {
   try {
+    if (e && e.parameter && e.parameter.action) {
+      return createResponse(handleWriteAction(e.parameter), e);
+    }
+
     const data = getDashboardData();
     return createResponse(data, e);
   } catch (error) {
-    return createResponse({ error: error.message }, e);
+    return createResponse({ ok: false, error: error.message }, e);
   }
 }
 
@@ -178,6 +182,172 @@ function getStudentDataFromSheet(sheetName, cohortLabel) {
     nextActionDate: formatDateValue(row[15]),
     memo: String(row[16] || "")
   }));
+}
+
+function handleWriteAction(params) {
+  const action = String(params.action || "");
+
+  if (action === "addStudent") {
+    return addStudentFromDashboard(params);
+  }
+
+  if (action === "updateStudent") {
+    return updateStudentFromDashboard(params);
+  }
+
+  throw new Error(`未対応の操作です: ${action}`);
+}
+
+function addStudentFromDashboard(params) {
+  const sheet = getWritableStudentSheet(params.sheetName);
+  const name = sanitizeText(params.name);
+  const school = sanitizeText(params.school);
+
+  if (!name) {
+    throw new Error("氏名を入力してください。");
+  }
+
+  if (!school) {
+    throw new Error("学校名を入力してください。");
+  }
+
+  const studentId = generateNextStudentId(sheet);
+  const row = [
+    studentId,
+    name,
+    sanitizeText(params.gender) || "未回答",
+    school,
+    sanitizeText(params.grade),
+    sanitizeText(params.source),
+    parseDateOrText(params.contactDate),
+    sanitizeText(params.lineStatus) || "未登録",
+    sanitizeText(params.salonTourStatus) || "未設定",
+    sanitizeText(params.interviewStatus) || "未設定",
+    sanitizeText(params.resultStatus) || "未定",
+    sanitizeText(params.offerStatus) || "未定",
+    sanitizeText(params.expectedJoinStatus) || "未定",
+    sanitizeText(params.owner) || "総務人事",
+    sanitizeText(params.nextAction),
+    parseDateOrText(params.nextActionDate),
+    sanitizeText(params.memo)
+  ];
+
+  sheet.appendRow(row);
+  applySheetRules(SpreadsheetApp.getActiveSpreadsheet());
+
+  return {
+    ok: true,
+    action: "addStudent",
+    sheetName: sheet.getName(),
+    studentId: studentId
+  };
+}
+
+function updateStudentFromDashboard(params) {
+  const sheet = getWritableStudentSheet(params.sheetName);
+  const studentId = sanitizeText(params.studentId);
+
+  if (!studentId) {
+    throw new Error("学生IDが見つかりません。");
+  }
+
+  const rowNumber = findStudentRow(sheet, studentId);
+  if (!rowNumber) {
+    throw new Error(`学生ID「${studentId}」が見つかりません。`);
+  }
+
+  const updates = [
+    { col: 2, value: sanitizeText(params.name) },
+    { col: 3, value: sanitizeText(params.gender) || "未回答" },
+    { col: 4, value: sanitizeText(params.school) },
+    { col: 5, value: sanitizeText(params.grade) },
+    { col: 6, value: sanitizeText(params.source) },
+    { col: 7, value: parseDateOrText(params.contactDate) },
+    { col: 8, value: sanitizeText(params.lineStatus) || "未登録" },
+    { col: 9, value: sanitizeText(params.salonTourStatus) || "未設定" },
+    { col: 10, value: sanitizeText(params.interviewStatus) || "未設定" },
+    { col: 11, value: sanitizeText(params.resultStatus) || "未定" },
+    { col: 12, value: sanitizeText(params.offerStatus) || "未定" },
+    { col: 13, value: sanitizeText(params.expectedJoinStatus) || "未定" },
+    { col: 14, value: sanitizeText(params.owner) || "総務人事" },
+    { col: 15, value: sanitizeText(params.nextAction) },
+    { col: 16, value: parseDateOrText(params.nextActionDate) },
+    { col: 17, value: sanitizeText(params.memo) }
+  ];
+
+  updates.forEach((update) => {
+    sheet.getRange(rowNumber, update.col).setValue(update.value);
+  });
+
+  applySheetRules(SpreadsheetApp.getActiveSpreadsheet());
+
+  return {
+    ok: true,
+    action: "updateStudent",
+    sheetName: sheet.getName(),
+    studentId: studentId
+  };
+}
+
+function getWritableStudentSheet(sheetName) {
+  const allowedSheetNames = [
+    "学生管理",
+    "学生管理_27卒",
+    "学生管理_28卒",
+    "学生管理_サロン実習"
+  ];
+  const targetSheetName = sanitizeText(sheetName) || "学生管理";
+
+  if (targetSheetName === "学生管理_全件参考") {
+    throw new Error("全件参考シートは編集できません。27卒、28卒、サロン実習の各シートで編集してください。");
+  }
+
+  if (allowedSheetNames.indexOf(targetSheetName) === -1) {
+    throw new Error(`編集できないシートです: ${targetSheetName}`);
+  }
+
+  return getRequiredSheet(targetSheetName);
+}
+
+function findStudentRow(sheet, studentId) {
+  const lastRow = sheet.getLastRow();
+  if (lastRow < 2) return 0;
+
+  const ids = sheet.getRange(2, 1, lastRow - 1, 1).getValues();
+  for (let index = 0; index < ids.length; index += 1) {
+    if (String(ids[index][0] || "").trim() === studentId) {
+      return index + 2;
+    }
+  }
+
+  return 0;
+}
+
+function generateNextStudentId(sheet) {
+  const lastRow = sheet.getLastRow();
+  if (lastRow < 2) return "S-0001";
+
+  const ids = sheet.getRange(2, 1, lastRow - 1, 1).getValues();
+  const maxNumber = ids.reduce((max, row) => {
+    const match = String(row[0] || "").match(/^S-(\d+)$/);
+    return match ? Math.max(max, Number(match[1])) : max;
+  }, 0);
+
+  return `S-${String(maxNumber + 1).padStart(4, "0")}`;
+}
+
+function sanitizeText(value) {
+  return String(value || "").trim();
+}
+
+function parseDateOrText(value) {
+  const text = sanitizeText(value);
+  if (!text) return "";
+
+  const match = text.match(/^(\d{4})-(\d{2})-(\d{2})$/);
+  if (!match) return text;
+
+  return new Date(Number(match[1]), Number(match[2]) - 1, Number(match[3]));
 }
 
 function buildStudentSummary(students) {
