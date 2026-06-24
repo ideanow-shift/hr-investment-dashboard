@@ -589,6 +589,10 @@ function handleWriteAction(params) {
     return updateStudentFromDashboard(params);
   }
 
+  if (action === "updateSettings") {
+    return updateSettingsFromDashboard(params);
+  }
+
   throw new Error(`未対応の操作です: ${action}`);
 }
 
@@ -1405,4 +1409,5 @@ function formatDateTimeValue(value) {
   }
   return String(value || "");
 }
+
 
