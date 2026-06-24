@@ -2134,6 +2134,7 @@ function setupStudentModal() {
 
 function renderDashboard(isConnected) {
   updateDataSourceStatus(isConnected);
+  renderHubContextBadge();
   document.getElementById("appTitle").textContent = dashboardConfig.appName;
   document.title = dashboardConfig.appName;
 
@@ -2197,6 +2198,26 @@ function setupDataRefresh() {
   window.setInterval(refreshDashboardData, 24 * 60 * 60 * 1000);
 }
 
+function getHubCurrentEmployee() {
+  return window.novHub?.currentEmployee || window.NOV_HUB_CURRENT_EMPLOYEE || null;
+}
+
+function renderHubContextBadge() {
+  const badge = document.getElementById("hubContextBadge");
+  if (!badge) return;
+  const employee = getHubCurrentEmployee();
+  if (!employee) {
+    badge.hidden = true;
+    badge.textContent = "";
+    return;
+  }
+
+  const displayName = employee.displayName || employee.name || employee.fullName || employee.employeeName || "ログイン中";
+  const roleName = employee.roleName || employee.positionName || employee.departmentName || "HUB";
+  badge.hidden = false;
+  badge.innerHTML = `<span>HUB</span><strong>${escapeHtml(displayName)}</strong><small>${escapeHtml(roleName)}</small>`;
+}
+
 function updateDataSourceStatus(isConnected) {
   const badge = document.querySelector(".header-badge");
   const footerStatus = document.getElementById("footerStatus");
@@ -2236,6 +2257,8 @@ async function initDashboard() {
 }
 
 document.addEventListener("DOMContentLoaded", initDashboard);
+
+
 
 
 
