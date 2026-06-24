@@ -101,8 +101,9 @@ function getSupabaseDashboardData() {
   const schools = getSupabaseRows_("talent_schools", "is_active=eq.true&order=name.asc");
   const fairs = getSupabaseRows_("talent_fairs", "is_active=eq.true&order=held_date.asc");
   const students = getSupabaseRows_("talent_students", "order=cohort.asc,student_code.asc");
+  const followups = getSupabaseRows_("talent_student_followups", "order=due_date.asc,created_at.desc");
 
-  const convertedStudents = students.map(convertSupabaseStudent_);
+  const convertedStudents = attachSupabaseFollowups_(students.map(convertSupabaseStudent_), followups);
   const studentCohorts = buildSupabaseStudentCohorts_(convertedStudents);
 
   return {
@@ -366,6 +367,7 @@ function convertSupabaseFair_(row) {
 
 function convertSupabaseStudent_(row) {
   return {
+    id: String(row.id || ""),
     studentId: String(row.student_code || row.id || ""),
     cohort: String(row.cohort || ""),
     name: String(row.full_name || ""),
@@ -390,6 +392,31 @@ function convertSupabaseStudent_(row) {
   };
 }
 
+function convertSupabaseFollowup_(row) {
+  return {
+    id: String(row.id || ""),
+    studentRecordId: String(row.student_id || ""),
+    actionTitle: String(row.action_title || ""),
+    dueDate: String(row.due_date || ""),
+    status: String(row.status || "未対応"),
+    memo: String(row.memo || ""),
+    createdAt: formatDateTimeValue(row.created_at),
+    updatedAt: formatDateTimeValue(row.updated_at)
+  };
+}
+
+function attachSupabaseFollowups_(students, followupRows) {
+  const followupsByStudentId = followupRows.reduce((map, row) => {
+    const followup = convertSupabaseFollowup_(row);
+    if (!map[followup.studentRecordId]) map[followup.studentRecordId] = [];
+    map[followup.studentRecordId].push(followup);
+    return map;
+  }, {});
+
+  return students.map((student) => Object.assign({}, student, {
+    followups: followupsByStudentId[student.id] || []
+  }));
+}
 function buildSupabaseStudentCohorts_(students) {
   const definitions = [
     { key: "27", label: "27卒", sheetName: "Supabase_27卒" },
@@ -623,6 +650,10 @@ function handleWriteAction(params) {
 
   if (action === "updateSchool") {
     return updateSchoolFromDashboard(params);
+  }
+
+  if (action === "addFollowup") {
+    return addFollowupFromDashboard(params);
   }
 
   throw new Error(`未対応の操作です: ${action}`);
@@ -1036,6 +1067,68 @@ function updateSpreadsheetSchoolFromDashboard_(params) {
   sheet.getRange(rowNumber, 1).setValue(payload.name);
   appendOperationLog("更新", "学校別分析", payload.name, payload.name, getOperatorName(), "ダッシュボードから学校を更新");
   return { ok: true, action: "updateSchool", schoolName: payload.name };
+}
+function addFollowupFromDashboard(params) {
+  if (isSupabaseConfigured_()) {
+    return addSupabaseFollowupFromDashboard_(params);
+  }
+
+  return addSpreadsheetFollowupFromDashboard_(params);
+}
+
+function buildFollowupPayload_(params) {
+  const payload = {
+    action_title: sanitizeText(params.actionTitle),
+    due_date: normalizeSupabaseDate_(params.dueDate),
+    status: sanitizeText(params.status) || "未対応",
+    memo: sanitizeText(params.memo)
+  };
+  if (!payload.action_title) throw new Error("対応内容を入力してください。");
+  if (["未対応", "対応中", "完了", "不要"].indexOf(payload.status) === -1) {
+    throw new Error("フォロー状態が不正です。");
+  }
+  return payload;
+}
+
+function addSupabaseFollowupFromDashboard_(params) {
+  const studentCode = sanitizeText(params.studentId);
+  const studentRecordId = sanitizeText(params.studentRecordId);
+  const student = studentRecordId
+    ? getSupabaseRows_("talent_students", `id=eq.${encodeURIComponent(studentRecordId)}&limit=1`)[0]
+    : getSupabaseStudentByCode_(studentCode);
+  if (!student) throw new Error("対象学生が見つかりません。");
+
+  const payload = Object.assign(buildFollowupPayload_(params), {
+    student_id: student.id
+  });
+  const insertedRows = requestSupabase_("post", "talent_student_followups", "", payload);
+  const inserted = insertedRows[0] || {};
+
+  requestSupabase_("post", "talent_operation_logs", "", {
+    action: "追加",
+    table_name: "talent_student_followups",
+    record_id: inserted.id || null,
+    student_id: student.id,
+    student_code: String(student.student_code || studentCode || ""),
+    student_name_snapshot: String(student.full_name || ""),
+    detail: `ダッシュボードからフォロー履歴を追加: ${payload.action_title}`,
+    before_data: null,
+    after_data: inserted
+  });
+
+  return {
+    ok: true,
+    action: "addFollowup",
+    followupId: inserted.id || "",
+    studentId: String(student.student_code || studentCode || "")
+  };
+}
+
+function addSpreadsheetFollowupFromDashboard_(params) {
+  const payload = buildFollowupPayload_(params);
+  const studentCode = sanitizeText(params.studentId);
+  appendOperationLog("追加", "フォロー履歴", studentCode, studentCode, getOperatorName(), `ダッシュボードからフォロー履歴を追加: ${payload.action_title}`);
+  return { ok: true, action: "addFollowup", studentId: studentCode };
 }
 function addSpreadsheetStudentFromDashboard_(params) {
   const sheet = getWritableStudentSheet(params.sheetName);

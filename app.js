@@ -1,4 +1,4 @@
-const GAS_API_URL = "https://script.google.com/macros/s/AKfycbx0X9DvO6zydd8txe_Mgme1COTfltp7ZxueJyrIPQsJSwWCvbVrM2otmlgarPTDmU5iWg/exec";
+﻿const GAS_API_URL = "https://script.google.com/macros/s/AKfycbx0X9DvO6zydd8txe_Mgme1COTfltp7ZxueJyrIPQsJSwWCvbVrM2otmlgarPTDmU5iWg/exec";
 
 let dashboardConfig = {
   appName: "NOV Talent",
@@ -348,6 +348,7 @@ function applyDashboardData(data) {
 
 function normalizeStudent(student) {
   return {
+    id: String(student.id || ""),
     studentId: String(student.studentId || ""),
     cohort: String(student.cohort || ""),
     name: String(student.name || ""),
@@ -368,7 +369,20 @@ function normalizeStudent(student) {
     memo: String(student.memo || ""),
     updatedAt: String(student.updatedAt || ""),
     updatedBy: String(student.updatedBy || ""),
-    managementStatus: String(student.managementStatus || "有効")
+    managementStatus: String(student.managementStatus || "有効"),
+    followups: Array.isArray(student.followups) ? student.followups.map(normalizeFollowup) : []
+  };
+}
+
+function normalizeFollowup(followup) {
+  return {
+    id: String(followup.id || ""),
+    actionTitle: String(followup.actionTitle || ""),
+    dueDate: String(followup.dueDate || ""),
+    status: String(followup.status || "未対応"),
+    memo: String(followup.memo || ""),
+    createdAt: String(followup.createdAt || ""),
+    updatedAt: String(followup.updatedAt || "")
   };
 }
 
@@ -1509,6 +1523,114 @@ function getStudentValidationErrors(payload, mode) {
   return errors;
 }
 
+function renderStudentFollowupSection(student) {
+  const followups = Array.isArray(student.followups) ? student.followups : [];
+  return `
+    <section class="student-followup-panel">
+      <div class="student-form-heading">
+        <div>
+          <h3>フォロー履歴</h3>
+          <p>LINE連絡、面談、見学前後フォローなどを履歴として残します。</p>
+        </div>
+      </div>
+      <div class="followup-list">
+        ${followups.length ? followups.map((followup) => `
+          <article class="followup-item">
+            <div>
+              <strong>${escapeHtml(followup.actionTitle || "対応内容未設定")}</strong>
+              <p>${escapeHtml(followup.memo || "メモなし")}</p>
+            </div>
+            <div class="student-action-meta">
+              <span>${escapeHtml(followup.dueDate || "期日未設定")}</span>
+              <b>${escapeHtml(followup.status || "未対応")}</b>
+            </div>
+          </article>
+        `).join("") : `<div class="student-empty">フォロー履歴はまだありません。</div>`}
+      </div>
+      ${renderFollowupForm(student)}
+    </section>
+  `;
+}
+
+function renderFollowupForm(student) {
+  const disabled = isActiveCohortEditable() ? "" : "disabled";
+  return `
+    <form class="student-edit-form compact-form" data-followup-form>
+      <input type="hidden" name="studentId" value="${escapeHtml(student.studentId || "")}">
+      <input type="hidden" name="studentRecordId" value="${escapeHtml(student.id || "")}">
+      <div class="student-form-grid">
+        <label>
+          <span>${renderRequiredLabel("対応内容")}</span>
+          <input name="actionTitle" placeholder="例：見学後フォローLINE" required ${disabled}>
+        </label>
+        <label>
+          <span>期日</span>
+          <input name="dueDate" type="date" ${disabled}>
+        </label>
+        ${renderSelectField("status", "状態", ["未対応", "対応中", "完了", "不要"], "未対応", disabled)}
+      </div>
+      <label class="student-form-full">
+        <span>メモ</span>
+        <textarea name="memo" rows="2" placeholder="対応内容、反応、次回確認事項など" ${disabled}></textarea>
+      </label>
+      <div class="student-form-actions">
+        <p class="student-form-status" aria-live="polite"></p>
+        <button class="refresh-button" type="submit" ${disabled}>履歴を追加</button>
+      </div>
+    </form>
+  `;
+}
+
+function getFollowupFormPayload(form) {
+  const formData = new FormData(form);
+  return {
+    studentId: String(formData.get("studentId") || ""),
+    studentRecordId: String(formData.get("studentRecordId") || ""),
+    actionTitle: String(formData.get("actionTitle") || "").trim(),
+    dueDate: String(formData.get("dueDate") || ""),
+    status: String(formData.get("status") || "未対応"),
+    memo: String(formData.get("memo") || "").trim()
+  };
+}
+
+function setupRenderedFollowupForm() {
+  const form = document.querySelector("[data-followup-form]");
+  if (!form) return;
+
+  form.addEventListener("submit", async (event) => {
+    event.preventDefault();
+    const submitButton = form.querySelector("button[type='submit']");
+    const status = form.querySelector(".student-form-status");
+    const payload = getFollowupFormPayload(form);
+
+    if (!isActiveCohortEditable()) {
+      status.textContent = "全件参考シートは編集できません。";
+      return;
+    }
+    if (!payload.actionTitle) {
+      status.classList.add("is-error");
+      status.textContent = "対応内容を入力してください。";
+      return;
+    }
+
+    try {
+      submitButton.disabled = true;
+      status.classList.remove("is-error");
+      status.textContent = "保存中...";
+      const result = await callGasAction("addFollowup", payload);
+      if (!result || result.ok === false || result.error) {
+        throw new Error(result?.error || "保存に失敗しました");
+      }
+      status.textContent = "保存しました。データを再取得しています...";
+      closeStudentModal();
+      await refreshDashboardData();
+    } catch (error) {
+      status.classList.add("is-error");
+      status.textContent = `保存できませんでした：${error.message}`;
+      submitButton.disabled = false;
+    }
+  });
+}
 function renderStudentForm(student = {}, mode = "update") {
   const isAdd = mode === "add";
   const disabled = isActiveCohortEditable() ? "" : "disabled";
@@ -1812,6 +1934,7 @@ function openStudentModal(student) {
       <span>メモ</span>
       <p>${escapeHtml(student.memo || "メモはまだありません。")}</p>
     </div>
+    ${renderStudentFollowupSection(student)}
     ${renderStudentForm(student, "update")}
   `;
 
@@ -1819,6 +1942,7 @@ function openStudentModal(student) {
   modal.setAttribute("aria-hidden", "false");
   document.body.classList.add("modal-open");
   setupRenderedStudentForm();
+  setupRenderedFollowupForm();
 }
 
 function openAddStudentModal() {
@@ -1986,4 +2110,5 @@ async function initDashboard() {
 }
 
 document.addEventListener("DOMContentLoaded", initDashboard);
+
 

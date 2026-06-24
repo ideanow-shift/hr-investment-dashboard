@@ -1,4 +1,4 @@
-:root {
+﻿:root {
   --bg: #ffffff;
   --surface: #ffffff;
   --surface-soft: #f9f9f9;
@@ -1438,3 +1438,46 @@ td {
     text-align: left;
   }
 }
+
+.student-followup-panel {
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  padding: 18px;
+  background: #fafafa;
+  margin: 18px 0;
+}
+
+.followup-list {
+  display: grid;
+  gap: 10px;
+  margin: 14px 0 18px;
+}
+
+.followup-item {
+  display: grid;
+  gap: 6px;
+  padding: 12px;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  background: #fff;
+}
+
+.followup-item strong {
+  color: var(--text);
+}
+
+.followup-item span,
+.followup-item p {
+  color: var(--muted);
+  margin: 0;
+}
+
+.compact-form {
+  display: grid;
+  gap: 14px;
+}
+
+.compact-form .form-grid {
+  align-items: end;
+}
+
