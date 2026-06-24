@@ -216,10 +216,13 @@ v0.1
 Supabase移行に関する設計資料は以下にあります。
 
 ```text
+CoreDB連携_データ項目整理.md
 Supabase移行設計書.md
 supabase/schema.sql
 supabase/migration_plan.md
 ```
+
+注意: Supabase移行は `idea-nov-core` のCore DB参照前提で進めます。社員・店舗・法人・部署・役職・権限の専用マスタは作らず、Core DBの既存テーブルを参照します。
 
 ## 今後追加予定の機能
 
