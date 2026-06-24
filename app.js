@@ -525,6 +525,31 @@ function getActionSortDate(value) {
   return value || "9999-12-31";
 }
 
+function parseLocalDate(value) {
+  if (!value) return null;
+  const parts = String(value).split("-").map(Number);
+  if (parts.length !== 3 || parts.some((part) => Number.isNaN(part))) return null;
+  return new Date(parts[0], parts[1] - 1, parts[2]);
+}
+
+function getActionUrgency(dueDate) {
+  const target = parseLocalDate(dueDate);
+  if (!target) return { label: "日程未設定", className: "urgency-unscheduled" };
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  target.setHours(0, 0, 0, 0);
+  const diffDays = Math.round((target - today) / 86400000);
+  if (diffDays < 0) return { label: `${Math.abs(diffDays)}日超過`, className: "urgency-overdue" };
+  if (diffDays === 0) return { label: "今日対応", className: "urgency-today" };
+  if (diffDays <= 3) return { label: `${diffDays}日以内`, className: "urgency-soon" };
+  return { label: "予定", className: "urgency-normal" };
+}
+
+function renderUrgencyBadge(dueDate) {
+  const urgency = getActionUrgency(dueDate);
+  return `<em class="urgency-badge ${urgency.className}">${escapeHtml(urgency.label)}</em>`;
+}
+
 function getStudentActionItems(student) {
   const items = [];
   if (student.nextAction) {
@@ -1873,6 +1898,7 @@ function renderStudentActions() {
       </div>
       <div class="student-action-meta">
         <span>${escapeHtml(item.dueDate || "日付未設定")}</span>
+        ${renderUrgencyBadge(item.dueDate)}
         <b>${escapeHtml(item.title)}</b>
         <small>${escapeHtml(item.status)}</small>
       </div>
@@ -1967,6 +1993,7 @@ function renderStudentList(activeKey = "all") {
         </div>
         <div class="student-next-action">
           <span>${escapeHtml(primaryAction?.dueDate || "日付未設定")}</span>
+          ${primaryAction ? renderUrgencyBadge(primaryAction.dueDate) : ""}
           <strong>${escapeHtml(primaryAction?.title || "次アクション未設定")}</strong>
           <small>${escapeHtml(primaryAction?.sourceLabel || student.source || "接点未設定")} / 担当：${escapeHtml(student.owner || "未設定")}</small>
         </div>
@@ -2209,6 +2236,7 @@ async function initDashboard() {
 }
 
 document.addEventListener("DOMContentLoaded", initDashboard);
+
 
 
 
