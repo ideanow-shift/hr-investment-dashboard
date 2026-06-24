@@ -1544,6 +1544,16 @@ function renderStudentFollowupSection(student) {
               <span>${escapeHtml(followup.dueDate || "期日未設定")}</span>
               <b>${escapeHtml(followup.status || "未対応")}</b>
             </div>
+            ${followup.id ? `
+              <form class="followup-status-form" data-followup-status-form>
+                <input type="hidden" name="followupId" value="${escapeHtml(followup.id)}">
+                <select name="status" ${isActiveCohortEditable() ? "" : "disabled"}>
+                  ${["未対応", "対応中", "完了", "不要"].map((status) => `<option value="${status}" ${status === followup.status ? "selected" : ""}>${status}</option>`).join("")}
+                </select>
+                <button class="detail-button compact" type="submit" ${isActiveCohortEditable() ? "" : "disabled"}>状態更新</button>
+                <span class="followup-status-message" aria-live="polite"></span>
+              </form>
+            ` : ""}
           </article>
         `).join("") : `<div class="student-empty">フォロー履歴はまだありません。</div>`}
       </div>
@@ -1629,6 +1639,43 @@ function setupRenderedFollowupForm() {
       status.textContent = `保存できませんでした：${error.message}`;
       submitButton.disabled = false;
     }
+  });
+}
+
+function setupRenderedFollowupStatusForms() {
+  document.querySelectorAll("[data-followup-status-form]").forEach((form) => {
+    form.addEventListener("submit", async (event) => {
+      event.preventDefault();
+      const statusMessage = form.querySelector(".followup-status-message");
+      const submitButton = form.querySelector("button[type='submit']");
+      const formData = new FormData(form);
+      const payload = {
+        followupId: String(formData.get("followupId") || ""),
+        status: String(formData.get("status") || "未対応")
+      };
+
+      if (!isActiveCohortEditable()) {
+        statusMessage.textContent = "全件参考シートは編集できません。";
+        return;
+      }
+
+      try {
+        submitButton.disabled = true;
+        statusMessage.classList.remove("is-error");
+        statusMessage.textContent = "更新中...";
+        const result = await callGasAction("updateFollowup", payload);
+        if (!result || result.ok === false || result.error) {
+          throw new Error(result?.error || "更新に失敗しました");
+        }
+        statusMessage.textContent = "更新しました。";
+        closeStudentModal();
+        await refreshDashboardData();
+      } catch (error) {
+        statusMessage.classList.add("is-error");
+        statusMessage.textContent = `更新できませんでした：${error.message}`;
+        submitButton.disabled = false;
+      }
+    });
   });
 }
 function renderStudentForm(student = {}, mode = "update") {
@@ -1943,6 +1990,7 @@ function openStudentModal(student) {
   document.body.classList.add("modal-open");
   setupRenderedStudentForm();
   setupRenderedFollowupForm();
+  setupRenderedFollowupStatusForms();
 }
 
 function openAddStudentModal() {
@@ -2110,5 +2158,6 @@ async function initDashboard() {
 }
 
 document.addEventListener("DOMContentLoaded", initDashboard);
+
 
 

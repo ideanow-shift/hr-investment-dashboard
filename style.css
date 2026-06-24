@@ -1481,3 +1481,29 @@ td {
   align-items: end;
 }
 
+
+.followup-status-form {
+  display: grid;
+  grid-template-columns: minmax(120px, 180px) auto 1fr;
+  gap: 8px;
+  align-items: center;
+  margin-top: 8px;
+}
+
+.followup-status-form select {
+  width: 100%;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  padding: 9px 10px;
+  background: #fff;
+}
+
+.followup-status-message {
+  color: var(--muted);
+  font-size: 12px;
+}
+
+.followup-status-message.is-error {
+  color: var(--danger);
+  font-weight: 700;
+}

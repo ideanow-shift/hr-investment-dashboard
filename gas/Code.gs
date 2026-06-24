@@ -1,4 +1,4 @@
-/**
+﻿/**
  * 人材投資管理システム - GAS WebアプリAPI
  *
  * このCode.gsは、必ず対象のGoogleスプレッドシートから
@@ -656,6 +656,10 @@ function handleWriteAction(params) {
     return addFollowupFromDashboard(params);
   }
 
+  if (action === "updateFollowup") {
+    return updateFollowupFromDashboard(params);
+  }
+
   throw new Error(`未対応の操作です: ${action}`);
 }
 
@@ -1129,6 +1133,54 @@ function addSpreadsheetFollowupFromDashboard_(params) {
   const studentCode = sanitizeText(params.studentId);
   appendOperationLog("追加", "フォロー履歴", studentCode, studentCode, getOperatorName(), `ダッシュボードからフォロー履歴を追加: ${payload.action_title}`);
   return { ok: true, action: "addFollowup", studentId: studentCode };
+}
+
+function updateFollowupFromDashboard(params) {
+  if (isSupabaseConfigured_()) {
+    return updateSupabaseFollowupFromDashboard_(params);
+  }
+
+  return updateSpreadsheetFollowupFromDashboard_(params);
+}
+
+function buildFollowupStatusPayload_(params) {
+  const status = sanitizeText(params.status) || "未対応";
+  if (["未対応", "対応中", "完了", "不要"].indexOf(status) === -1) {
+    throw new Error("フォロー状態が不正です。");
+  }
+  return { status: status };
+}
+
+function updateSupabaseFollowupFromDashboard_(params) {
+  const followupId = sanitizeText(params.followupId);
+  if (!followupId) throw new Error("更新対象のフォロー履歴が見つかりません。");
+  const existing = getSupabaseRows_("talent_student_followups", `id=eq.${encodeURIComponent(followupId)}&limit=1`)[0];
+  if (!existing) throw new Error("更新対象のフォロー履歴が見つかりません。");
+
+  const payload = buildFollowupStatusPayload_(params);
+  const updatedRows = requestSupabase_("patch", "talent_student_followups", `id=eq.${encodeURIComponent(followupId)}`, payload);
+  const updated = updatedRows[0] || Object.assign({}, existing, payload);
+
+  requestSupabase_("post", "talent_operation_logs", "", {
+    action: "更新",
+    table_name: "talent_student_followups",
+    record_id: followupId,
+    student_id: existing.student_id || null,
+    student_code: "",
+    student_name_snapshot: "",
+    detail: `ダッシュボードからフォロー状態を更新: ${existing.status || "未対応"} → ${payload.status}`,
+    before_data: existing,
+    after_data: updated
+  });
+
+  return { ok: true, action: "updateFollowup", followupId: followupId, status: payload.status };
+}
+
+function updateSpreadsheetFollowupFromDashboard_(params) {
+  const payload = buildFollowupStatusPayload_(params);
+  const followupId = sanitizeText(params.followupId);
+  appendOperationLog("更新", "フォロー履歴", followupId, followupId, getOperatorName(), `ダッシュボードからフォロー状態を更新: ${payload.status}`);
+  return { ok: true, action: "updateFollowup", followupId: followupId, status: payload.status };
 }
 function addSpreadsheetStudentFromDashboard_(params) {
   const sheet = getWritableStudentSheet(params.sheetName);
@@ -1836,6 +1888,7 @@ function formatDateTimeValue(value) {
   }
   return String(value || "");
 }
+
 
 
 
