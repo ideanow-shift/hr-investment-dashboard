@@ -181,8 +181,9 @@ function getStudentDataFromSheet(sheetName, cohortLabel) {
     nextAction: String(row[14] || ""),
     nextActionDate: formatDateValue(row[15]),
     memo: String(row[16] || ""),
-    updatedAt: formatDateTimeValue(row[17]),
-    updatedBy: String(row[18] || "")
+    managementStatus: String(row[17] || "有効"),
+    updatedAt: formatDateTimeValue(row[18]),
+    updatedBy: String(row[19] || "")
   }));
 }
 
@@ -237,6 +238,7 @@ function addStudentFromDashboard(params) {
     sanitizeText(params.nextAction),
     parseDateOrText(params.nextActionDate),
     sanitizeText(params.memo),
+    sanitizeText(params.managementStatus) || "有効",
     updatedAt,
     operator
   ];
@@ -288,8 +290,9 @@ function updateStudentFromDashboard(params) {
     { col: 15, value: sanitizeText(params.nextAction) },
     { col: 16, value: parseDateOrText(params.nextActionDate) },
     { col: 17, value: sanitizeText(params.memo) },
-    { col: 18, value: updatedAt },
-    { col: 19, value: operator }
+    { col: 18, value: sanitizeText(params.managementStatus) || "有効" },
+    { col: 19, value: updatedAt },
+    { col: 20, value: operator }
   ];
 
   updates.forEach((update) => {
@@ -389,9 +392,13 @@ function normalizeForDuplicateCheck(value) {
 }
 
 function ensureStudentAuditColumns(sheet) {
-  const updatedAtIndex = ensureColumnAfterHeader(sheet, "更新日時", "メモ");
+  const managementStatusIndex = ensureColumnAfterHeader(sheet, "管理状態", "メモ");
+  fillBlankColumnValues(sheet, "管理状態", "有効", "学生ID");
+  const updatedAtIndex = ensureColumnAfterHeader(sheet, "更新日時", "管理状態");
   const updatedByIndex = ensureColumnAfterHeader(sheet, "更新者", "更新日時");
   sheet.getRange(2, updatedAtIndex, Math.max(sheet.getMaxRows() - 1, 1), 1).setNumberFormat("yyyy/mm/dd hh:mm");
+  setDropdown(sheet, `R2:R${sheet.getMaxRows()}`, ["有効", "管理対象外"]);
+  sheet.getRange(1, managementStatusIndex).setFontWeight("bold").setBackground("#eef5fc");
   sheet.getRange(1, updatedByIndex).setFontWeight("bold").setBackground("#eef5fc");
 }
 
@@ -552,15 +559,16 @@ function setupSampleSheets() {
       "次アクション",
       "次アクション日",
       "メモ",
+      "管理状態",
       "更新日時",
       "更新者"
     ],
     [
-      ["S-0001", "山田 花", "女性", "国際文化理容美容専門学校 国分寺校", "2年", "ヘアワークス 新宿", new Date(2026, 5, 3), "登録済", "実施済", "実施済", "合格", "内定", "入社予定", "総務人事", "内定後フォロー面談", new Date(2026, 6, 5), "BASSA池袋に関心", new Date(), "初期データ"],
-      ["S-0002", "佐藤 美咲", "女性", "山野美容専門学校", "2年", "東京総合", new Date(2026, 5, 15), "登録済", "予定", "未設定", "未定", "未定", "未定", "総務人事", "見学前リマインド", new Date(2026, 5, 25), "カラー教育に興味", new Date(), "初期データ"],
-      ["S-0003", "鈴木 里奈", "女性", "横浜ビューティーアート専門学校", "2年", "学校訪問", new Date(2026, 5, 10), "登録済", "実施済", "予定", "未定", "未定", "未定", "総務人事", "面接日程確認", new Date(2026, 5, 28), "", new Date(), "初期データ"],
-      ["S-0004", "田中 優", "男性", "パリ総合美容専門学校", "2年", "さんぽう美容就職フェア 高田馬場", new Date(2026, 3, 18), "登録済", "未設定", "未設定", "未定", "未定", "未定", "総務人事", "見学誘導LINE送信", "", "LINE反応あり", new Date(), "初期データ"],
-      ["S-0005", "高橋 杏", "女性", "高山美容専門学校", "1年", "エイド 代々木", new Date(2026, 4, 24), "登録済", "未設定", "未設定", "未定", "未定", "未定", "総務人事", "学校訪問時に再接点", "", "次年度候補", new Date(), "初期データ"]
+      ["S-0001", "山田 花", "女性", "国際文化理容美容専門学校 国分寺校", "2年", "ヘアワークス 新宿", new Date(2026, 5, 3), "登録済", "実施済", "実施済", "合格", "内定", "入社予定", "総務人事", "内定後フォロー面談", new Date(2026, 6, 5), "BASSA池袋に関心", "有効", new Date(), "初期データ"],
+      ["S-0002", "佐藤 美咲", "女性", "山野美容専門学校", "2年", "東京総合", new Date(2026, 5, 15), "登録済", "予定", "未設定", "未定", "未定", "未定", "総務人事", "見学前リマインド", new Date(2026, 5, 25), "カラー教育に興味", "有効", new Date(), "初期データ"],
+      ["S-0003", "鈴木 里奈", "女性", "横浜ビューティーアート専門学校", "2年", "学校訪問", new Date(2026, 5, 10), "登録済", "実施済", "予定", "未定", "未定", "未定", "総務人事", "面接日程確認", new Date(2026, 5, 28), "", "有効", new Date(), "初期データ"],
+      ["S-0004", "田中 優", "男性", "パリ総合美容専門学校", "2年", "さんぽう美容就職フェア 高田馬場", new Date(2026, 3, 18), "登録済", "未設定", "未設定", "未定", "未定", "未定", "総務人事", "見学誘導LINE送信", "", "LINE反応あり", "有効", new Date(), "初期データ"],
+      ["S-0005", "高橋 杏", "女性", "高山美容専門学校", "1年", "エイド 代々木", new Date(2026, 4, 24), "登録済", "未設定", "未設定", "未定", "未定", "未定", "総務人事", "学校訪問時に再接点", "", "次年度候補", "有効", new Date(), "初期データ"]
     ]
   );
 
@@ -680,7 +688,7 @@ function applySheetRules(ss) {
   formatBasicSheet(ss.getSheetByName("年度設定"), 6);
   formatBasicSheet(ss.getSheetByName("フェア実績"), 6);
   formatBasicSheet(ss.getSheetByName("学校別分析"), 7);
-  formatBasicSheet(ss.getSheetByName("学生管理"), 19);
+  formatBasicSheet(ss.getSheetByName("学生管理"), 20);
 
   const configSheet = ss.getSheetByName("年度設定");
   configSheet.getRange("B2:F100").setNumberFormat("0");
@@ -703,10 +711,11 @@ function applySheetRules(ss) {
     if (!studentSheet) return;
 
     ensureStudentAuditColumns(studentSheet);
-    formatBasicSheet(studentSheet, 19);
+    formatBasicSheet(studentSheet, 20);
     studentSheet.getRange("G2:G1000").setNumberFormat("yyyy/mm/dd");
     studentSheet.getRange("P2:P1000").setNumberFormat("yyyy/mm/dd");
-    studentSheet.getRange("R2:R1000").setNumberFormat("yyyy/mm/dd hh:mm");
+    setDropdown(studentSheet, "R2:R1000", ["有効", "管理対象外"]);
+    studentSheet.getRange("S2:S1000").setNumberFormat("yyyy/mm/dd hh:mm");
 
     setDropdown(studentSheet, "C2:C1000", ["男性", "女性", "その他", "未回答"]);
     setDropdown(studentSheet, "E2:E1000", ["1年", "2年", "既卒", "その他"]);

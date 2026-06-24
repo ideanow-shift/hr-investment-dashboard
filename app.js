@@ -360,13 +360,18 @@ function normalizeStudent(student) {
     nextActionDate: String(student.nextActionDate || ""),
     memo: String(student.memo || ""),
     updatedAt: String(student.updatedAt || ""),
-    updatedBy: String(student.updatedBy || "")
+    updatedBy: String(student.updatedBy || ""),
+    managementStatus: String(student.managementStatus || "有効")
   };
 }
 
 function getActiveStudents() {
   const activeCohort = studentCohorts.find((cohort) => cohort.key === activeStudentCohort) || studentCohorts[0];
   return activeCohort ? activeCohort.students : studentData;
+}
+
+function getManagedStudents() {
+  return getActiveStudents().filter((student) => student.managementStatus !== "管理対象外");
 }
 
 function getActiveCohort() {
@@ -812,7 +817,7 @@ function generateActionCards() {
 }
 
 function renderStudentSummary() {
-  studentSummary = buildStudentSummary(getActiveStudents());
+  studentSummary = buildStudentSummary(getManagedStudents());
   const summaryItems = [
     { label: "要フォロー", value: studentSummary.needsFollowUp || 0, sub: "次アクション日未設定" },
     { label: "見学予定者", value: studentSummary.salonTourScheduled || 0, sub: "サロン見学につなげる学生" },
@@ -890,6 +895,8 @@ const studentSelectOptions = {
   resultStatus: ["未定", "合格", "不合格", "辞退"],
   offerStatus: ["未定", "内定", "承諾", "辞退"],
   expectedJoinStatus: ["未定", "入社予定", "入社済", "辞退"]
+  ,
+  managementStatus: ["有効", "管理対象外"]
 };
 
 function renderSelectField(name, label, options, value = "", disabled = "") {
@@ -925,7 +932,8 @@ function getStudentFormPayload(form) {
     owner: String(formData.get("owner") || "総務人事").trim(),
     nextAction: String(formData.get("nextAction") || "").trim(),
     nextActionDate: String(formData.get("nextActionDate") || ""),
-    memo: String(formData.get("memo") || "").trim()
+    memo: String(formData.get("memo") || "").trim(),
+    managementStatus: String(formData.get("managementStatus") || "有効")
   };
 }
 
@@ -1000,6 +1008,7 @@ function renderStudentForm(student = {}, mode = "update") {
         ${renderSelectField("resultStatus", "選考結果", studentSelectOptions.resultStatus, student.resultStatus || "未定", disabled)}
         ${renderSelectField("offerStatus", "内定ステータス", studentSelectOptions.offerStatus, student.offerStatus || "未定", disabled)}
         ${renderSelectField("expectedJoinStatus", "入社予定", studentSelectOptions.expectedJoinStatus, student.expectedJoinStatus || "未定", disabled)}
+        ${renderSelectField("managementStatus", "管理状態", studentSelectOptions.managementStatus, student.managementStatus || "有効", disabled)}
         <label>
           <span>担当者</span>
           <input name="owner" value="${escapeHtml(student.owner || "総務人事")}" ${disabled}>
@@ -1068,7 +1077,7 @@ function setupRenderedStudentForm() {
 }
 
 function renderStudentActions() {
-  const actionStudents = getActiveStudents()
+  const actionStudents = getManagedStudents()
     .filter((student) => student.nextAction)
     .sort((a, b) => {
       if (!a.nextActionDate) return 1;
@@ -1106,6 +1115,7 @@ function getStudentFilters() {
     { key: "interview", label: "面接予定", predicate: (student) => student.interviewStatus === "予定" },
     { key: "offered", label: "内定", predicate: (student) => student.offerStatus === "内定" },
     { key: "expectedJoin", label: "入社予定", predicate: (student) => student.expectedJoinStatus === "入社予定" },
+    { key: "inactive", label: "管理対象外", predicate: (student) => student.managementStatus === "管理対象外" },
     { key: "male", label: "男性", predicate: (student) => student.gender === "男性" },
     { key: "female", label: "女性", predicate: (student) => student.gender === "女性" }
   ];
@@ -1116,7 +1126,8 @@ function renderStudentFilters(activeKey = "all") {
   const filterWrap = document.getElementById("studentFilters");
 
   filterWrap.innerHTML = filters.map((filter) => {
-    const count = getActiveStudents().filter(filter.predicate).length;
+    const countBase = filter.key === "inactive" ? getActiveStudents() : getManagedStudents();
+    const count = countBase.filter(filter.predicate).length;
     return `
       <button class="student-filter ${filter.key === activeKey ? "active" : ""}" type="button" data-student-filter="${filter.key}">
         ${filter.label}<span>${count}</span>
@@ -1143,7 +1154,8 @@ function renderStudentList(activeKey = "all") {
 
   const filters = getStudentFilters();
   const activeFilter = filters.find((filter) => filter.key === activeKey) || filters[0];
-  const students = getActiveStudents()
+  const sourceStudents = activeKey === "inactive" ? getActiveStudents() : getManagedStudents();
+  const students = sourceStudents
     .filter(activeFilter.predicate)
     .sort((a, b) => {
       if (!a.nextActionDate && b.nextActionDate) return 1;
@@ -1176,6 +1188,7 @@ function renderStudentList(activeKey = "all") {
             <span>見学：${student.salonTourStatus || "未設定"}</span>
             <span>面接：${student.interviewStatus || "未設定"}</span>
             <span>内定：${student.offerStatus || "未定"}</span>
+            <span>管理：${student.managementStatus || "有効"}</span>
           </div>
         </div>
         <div class="student-next-action">
@@ -1217,6 +1230,7 @@ function openStudentModal(student) {
       <div><span>性別</span><strong>${escapeHtml(student.gender || "未設定")}</strong></div>
       <div><span>担当</span><strong>${escapeHtml(student.owner || "未設定")}</strong></div>
       <div><span>学生ID</span><strong>${escapeHtml(student.studentId || "未設定")}</strong></div>
+      <div><span>管理状態</span><strong>${escapeHtml(student.managementStatus || "有効")}</strong></div>
       <div><span>最終更新</span><strong>${escapeHtml(student.updatedAt || "未記録")}</strong></div>
       <div><span>更新者</span><strong>${escapeHtml(student.updatedBy || "未記録")}</strong></div>
     </div>
@@ -1274,6 +1288,7 @@ function openAddStudentModal() {
       resultStatus: "未定",
       offerStatus: "未定",
       expectedJoinStatus: "未定",
+      managementStatus: "有効",
       owner: "総務人事"
     }, "add")}
   `;
