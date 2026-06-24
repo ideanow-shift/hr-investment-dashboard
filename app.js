@@ -1043,12 +1043,14 @@ function setupRenderedStudentForm() {
 
     const validationErrors = getStudentValidationErrors(payload, mode);
     if (validationErrors.length) {
+      status.classList.add("is-error");
       status.innerHTML = validationErrors.map((error) => `・${escapeHtml(error)}`).join("<br>");
       return;
     }
 
     try {
       submitButton.disabled = true;
+      status.classList.remove("is-error");
       status.textContent = "保存中...";
       const result = await callGasAction(mode === "add" ? "addStudent" : "updateStudent", payload);
       if (!result || result.ok === false || result.error) {
@@ -1058,6 +1060,7 @@ function setupRenderedStudentForm() {
       closeStudentModal();
       await refreshDashboardData();
     } catch (error) {
+      status.classList.add("is-error");
       status.textContent = `保存できませんでした：${error.message}`;
       submitButton.disabled = false;
     }

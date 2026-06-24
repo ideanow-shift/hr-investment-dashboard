@@ -1201,6 +1201,16 @@ td {
   font-size: 13px;
 }
 
+.student-form-status.is-error {
+  border-left: 3px solid var(--danger);
+  border-radius: 8px;
+  background: #fff1f2;
+  color: var(--danger);
+  font-weight: 600;
+  line-height: 1.7;
+  padding: 10px 12px;
+}
+
 .student-form-grid {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
