@@ -312,7 +312,11 @@ function applyDashboardData(data) {
 
   if (Array.isArray(data.schools)) {
     schoolData = data.schools.map((school) => ({
+      id: String(school.id || ""),
       name: String(school.name || ""),
+      displayName: String(school.displayName || school.name || ""),
+      area: String(school.area || ""),
+      memo: String(school.memo || ""),
       contacts: Number(school.contacts) || 0,
       lineRegistrations: Number(school.lineRegistrations) || 0,
       salonTours: Number(school.salonTours) || 0,
@@ -899,13 +903,22 @@ function setupFairModal() {
   }
 }
 
+function getSchoolKey(school) {
+  return school?.id || school?.name || "";
+}
+
+function findSchoolByKey(key) {
+  return schoolData.find((school) => getSchoolKey(school) === key) || null;
+}
+
 function renderSchools() {
   document.getElementById("schoolGrid").innerHTML = schoolData.map((school) => {
     const promise = getSchoolPromise(school);
 
     return `
       <article class="school-card">
-        <h3>${school.name}</h3>
+        <h3>${escapeHtml(school.displayName || school.name)}</h3>
+        <p class="score-text">${escapeHtml(school.area || "エリア未設定")}</p>
         <div class="school-stats">
           <div class="school-stat"><span>接触</span><strong>${school.contacts}</strong></div>
           <div class="school-stat"><span>LINE</span><strong>${school.lineRegistrations}</strong></div>
@@ -918,15 +931,14 @@ function renderSchools() {
           <span class="promise-pill ${promise.className}">${promise.label}</span>
           <span class="score-text">有望度スコア ${promise.score}</span>
         </div>
-        <button class="detail-button" type="button" data-school-name="${school.name}">詳細を見る</button>
+        <button class="detail-button" type="button" data-school-key="${escapeHtml(getSchoolKey(school))}">詳細を見る</button>
       </article>
     `;
   }).join("");
 
-  document.querySelectorAll("[data-school-name]").forEach((button) => {
+  document.querySelectorAll("[data-school-key]").forEach((button) => {
     button.addEventListener("click", () => {
-      const selectedSchool = schoolData.find((school) => school.name === button.dataset.schoolName);
-      renderSchoolDetail(selectedSchool);
+      renderSchoolDetail(findSchoolByKey(button.dataset.schoolKey));
     });
   });
 
@@ -947,10 +959,14 @@ function renderSchoolDetail(school) {
   const offerRate = safeDivide(school.offers, school.contacts);
 
   detail.innerHTML = `
-    <div>
-      <p class="section-kicker">School Drilldown</p>
-      <h3>${school.name}</h3>
-      <p class="detail-lead">有望度は「${promise.label}」です。見学・面接・内定につながる接点を優先して、学校訪問や先生との関係づくりを判断します。</p>
+    <div class="detail-header-row">
+      <div>
+        <p class="section-kicker">School Drilldown</p>
+        <h3>${escapeHtml(school.displayName || school.name)}</h3>
+        <p class="detail-lead">有望度は「${promise.label}」です。見学・面接・内定につながる接点を優先して、学校訪問や先生との関係づくりを判断します。</p>
+        <p class="detail-lead">${escapeHtml(school.area || "エリア未設定")} / ${escapeHtml(school.memo || "学校メモはまだありません。")}</p>
+      </div>
+      <button class="detail-button compact" type="button" data-school-edit-key="${escapeHtml(getSchoolKey(school))}">学校編集</button>
     </div>
     <div class="detail-grid">
       <div class="detail-metric"><span>有望度</span><strong>${promise.score}</strong><small>${promise.label}</small></div>
@@ -961,10 +977,162 @@ function renderSchoolDetail(school) {
     <div class="related-list">
       <strong>この学校の学生フォロー</strong>
       ${relatedStudents.length ? relatedStudents.map((student) => `
-        <p>${student.name} / ${student.grade} / ${student.nextAction || "次アクション未設定"}</p>
+        <p>${escapeHtml(student.name)} / ${escapeHtml(student.grade)} / ${escapeHtml(student.nextAction || "次アクション未設定")}</p>
       `).join("") : "<p>この学校に紐づく学生データはまだありません。</p>"}
     </div>
   `;
+
+  const editButton = detail.querySelector("[data-school-edit-key]");
+  if (editButton) {
+    editButton.addEventListener("click", () => {
+      openSchoolModal(findSchoolByKey(editButton.dataset.schoolEditKey) || school, "update");
+    });
+  }
+}
+
+function getSchoolFormPayload(form) {
+  const formData = new FormData(form);
+  return {
+    schoolId: String(formData.get("schoolId") || ""),
+    originalName: String(formData.get("originalName") || ""),
+    name: String(formData.get("name") || "").trim(),
+    displayName: String(formData.get("displayName") || "").trim(),
+    area: String(formData.get("area") || "").trim(),
+    memo: String(formData.get("memo") || "").trim()
+  };
+}
+
+function getSchoolValidationErrors(payload, mode) {
+  const errors = [];
+  const normalizedName = payload.name.replace(/\s+/g, "");
+  const duplicate = schoolData.find((school) => {
+    if (mode !== "add" && getSchoolKey(school) === payload.schoolId) return false;
+    if (mode !== "add" && school.name === payload.originalName) return false;
+    return school.name.replace(/\s+/g, "") === normalizedName;
+  });
+
+  if (!payload.name) errors.push("学校名を入力してください。");
+  if (mode === "add" && duplicate) errors.push(`同じ学校名が既にあります：${duplicate.name}`);
+  if (mode === "update" && duplicate) errors.push(`変更後の学校名は既に使われています：${duplicate.name}`);
+  return errors;
+}
+
+function renderSchoolForm(school = {}, mode = "update") {
+  const isAdd = mode === "add";
+  return `
+    <form class="student-edit-form" data-school-form="${mode}">
+      <input type="hidden" name="schoolId" value="${escapeHtml(getSchoolKey(school))}">
+      <input type="hidden" name="originalName" value="${escapeHtml(school.name || "")}">
+      <div class="student-form-heading">
+        <div>
+          <h3>${isAdd ? "学校を追加" : "学校マスタを更新"}</h3>
+          <p>学校名・エリア・関係構築メモを管理します。接触数などの実績は学生データから自動集計されます。</p>
+        </div>
+      </div>
+      <div class="student-form-guide">
+        <strong>入力のポイント</strong>
+        <ul>
+          <li>学校名は学生データとの紐づけに使います。表記を統一してください。</li>
+          <li>表示名は画面表示用です。空欄の場合は学校名を使います。</li>
+          <li>エリア・メモは学校訪問や重点投資判断の補足情報として使います。</li>
+        </ul>
+      </div>
+      <div class="student-form-grid">
+        <label>
+          <span>${renderRequiredLabel("学校名")}</span>
+          <input name="name" value="${escapeHtml(school.name || "")}" placeholder="例：山野美容専門学校" required>
+        </label>
+        <label>
+          <span>表示名</span>
+          <input name="displayName" value="${escapeHtml(school.displayName || school.name || "")}" placeholder="画面表示用の名称">
+        </label>
+        <label>
+          <span>エリア</span>
+          <input name="area" value="${escapeHtml(school.area || "")}" placeholder="例：東京 / 神奈川">
+        </label>
+      </div>
+      <label class="student-form-full">
+        <span>メモ</span>
+        <textarea name="memo" rows="3" placeholder="先生との関係性・次回訪問予定・重点度など">${escapeHtml(school.memo || "")}</textarea>
+      </label>
+      <div class="student-form-actions">
+        <p class="student-form-status" aria-live="polite"></p>
+        <button class="refresh-button" type="submit">${isAdd ? "学校を追加" : "更新を保存"}</button>
+      </div>
+    </form>
+  `;
+}
+
+function openSchoolModal(school = {}, mode = "update") {
+  const modal = document.getElementById("studentModal");
+  const content = document.getElementById("studentModalContent");
+  content.innerHTML = `
+    <div class="modal-header">
+      <div>
+        <p class="section-kicker">School Management</p>
+        <h2 id="studentModalTitle">${mode === "add" ? "学校追加" : escapeHtml(school?.displayName || school?.name || "学校編集")}</h2>
+        <p>学校別投資効果に使う学校マスタを編集します。</p>
+      </div>
+    </div>
+    ${renderSchoolForm(school, mode)}
+  `;
+  modal.classList.add("is-open");
+  modal.setAttribute("aria-hidden", "false");
+  document.body.classList.add("modal-open");
+  setupRenderedSchoolForm();
+}
+
+function setupRenderedSchoolForm() {
+  const form = document.querySelector("[data-school-form]");
+  if (!form) return;
+
+  form.addEventListener("submit", async (event) => {
+    event.preventDefault();
+    const mode = form.dataset.schoolForm;
+    const submitButton = form.querySelector("button[type='submit']");
+    const status = form.querySelector(".student-form-status");
+    const payload = getSchoolFormPayload(form);
+    const validationErrors = getSchoolValidationErrors(payload, mode);
+
+    if (validationErrors.length) {
+      status.classList.add("is-error");
+      status.innerHTML = validationErrors.map((error) => `・${escapeHtml(error)}`).join("<br>");
+      return;
+    }
+
+    const message = mode === "add"
+      ? `学校「${payload.name}」を追加します。よろしいですか？`
+      : `学校「${payload.name}」を更新します。よろしいですか？`;
+    if (!window.confirm(message)) {
+      status.classList.remove("is-error");
+      status.textContent = "保存をキャンセルしました。";
+      return;
+    }
+
+    try {
+      submitButton.disabled = true;
+      status.classList.remove("is-error");
+      status.textContent = "保存中...";
+      const result = await callGasAction(mode === "add" ? "addSchool" : "updateSchool", payload);
+      if (!result || result.ok === false || result.error) {
+        throw new Error(result?.error || "保存に失敗しました");
+      }
+      status.textContent = "保存しました。データを再取得しています...";
+      closeStudentModal();
+      await refreshDashboardData();
+    } catch (error) {
+      status.classList.add("is-error");
+      status.textContent = `保存できませんでした：${error.message}`;
+      submitButton.disabled = false;
+    }
+  });
+}
+
+function setupSchoolModal() {
+  const addButton = document.getElementById("addSchoolButton");
+  if (addButton) {
+    addButton.addEventListener("click", () => openSchoolModal({}, "add"));
+  }
 }
 
 function generateActionCards() {
@@ -1812,6 +1980,7 @@ async function initDashboard() {
   setupStudentModal();
   setupSettingsModal();
   setupFairModal();
+  setupSchoolModal();
   setupDataRefresh();
   await refreshDashboardData();
 }

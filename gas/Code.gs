@@ -422,7 +422,11 @@ function buildSupabaseSchoolAnalysis_(schools, students) {
         salonTours: 0,
         interviews: 0,
         passed: 0,
-        offers: 0
+        offers: 0,
+        id: "",
+        displayName: schoolName,
+        area: "",
+        memo: ""
       };
     }
 
@@ -440,14 +444,24 @@ function buildSupabaseSchoolAnalysis_(schools, students) {
     const schoolName = school.display_name || school.name;
     if (!summaryBySchool[schoolName]) {
       summaryBySchool[schoolName] = {
-        name: schoolName,
+        name: String(school.name || schoolName),
         contacts: 0,
         lineRegistrations: 0,
         salonTours: 0,
         interviews: 0,
         passed: 0,
-        offers: 0
+        offers: 0,
+        id: String(school.id || ""),
+        displayName: schoolName,
+        area: String(school.area || ""),
+        memo: String(school.memo || "")
       };
+    } else {
+      summaryBySchool[schoolName].id = String(school.id || "");
+      summaryBySchool[schoolName].name = String(school.name || schoolName);
+      summaryBySchool[schoolName].displayName = schoolName;
+      summaryBySchool[schoolName].area = String(school.area || "");
+      summaryBySchool[schoolName].memo = String(school.memo || "");
     }
   });
 
@@ -601,6 +615,14 @@ function handleWriteAction(params) {
 
   if (action === "updateFair") {
     return updateFairFromDashboard(params);
+  }
+
+  if (action === "addSchool") {
+    return addSchoolFromDashboard(params);
+  }
+
+  if (action === "updateSchool") {
+    return updateSchoolFromDashboard(params);
   }
 
   throw new Error(`未対応の操作です: ${action}`);
@@ -890,6 +912,130 @@ function updateSpreadsheetFairFromDashboard_(params) {
   setFairSheetRow_(sheet, rowNumber, payload);
   appendOperationLog("更新", "フェア実績", payload.name, payload.name, getOperatorName(), "ダッシュボードからフェアを更新");
   return { ok: true, action: "updateFair", fairName: payload.name };
+}
+function addSchoolFromDashboard(params) {
+  if (isSupabaseConfigured_()) {
+    return addSupabaseSchoolFromDashboard_(params);
+  }
+
+  return addSpreadsheetSchoolFromDashboard_(params);
+}
+
+function updateSchoolFromDashboard(params) {
+  if (isSupabaseConfigured_()) {
+    return updateSupabaseSchoolFromDashboard_(params);
+  }
+
+  return updateSpreadsheetSchoolFromDashboard_(params);
+}
+
+function buildSchoolPayload_(params) {
+  const name = sanitizeText(params.name);
+  const payload = {
+    name: name,
+    display_name: sanitizeText(params.displayName) || name,
+    area: sanitizeText(params.area),
+    memo: sanitizeText(params.memo),
+    is_active: true
+  };
+  if (!payload.name) throw new Error("学校名を入力してください。");
+  return payload;
+}
+
+function getSupabaseSchoolByIdOrName_(schoolId, schoolName) {
+  if (schoolId) {
+    const rowsById = getSupabaseRows_("talent_schools", `id=eq.${encodeURIComponent(schoolId)}&limit=1`);
+    if (rowsById[0]) return rowsById[0];
+  }
+  if (schoolName) {
+    const rowsByName = getSupabaseRows_("talent_schools", `name=eq.${encodeURIComponent(schoolName)}&limit=1`);
+    if (rowsByName[0]) return rowsByName[0];
+  }
+  return null;
+}
+
+function validateSupabaseSchoolDuplicate_(name, currentId) {
+  const rows = getSupabaseRows_("talent_schools", `name=eq.${encodeURIComponent(name)}&is_active=eq.true&limit=2`);
+  const duplicate = rows.find((row) => !currentId || String(row.id) !== String(currentId));
+  if (duplicate) throw new Error(`同じ学校名が既にあります: ${name}`);
+}
+
+function addSupabaseSchoolFromDashboard_(params) {
+  const payload = buildSchoolPayload_(params);
+  validateSupabaseSchoolDuplicate_(payload.name, "");
+  const insertedRows = requestSupabase_("post", "talent_schools", "", payload);
+  const inserted = insertedRows[0] || {};
+  requestSupabase_("post", "talent_operation_logs", "", {
+    action: "追加",
+    table_name: "talent_schools",
+    record_id: inserted.id || null,
+    student_id: null,
+    student_code: "",
+    student_name_snapshot: "",
+    detail: `ダッシュボードから学校を追加: ${payload.name}`,
+    before_data: null,
+    after_data: inserted
+  });
+  return { ok: true, action: "addSchool", schoolId: inserted.id || "", schoolName: payload.name };
+}
+
+function updateSupabaseSchoolFromDashboard_(params) {
+  const schoolId = sanitizeText(params.schoolId);
+  const originalName = sanitizeText(params.originalName);
+  const payload = buildSchoolPayload_(params);
+  const existing = getSupabaseSchoolByIdOrName_(schoolId, originalName);
+  if (!existing) throw new Error("更新対象の学校が見つかりません。");
+  validateSupabaseSchoolDuplicate_(payload.name, existing.id);
+  const updatedRows = requestSupabase_("patch", "talent_schools", `id=eq.${encodeURIComponent(existing.id)}`, payload);
+  const updated = updatedRows[0] || existing;
+  requestSupabase_("post", "talent_operation_logs", "", {
+    action: "更新",
+    table_name: "talent_schools",
+    record_id: updated.id || existing.id,
+    student_id: null,
+    student_code: "",
+    student_name_snapshot: "",
+    detail: `ダッシュボードから学校を更新: ${payload.name}`,
+    before_data: existing,
+    after_data: updated
+  });
+  return { ok: true, action: "updateSchool", schoolId: updated.id || existing.id, schoolName: payload.name };
+}
+
+function getSchoolSheet_() {
+  return getRequiredSheet("学校別分析");
+}
+
+function findSchoolRow_(sheet, schoolName) {
+  const lastRow = sheet.getLastRow();
+  if (lastRow < 2) return 0;
+  const values = sheet.getRange(2, 1, lastRow - 1, 1).getValues();
+  for (let index = 0; index < values.length; index += 1) {
+    if (String(values[index][0] || "").trim() === schoolName) return index + 2;
+  }
+  return 0;
+}
+
+function addSpreadsheetSchoolFromDashboard_(params) {
+  const payload = buildSchoolPayload_(params);
+  const sheet = getSchoolSheet_();
+  if (findSchoolRow_(sheet, payload.name)) throw new Error(`同じ学校名が既にあります: ${payload.name}`);
+  sheet.appendRow([payload.name, 0, 0, 0, 0, 0, 0]);
+  appendOperationLog("追加", "学校別分析", payload.name, payload.name, getOperatorName(), "ダッシュボードから学校を追加");
+  return { ok: true, action: "addSchool", schoolName: payload.name };
+}
+
+function updateSpreadsheetSchoolFromDashboard_(params) {
+  const payload = buildSchoolPayload_(params);
+  const sheet = getSchoolSheet_();
+  const originalName = sanitizeText(params.originalName) || payload.name;
+  const rowNumber = findSchoolRow_(sheet, originalName);
+  if (!rowNumber) throw new Error("更新対象の学校が見つかりません。");
+  const duplicateRow = findSchoolRow_(sheet, payload.name);
+  if (duplicateRow && duplicateRow !== rowNumber) throw new Error(`同じ学校名が既にあります: ${payload.name}`);
+  sheet.getRange(rowNumber, 1).setValue(payload.name);
+  appendOperationLog("更新", "学校別分析", payload.name, payload.name, getOperatorName(), "ダッシュボードから学校を更新");
+  return { ok: true, action: "updateSchool", schoolName: payload.name };
 }
 function addSpreadsheetStudentFromDashboard_(params) {
   const sheet = getWritableStudentSheet(params.sheetName);
