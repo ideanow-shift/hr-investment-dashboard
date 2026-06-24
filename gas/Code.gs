@@ -74,6 +74,16 @@ function createResponse(data, e) {
 }
 
 function getDashboardData() {
+  try {
+    return getSupabaseDashboardData();
+  } catch (error) {
+    console.warn(`Supabase読み取りに失敗したため、スプレッドシートへフォールバックします: ${error.message}`);
+  }
+
+  return getSpreadsheetDashboardData();
+}
+
+function getSpreadsheetDashboardData() {
   const students = getStudentData();
   const studentCohorts = getStudentCohorts();
   return {
@@ -84,6 +94,178 @@ function getDashboardData() {
     studentCohorts: studentCohorts,
     studentSummary: buildStudentSummary(students)
   };
+}
+
+function getSupabaseDashboardData() {
+  const settings = getSupabaseRows_("talent_investment_settings", "is_active=eq.true&order=fiscal_year.desc&limit=1");
+  const schools = getSupabaseRows_("talent_schools", "is_active=eq.true&order=name.asc");
+  const fairs = getSupabaseRows_("talent_fairs", "is_active=eq.true&order=held_date.asc");
+  const students = getSupabaseRows_("talent_students", "order=cohort.asc,student_code.asc");
+
+  const convertedStudents = students.map(convertSupabaseStudent_);
+  const studentCohorts = buildSupabaseStudentCohorts_(convertedStudents);
+
+  return {
+    config: convertSupabaseConfig_(settings[0]),
+    fairs: fairs.map(convertSupabaseFair_),
+    schools: buildSupabaseSchoolAnalysis_(schools, convertedStudents),
+    students: convertedStudents.filter((student) => student.cohort === "27卒"),
+    studentCohorts: studentCohorts,
+    studentSummary: buildStudentSummary(convertedStudents),
+    dataSource: "supabase"
+  };
+}
+
+function getSupabaseRows_(tableName, queryString) {
+  const props = PropertiesService.getScriptProperties();
+  const baseUrl = String(props.getProperty("SUPABASE_URL") || "").replace(/\/$/, "");
+  const serviceRoleKey = props.getProperty("SUPABASE_SERVICE_ROLE_KEY");
+
+  if (!baseUrl || !serviceRoleKey) {
+    throw new Error("SUPABASE_URL または SUPABASE_SERVICE_ROLE_KEY が未設定です。");
+  }
+
+  const url = `${baseUrl}/rest/v1/${tableName}?select=*&${queryString || ""}`;
+  const response = UrlFetchApp.fetch(url, {
+    method: "get",
+    muteHttpExceptions: true,
+    headers: {
+      apikey: serviceRoleKey,
+      Authorization: `Bearer ${serviceRoleKey}`,
+      Prefer: "return=representation"
+    }
+  });
+
+  const status = response.getResponseCode();
+  const body = response.getContentText();
+  if (status < 200 || status >= 300) {
+    throw new Error(`Supabase ${tableName} 読み取り失敗: ${status} ${body}`);
+  }
+
+  return JSON.parse(body);
+}
+
+function convertSupabaseConfig_(row) {
+  if (!row) {
+    return {
+      appName: APP_NAME,
+      targetHires: 0,
+      targetContacts: 0,
+      targetInterviews: 0,
+      hiringBudget: 0,
+      expectedJoiners: 0
+    };
+  }
+
+  return {
+    appName: row.app_name || APP_NAME,
+    targetHires: Number(row.target_hires) || 0,
+    targetContacts: Number(row.target_contacts) || 0,
+    targetInterviews: Number(row.target_interviews) || 0,
+    hiringBudget: Number(row.hiring_budget) || 0,
+    expectedJoiners: Number(row.expected_joiners) || 0
+  };
+}
+
+function convertSupabaseFair_(row) {
+  return {
+    name: String(row.name || ""),
+    date: String(row.held_date || ""),
+    cost: Number(row.cost) || 0,
+    contacts: Number(row.contacts) || 0,
+    lineRegistrations: Number(row.line_registrations) || 0,
+    salonTours: Number(row.salon_tours) || 0
+  };
+}
+
+function convertSupabaseStudent_(row) {
+  return {
+    studentId: String(row.student_code || row.id || ""),
+    cohort: String(row.cohort || ""),
+    name: String(row.full_name || ""),
+    gender: String(row.gender || "未回答"),
+    school: String(row.school_name_snapshot || ""),
+    grade: String(row.grade || ""),
+    source: String(row.source_name_snapshot || ""),
+    contactDate: String(row.contact_date || ""),
+    lineStatus: String(row.line_status || "未登録"),
+    salonTourStatus: String(row.salon_tour_status || "未設定"),
+    interviewStatus: String(row.interview_status || "未設定"),
+    resultStatus: String(row.result_status || "未定"),
+    offerStatus: String(row.offer_status || "未定"),
+    expectedJoinStatus: String(row.expected_join_status || "未定"),
+    owner: "",
+    nextAction: String(row.next_action || ""),
+    nextActionDate: String(row.next_action_date || ""),
+    memo: String(row.memo || ""),
+    managementStatus: String(row.management_status || "有効"),
+    updatedAt: formatDateTimeValue(row.updated_at),
+    updatedBy: ""
+  };
+}
+
+function buildSupabaseStudentCohorts_(students) {
+  const definitions = [
+    { key: "27", label: "27卒", sheetName: "Supabase_27卒" },
+    { key: "28", label: "28卒", sheetName: "Supabase_28卒" },
+    { key: "intern", label: "サロン実習", sheetName: "Supabase_サロン実習" },
+    { key: "all", label: "全件参考", sheetName: "Supabase_全件参考" }
+  ];
+
+  return definitions.map((definition) => {
+    const cohortStudents = definition.key === "all"
+      ? students
+      : students.filter((student) => student.cohort === definition.label);
+    return {
+      key: definition.key,
+      label: definition.label,
+      sheetName: definition.sheetName,
+      students: cohortStudents
+    };
+  });
+}
+
+function buildSupabaseSchoolAnalysis_(schools, students) {
+  const summaryBySchool = students.reduce((map, student) => {
+    const schoolName = student.school || "学校未設定";
+    if (!map[schoolName]) {
+      map[schoolName] = {
+        name: schoolName,
+        contacts: 0,
+        lineRegistrations: 0,
+        salonTours: 0,
+        interviews: 0,
+        passed: 0,
+        offers: 0
+      };
+    }
+
+    const summary = map[schoolName];
+    if (student.managementStatus !== "管理対象外") summary.contacts += 1;
+    if (student.lineStatus === "登録済") summary.lineRegistrations += 1;
+    if (student.salonTourStatus === "実施済" || student.salonTourStatus === "予定") summary.salonTours += 1;
+    if (student.interviewStatus === "実施済" || student.interviewStatus === "予定") summary.interviews += 1;
+    if (student.resultStatus === "合格") summary.passed += 1;
+    if (student.offerStatus === "内定" || student.offerStatus === "承諾") summary.offers += 1;
+    return map;
+  }, {});
+
+  schools.forEach((school) => {
+    const schoolName = school.display_name || school.name;
+    if (!summaryBySchool[schoolName]) {
+      summaryBySchool[schoolName] = {
+        name: schoolName,
+        contacts: 0,
+        lineRegistrations: 0,
+        salonTours: 0,
+        interviews: 0,
+        passed: 0,
+        offers: 0
+      };
+    }
+  });
+
+  return Object.values(summaryBySchool).sort((a, b) => b.offers - a.offers || b.interviews - a.interviews || b.contacts - a.contacts);
 }
 
 function getConfig() {
