@@ -235,7 +235,7 @@ function loadJsonp(apiUrl) {
     const timeoutId = window.setTimeout(() => {
       cleanup();
       reject(new Error("GAS APIの読み込みがタイムアウトしました"));
-    }, 10000);
+    }, 30000);
 
     function cleanup() {
       window.clearTimeout(timeoutId);
