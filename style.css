@@ -1217,6 +1217,48 @@ td {
   gap: 12px;
 }
 
+.student-form-guide {
+  border: 1px solid #b7d7f3;
+  border-radius: 8px;
+  background: #f3f8fd;
+  color: var(--text);
+  margin-bottom: 14px;
+  padding: 12px 14px;
+}
+
+.student-form-guide strong {
+  display: block;
+  margin-bottom: 6px;
+  font-size: 13px;
+}
+
+.student-form-guide ul {
+  margin: 0;
+  padding-left: 18px;
+  color: var(--muted);
+  font-size: 12px;
+}
+
+.student-form-guide li {
+  margin-bottom: 4px;
+}
+
+.student-form-guide li:last-child {
+  margin-bottom: 0;
+}
+
+.required-mark {
+  border-radius: 999px;
+  background: #fee2e2;
+  color: #b91c1c;
+  display: inline-flex;
+  font-size: 10px;
+  font-weight: 600;
+  margin-left: 6px;
+  padding: 2px 6px;
+  vertical-align: middle;
+}
+
 .student-edit-form label {
   display: grid;
   gap: 6px;

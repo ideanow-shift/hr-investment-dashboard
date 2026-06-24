@@ -913,6 +913,24 @@ function renderSelectField(name, label, options, value = "", disabled = "") {
   `;
 }
 
+function renderRequiredLabel(label) {
+  return `${label}<b class="required-mark">必須</b>`;
+}
+
+function buildStudentSaveConfirmMessage(payload, mode) {
+  const action = mode === "add" ? "追加" : "更新";
+  return [
+    `学生データを${action}します。`,
+    "",
+    `氏名：${payload.name || "未入力"}`,
+    `学校：${payload.school || "未入力"}`,
+    `区分：${getActiveCohortLabel()}`,
+    `管理状態：${payload.managementStatus}`,
+    "",
+    "保存後はSupabaseへ反映され、操作履歴にも記録されます。"
+  ].join("\n");
+}
+
 function getStudentFormPayload(form) {
   const formData = new FormData(form);
   return {
@@ -984,14 +1002,22 @@ function renderStudentForm(student = {}, mode = "update") {
           <p>${escapeHtml(getActiveCohortLabel())} / ${escapeHtml(getActiveSheetName())}</p>
         </div>
       </div>
+      <div class="student-form-guide">
+        <strong>入力のポイント</strong>
+        <ul>
+          <li>氏名と学校名は重複チェックに使います。正式名称で入力してください。</li>
+          <li>見学予定・面接予定にする場合は、次アクション日も入力してください。</li>
+          <li>誤登録や対象外は削除せず、管理状態を「管理対象外」にします。</li>
+        </ul>
+      </div>
       <div class="student-form-grid">
         <label>
-          <span>氏名</span>
+          <span>${renderRequiredLabel("氏名")}</span>
           <input name="name" value="${escapeHtml(student.name || "")}" placeholder="例：山田 花" ${isAdd ? "required" : ""} ${disabled}>
         </label>
         ${renderSelectField("gender", "性別", studentSelectOptions.gender, student.gender || "未回答", disabled)}
         <label>
-          <span>学校名</span>
+          <span>${renderRequiredLabel("学校名")}</span>
           <input name="school" value="${escapeHtml(student.school || "")}" placeholder="例：山野美容専門学校" ${isAdd ? "required" : ""} ${disabled}>
         </label>
         ${renderSelectField("grade", "学年", studentSelectOptions.grade, student.grade || "2年", disabled)}
@@ -1055,6 +1081,12 @@ function setupRenderedStudentForm() {
     if (validationErrors.length) {
       status.classList.add("is-error");
       status.innerHTML = validationErrors.map((error) => `・${escapeHtml(error)}`).join("<br>");
+      return;
+    }
+
+    if (!window.confirm(buildStudentSaveConfirmMessage(payload, mode))) {
+      status.classList.remove("is-error");
+      status.textContent = "保存をキャンセルしました。";
       return;
     }
 
