@@ -1,4 +1,4 @@
-﻿const GAS_API_URL = "https://script.google.com/macros/s/AKfycbx0X9DvO6zydd8txe_Mgme1COTfltp7ZxueJyrIPQsJSwWCvbVrM2otmlgarPTDmU5iWg/exec";
+const GAS_API_URL = "https://script.google.com/macros/s/AKfycbx0X9DvO6zydd8txe_Mgme1COTfltp7ZxueJyrIPQsJSwWCvbVrM2otmlgarPTDmU5iWg/exec";
 
 const HUB_CONTEXT_KEY = "novHub.currentEmployee";
 const HUB_CONTEXT_MAX_AGE_MS = 12 * 60 * 60 * 1000;
@@ -2387,16 +2387,51 @@ function readStoredHubContext(storage) {
   }
 }
 
+function readHubContextFromUrl() {
+  try {
+    const url = new URL(window.location.href);
+    const encoded = url.searchParams.get("hub_context");
+    if (!encoded) return null;
+    const base64 = encoded.replace(/-/g, "+").replace(/_/g, "/").padEnd(Math.ceil(encoded.length / 4) * 4, "=");
+    const binary = atob(base64);
+    const bytes = Uint8Array.from(binary, (char) => char.charCodeAt(0));
+    const context = JSON.parse(new TextDecoder().decode(bytes));
+    if (!context || typeof context !== "object") return null;
+    const storedContext = {
+      ...context,
+      storedAt: context.storedAt || new Date().toISOString()
+    };
+    const serialized = JSON.stringify(storedContext);
+    try {
+      window.sessionStorage.setItem(HUB_CONTEXT_KEY, serialized);
+    } catch (_) {
+      // Ignore storage write errors.
+    }
+    try {
+      window.localStorage.setItem(HUB_CONTEXT_KEY, serialized);
+    } catch (_) {
+      // Ignore storage write errors.
+    }
+    url.searchParams.delete("hub_context");
+    window.history.replaceState(window.history.state, document.title, `${url.pathname}${url.search}${url.hash}`);
+    return storedContext;
+  } catch (error) {
+    console.warn("Failed to read HUB context from URL", error);
+    return null;
+  }
+}
+
 function getHubCurrentEmployee() {
   try {
     const helperContext = window.NovHubContext?.read?.();
     if (helperContext) return helperContext;
   } catch (_) {
-    // Fall back to direct globals and storage.
+    // Fall back to direct globals, URL context, and storage.
   }
 
   return window.novHub?.currentEmployee
     || window.NOV_HUB_CURRENT_EMPLOYEE
+    || readHubContextFromUrl()
     || readStoredHubContext(window.sessionStorage)
     || readStoredHubContext(window.localStorage)
     || null;
@@ -2505,6 +2540,7 @@ async function initDashboard() {
 }
 
 document.addEventListener("DOMContentLoaded", initDashboard);
+
 
 
 
