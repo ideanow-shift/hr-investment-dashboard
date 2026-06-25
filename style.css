@@ -916,6 +916,31 @@ td {
   margin-bottom: 0;
 }
 
+.student-list-heading-actions .section-note strong {
+  display: block;
+  color: var(--text);
+  font-weight: 700;
+  margin-bottom: 5px;
+  text-align: right;
+}
+
+.student-condition-summary {
+  display: flex;
+  justify-content: flex-end;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+
+.student-condition-summary em {
+  display: inline-flex;
+  border-radius: 999px;
+  background: var(--surface-soft);
+  color: var(--muted);
+  font-size: 11px;
+  font-style: normal;
+  padding: 3px 8px;
+}
+
 .student-csv-export {
   display: inline-flex;
   align-items: center;
@@ -1586,6 +1611,12 @@ td {
   .student-list-heading {
     align-items: flex-start;
     flex-direction: column;
+  }
+
+  .student-list-heading-actions .section-note strong,
+  .student-condition-summary {
+    justify-content: flex-start;
+    text-align: left;
   }
 
   .student-next-action {

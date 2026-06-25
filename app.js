@@ -2333,6 +2333,19 @@ function setupStudentCsvExport(count) {
   button.onclick = downloadStudentCsv;
 }
 
+function renderStudentConditionChips(activeFilter, activeDueFilter) {
+  const chips = [
+    `区分：${getActiveCohortLabel()}`,
+    `状態：${activeFilter.label}`
+  ];
+  if (activeDueFilter.key !== "all") chips.push(`期限：${activeDueFilter.label}`);
+  if (studentSearchQuery.trim()) chips.push(`検索：${studentSearchQuery.trim()}`);
+
+  return `
+    <span class="student-condition-summary">${chips.map((chip) => `<em>${escapeHtml(chip)}</em>`).join("")}</span>
+  `;
+}
+
 function renderStudentList(activeKey = activeStudentFilter) {
   renderStudentFilters(activeStudentFilter);
   renderStudentSearchControls();
@@ -2340,9 +2353,10 @@ function renderStudentList(activeKey = activeStudentFilter) {
 
   const { activeFilter, activeDueFilter, students } = getFilteredStudentList(activeKey);
 
-  const searchLabel = studentSearchQuery.trim() ? ` / 検索「${studentSearchQuery.trim()}」` : "";
-  const dueLabel = activeDueFilter.key !== "all" ? ` / ${activeDueFilter.label}` : "";
-  document.getElementById("studentFilterCount").textContent = `${getActiveCohortLabel()} / ${activeFilter.label}${dueLabel}${searchLabel}：${students.length}名`;
+  document.getElementById("studentFilterCount").innerHTML = `
+    <strong>${escapeHtml(getActiveCohortLabel())}：${formatNumber.format(students.length)}名</strong>
+    ${renderStudentConditionChips(activeFilter, activeDueFilter)}
+  `;
   setupStudentCsvExport(students.length);
 
   if (students.length === 0) {
