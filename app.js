@@ -277,7 +277,12 @@ function callGasAction(action, params = {}) {
     return Promise.reject(new Error("GAS API URLが未設定です"));
   }
 
-  return loadJsonp(GAS_API_URL, { action, ...getHubOperatorParams(), ...params });
+  const operatorParams = getHubOperatorParams();
+  if (!operatorParams.operatorEmployeeId) {
+    return Promise.reject(new Error("保存できませんでした：NOV HUBから開き直してください。HUBログイン情報がないため、操作履歴に社員IDを記録できません。"));
+  }
+
+  return loadJsonp(GAS_API_URL, { action, ...operatorParams, ...params });
 }
 
 function applyDashboardData(data) {
@@ -2385,7 +2390,7 @@ function renderOperatorNotice() {
       <div class="operator-notice is-missing">
         <span>操作ユーザー</span>
         <strong>HUB未連携</strong>
-        <small>保存は可能ですが、社員ID付きの操作履歴はHUB組み込み後に記録されます。</small>
+        <small>保存するにはNOV HUBから開き直してください。操作履歴に社員IDを記録します。</small>
       </div>
     `;
   }

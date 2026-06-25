@@ -363,6 +363,14 @@ function normalizeUuid_(value) {
   return /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(text) ? text : "";
 }
 
+function requireDashboardOperator_(params) {
+  const operator = getDashboardOperator_(params);
+  if (!operator.employeeId) {
+    throw new Error("保存できませんでした：NOV HUBから開き直してください。HUBログイン情報がないため、操作履歴に社員IDを記録できません。");
+  }
+  return operator;
+}
+
 function getDashboardOperator_(params) {
   const actorEmployeeId = (params && params.actorEmployeeId) || (params && params.operatorEmployeeId);
   const actorEmail = sanitizeText(params && params.actorEmail);
@@ -672,6 +680,10 @@ function getStudentDataFromSheet(sheetName, cohortLabel) {
 
 function handleWriteAction(params) {
   const action = String(params.action || "");
+
+  if (isSupabaseConfigured_()) {
+    requireDashboardOperator_(params);
+  }
 
   if (action === "addStudent") {
     return addStudentFromDashboard(params);
@@ -1975,6 +1987,7 @@ function formatDateTimeValue(value) {
   }
   return String(value || "");
 }
+
 
 
 
