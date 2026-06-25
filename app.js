@@ -2637,6 +2637,56 @@ function setupOperationLogSearch() {
   }
 }
 
+function escapeCsvCell(value) {
+  const text = String(value ?? "");
+  return `"${text.replace(/"/g, "\"\"")}"`;
+}
+
+function downloadOperationLogCsv() {
+  const rows = getFilteredOperationLogs();
+  if (!rows.length) return;
+
+  const headers = ["日時", "操作", "対象種別", "対象", "詳細", "操作社員名", "Core社員UUID", "学生ID"];
+  const csvRows = [
+    headers.map(escapeCsvCell).join(","),
+    ...rows.map((log) => [
+      formatOperationLogDate(log.createdAt),
+      log.action || "",
+      getOperationLogTableLabel(log.tableName),
+      log.studentName || log.studentCode || log.recordId || "",
+      log.detail || "",
+      log.actorName || "",
+      log.actorEmployeeId || "",
+      log.studentCode || ""
+    ].map(escapeCsvCell).join(","))
+  ];
+
+  const blob = new Blob([`\ufeff${csvRows.join("\r\n")}`], { type: "text/csv;charset=utf-8" });
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement("a");
+  link.href = url;
+  link.download = `nov-talent-operation-logs-${new Date().toISOString().slice(0, 10)}.csv`;
+  document.body.appendChild(link);
+  link.click();
+  link.remove();
+  URL.revokeObjectURL(url);
+}
+
+function renderOperationLogExportButton() {
+  const count = getFilteredOperationLogs().length;
+  return `
+    <button class="operation-log-export" type="button" data-operation-log-export ${count ? "" : "disabled"}>
+      CSV出力<span>${formatNumber.format(count)}</span>
+    </button>
+  `;
+}
+
+function setupOperationLogExport() {
+  const button = document.querySelector("[data-operation-log-export]");
+  if (!button) return;
+  button.addEventListener("click", downloadOperationLogCsv);
+}
+
 function getFilteredOperationLogs() {
   const filter = getOperationLogFilters().find((item) => item.key === activeOperationLogFilter) || getOperationLogFilters()[0];
   return operationLogs.filter(filter.predicate).filter(matchesOperationLogSearch);
@@ -2658,17 +2708,24 @@ function renderOperationLogs() {
   if (!filteredLogs.length) {
     list.innerHTML = `
       ${renderOperationLogFilters()}
-      ${renderOperationLogSearch()}
+      <div class="operation-log-tools">
+        ${renderOperationLogSearch()}
+        ${renderOperationLogExportButton()}
+      </div>
       <div class="student-empty">この条件に該当する操作履歴はありません。</div>
     `;
     setupOperationLogFilters();
     setupOperationLogSearch();
+    setupOperationLogExport();
     return;
   }
 
   list.innerHTML = `
     ${renderOperationLogFilters()}
-    ${renderOperationLogSearch()}
+    <div class="operation-log-tools">
+      ${renderOperationLogSearch()}
+      ${renderOperationLogExportButton()}
+    </div>
     ${filteredLogs.map((log) => {
     const hasActor = Boolean(log.actorEmployeeId);
     const actorLabel = log.actorName || maskEmployeeId(log.actorEmployeeId);
@@ -2700,6 +2757,7 @@ function renderOperationLogs() {
   `;
   setupOperationLogFilters();
   setupOperationLogSearch();
+  setupOperationLogExport();
 }
 
 function renderDashboard(isConnected) {
