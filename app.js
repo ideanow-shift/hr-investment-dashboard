@@ -1,4 +1,4 @@
-const GAS_API_URL = "https://script.google.com/macros/s/AKfycbx0X9DvO6zydd8txe_Mgme1COTfltp7ZxueJyrIPQsJSwWCvbVrM2otmlgarPTDmU5iWg/exec";
+﻿const GAS_API_URL = "https://script.google.com/macros/s/AKfycbx0X9DvO6zydd8txe_Mgme1COTfltp7ZxueJyrIPQsJSwWCvbVrM2otmlgarPTDmU5iWg/exec";
 
 const HUB_CONTEXT_KEY = "novHub.currentEmployee";
 const HUB_CONTEXT_MAX_AGE_MS = 12 * 60 * 60 * 1000;
@@ -612,11 +612,21 @@ function getStudentActionItems(student) {
       dueDate: followup.dueDate || "",
       status: followup.status || "未対応",
       sourceLabel: "フォロー履歴",
+      followupId: followup.id || "",
       isFollowup: true
     });
   });
 
   return items;
+}
+
+function canCompleteFollowupAction(action) {
+  return Boolean(action?.isFollowup && action.followupId && !["完了", "不要"].includes(action.status || ""));
+}
+
+function renderFollowupCompleteButton(action, label = "完了") {
+  if (!canCompleteFollowupAction(action)) return "";
+  return `<button class="followup-complete-button" type="button" data-followup-complete="${escapeHtml(action.followupId)}">${escapeHtml(label)}</button>`;
 }
 
 function getPrimaryStudentAction(student) {
@@ -1811,6 +1821,40 @@ function setupRenderedFollowupStatusForms() {
     });
   });
 }
+function setupFollowupCompleteButtons(scope = document) {
+  if (!scope) return;
+
+  scope.querySelectorAll("[data-followup-complete]").forEach((button) => {
+    button.addEventListener("click", async (event) => {
+      event.preventDefault();
+      event.stopPropagation();
+
+      const followupId = button.dataset.followupComplete;
+      if (!followupId || button.disabled) return;
+      if (!isActiveCohortEditable()) {
+        alert("全件参考シートは編集できません。");
+        return;
+      }
+
+      const originalText = button.textContent;
+      try {
+        button.disabled = true;
+        button.textContent = "完了中...";
+        const result = await callGasAction("updateFollowup", { followupId, status: "完了" });
+        if (!result || result.ok === false || result.error) {
+          throw new Error(result?.error || "更新に失敗しました");
+        }
+        button.textContent = "完了済み";
+        await refreshDashboardData();
+      } catch (error) {
+        button.disabled = false;
+        button.textContent = originalText || "完了";
+        alert(`フォロー完了にできませんでした：${error.message}`);
+      }
+    });
+  });
+}
+
 function renderStudentForm(student = {}, mode = "update") {
   const isAdd = mode === "add";
   const disabled = isActiveCohortEditable() ? "" : "disabled";
@@ -1963,9 +2007,12 @@ function renderStudentActions() {
         ${renderUrgencyBadge(item.dueDate)}
         <b>${escapeHtml(item.title)}</b>
         <small>${escapeHtml(item.status)}</small>
+        ${renderFollowupCompleteButton(item)}
       </div>
     </article>
   `).join("");
+
+  setupFollowupCompleteButtons(document.getElementById("studentActionList"));
 }
 
 function getStudentFilters() {
@@ -2169,10 +2216,13 @@ function renderStudentList(activeKey = activeStudentFilter) {
           ${primaryAction ? renderUrgencyBadge(primaryAction.dueDate) : ""}
           <strong>${escapeHtml(primaryAction?.title || "次アクション未設定")}</strong>
           <small>${escapeHtml(primaryAction?.sourceLabel || student.source || "接点未設定")} / 担当：${escapeHtml(student.owner || "未設定")}</small>
+          ${primaryAction ? renderFollowupCompleteButton(primaryAction) : ""}
         </div>
       </article>
     `;
   }).join("");
+
+  setupFollowupCompleteButtons(document.getElementById("studentList"));
 
   document.querySelectorAll("[data-student-id]").forEach((card) => {
     card.addEventListener("click", () => {

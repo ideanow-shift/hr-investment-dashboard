@@ -1,4 +1,4 @@
-:root {
+﻿:root {
   --bg: #ffffff;
   --surface: #ffffff;
   --surface-soft: #f9f9f9;
@@ -616,6 +616,34 @@ td {
 .detail-button:hover {
   border-color: var(--accent);
   background: var(--accent-soft);
+}
+
+.followup-complete-button {
+  width: fit-content;
+  margin-top: 8px;
+  border: 1px solid rgba(34, 197, 94, 0.35);
+  border-radius: 999px;
+  background: var(--green-soft);
+  color: #047857;
+  cursor: pointer;
+  font: inherit;
+  font-size: 12px;
+  font-weight: 700;
+  padding: 6px 10px;
+}
+
+.student-action-meta .followup-complete-button {
+  margin-left: auto;
+}
+
+.followup-complete-button:hover {
+  border-color: #16a34a;
+  background: #dcfce7;
+}
+
+.followup-complete-button:disabled {
+  cursor: not-allowed;
+  opacity: 0.65;
 }
 
 .score-text {
