@@ -1068,6 +1068,11 @@ td {
   background: #f8fafc;
 }
 
+.student-card-completed {
+  border-left: 4px solid var(--green);
+  background: #f0fdf4;
+}
+
 .student-card-main {
   display: grid;
   grid-template-columns: minmax(0, 0.9fr) minmax(220px, 1fr);
@@ -1632,6 +1637,11 @@ td {
 .followup-status-message.is-error {
   color: var(--danger);
   font-weight: 700;
+}
+
+.urgency-done {
+  background: var(--green-soft);
+  color: #047857;
 }
 
 .urgency-badge {

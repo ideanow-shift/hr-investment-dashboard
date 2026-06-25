@@ -553,6 +553,31 @@ function hasOpenFollowup(student) {
   return getOpenFollowups(student).length > 0;
 }
 
+function getCompletedFollowups(student) {
+  return (Array.isArray(student.followups) ? student.followups : [])
+    .filter((followup) => followup.status === "完了")
+    .sort((a, b) => getActionSortDate(b.dueDate).localeCompare(getActionSortDate(a.dueDate)));
+}
+
+function hasCompletedFollowup(student) {
+  return getCompletedFollowups(student).length > 0;
+}
+
+function getCompletedFollowupAction(student) {
+  const followup = getCompletedFollowups(student)[0];
+  if (!followup) return null;
+  return {
+    student,
+    title: followup.actionTitle || "完了フォロー",
+    dueDate: followup.dueDate || "",
+    status: followup.status || "完了",
+    sourceLabel: "完了履歴",
+    followupId: followup.id || "",
+    isFollowup: true,
+    isCompleted: true
+  };
+}
+
 function getActionSortDate(value) {
   return value || "9999-12-31";
 }
@@ -589,7 +614,15 @@ function getActionSortWeight(dueDate) {
 
 function getStudentUrgencyClass(action) {
   if (!action) return "student-card-unscheduled";
+  if (action.isCompleted || action.status === "完了") return "student-card-completed";
   return `student-card-${getActionUrgency(action.dueDate).level}`;
+}
+
+function renderActionBadge(action) {
+  if (action?.isCompleted || action?.status === "完了") {
+    return `<em class="urgency-badge urgency-done">完了済み</em>`;
+  }
+  return renderUrgencyBadge(action?.dueDate);
 }
 
 function getStudentActionItems(student) {
@@ -2004,7 +2037,7 @@ function renderStudentActions() {
       </div>
       <div class="student-action-meta">
         <span>${escapeHtml(item.dueDate || "日付未設定")}</span>
-        ${renderUrgencyBadge(item.dueDate)}
+        ${renderActionBadge(item)}
         <b>${escapeHtml(item.title)}</b>
         <small>${escapeHtml(item.status)}</small>
         ${renderFollowupCompleteButton(item)}
@@ -2019,6 +2052,7 @@ function getStudentFilters() {
   return [
     { key: "all", label: "すべて", predicate: () => true },
     { key: "needsFollowUp", label: "要フォロー", predicate: (student) => (student.nextAction && !student.nextActionDate) || hasOpenFollowup(student) },
+    { key: "completedFollowup", label: "完了履歴", predicate: hasCompletedFollowup },
     { key: "salonTour", label: "見学予定", predicate: (student) => student.salonTourStatus === "予定" },
     { key: "interview", label: "面接予定", predicate: (student) => student.interviewStatus === "予定" },
     { key: "offered", label: "内定", predicate: (student) => student.offerStatus === "内定" },
@@ -2173,8 +2207,8 @@ function renderStudentList(activeKey = activeStudentFilter) {
     .filter(matchesStudentSearch)
     .filter(activeDueFilter.predicate)
     .sort((a, b) => {
-      const aAction = getPrimaryStudentAction(a);
-      const bAction = getPrimaryStudentAction(b);
+      const aAction = activeStudentFilter === "completedFollowup" ? (getCompletedFollowupAction(a) || getPrimaryStudentAction(a)) : getPrimaryStudentAction(a);
+      const bAction = activeStudentFilter === "completedFollowup" ? (getCompletedFollowupAction(b) || getPrimaryStudentAction(b)) : getPrimaryStudentAction(b);
       const urgencyCompare = getActionSortWeight(aAction?.dueDate) - getActionSortWeight(bAction?.dueDate);
       if (urgencyCompare !== 0) return urgencyCompare;
       return getActionSortDate(aAction?.dueDate).localeCompare(getActionSortDate(bAction?.dueDate));
@@ -2193,7 +2227,7 @@ function renderStudentList(activeKey = activeStudentFilter) {
 
   document.getElementById("studentList").innerHTML = students.map((student) => {
     const priority = getStudentPriority(student);
-    const primaryAction = getPrimaryStudentAction(student);
+    const primaryAction = activeStudentFilter === "completedFollowup" ? (getCompletedFollowupAction(student) || getPrimaryStudentAction(student)) : getPrimaryStudentAction(student);
 
     return `
       <article class="student-card ${getStudentUrgencyClass(primaryAction)}" data-student-id="${escapeHtml(student.studentId)}">
@@ -2213,7 +2247,7 @@ function renderStudentList(activeKey = activeStudentFilter) {
         </div>
         <div class="student-next-action">
           <span>${escapeHtml(primaryAction?.dueDate || "日付未設定")}</span>
-          ${primaryAction ? renderUrgencyBadge(primaryAction.dueDate) : ""}
+          ${primaryAction ? renderActionBadge(primaryAction) : ""}
           <strong>${escapeHtml(primaryAction?.title || "次アクション未設定")}</strong>
           <small>${escapeHtml(primaryAction?.sourceLabel || student.source || "接点未設定")} / 担当：${escapeHtml(student.owner || "未設定")}</small>
           ${primaryAction ? renderFollowupCompleteButton(primaryAction) : ""}
