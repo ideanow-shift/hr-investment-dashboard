@@ -277,8 +277,9 @@ function callGasAction(action, params = {}) {
     return Promise.reject(new Error("GAS API URLが未設定です"));
   }
 
+  const employee = getHubCurrentEmployee();
   const operatorParams = getHubOperatorParams();
-  if (!operatorParams.operatorEmployeeId) {
+  if (!employee) {
     return Promise.reject(new Error("保存できませんでした：NOV HUBから開き直してください。HUBログイン情報がないため、操作履歴に社員IDを記録できません。"));
   }
 
@@ -1393,7 +1394,7 @@ function renderRequiredLabel(label) {
 }
 
 function canWriteFromDashboard() {
-  return Boolean(getHubOperatorParams().operatorEmployeeId);
+  return Boolean(getHubCurrentEmployee());
 }
 
 function getWriteDisabledAttribute(extraDisabled = false) {
@@ -2211,18 +2212,20 @@ function renderHubDiagnostics() {
 
   const employee = getHubCurrentEmployee();
   const operatorParams = getHubOperatorParams();
-  const canWrite = Boolean(operatorParams.operatorEmployeeId);
+  const hasHubContext = Boolean(employee);
+  const hasCoreEmployeeId = Boolean(operatorParams.operatorEmployeeId);
+  const canWrite = hasHubContext;
   const displayName = employee?.displayName || employee?.name || employee?.fullName || employee?.employeeName || "未取得";
   const employeeNumber = operatorParams.operatorEmployeeCode || "未取得";
-  const employeeId = operatorParams.operatorEmployeeId || "未取得";
+  const employeeId = operatorParams.operatorEmployeeId || (canWrite ? "保存時にGASで照合" : "未取得");
   const department = operatorParams.operatorDepartmentName || operatorParams.operatorPositionName || "未取得";
 
   panel.className = `hub-diagnostics ${canWrite ? "is-connected" : "is-missing"}`;
   panel.innerHTML = `
     <div>
       <p class="section-kicker">HUB Context Check</p>
-      <h3>${canWrite ? "HUB連携済み：保存できます" : "HUB未連携：保存できません"}</h3>
-      <p>${canWrite ? "この状態で保存すると、操作履歴にHUB社員IDが記録されます。" : "NOV HUBから開き直すと保存ボタンが有効になります。"}</p>
+      <h3>${canWrite ? (hasCoreEmployeeId ? "HUB連携済み：保存できます" : "HUB連携済み：保存時に社員IDを照合します") : "HUB未連携：保存できません"}</h3>
+      <p>${canWrite ? (hasCoreEmployeeId ? "この状態で保存すると、操作履歴にHUB社員IDが記録されます。" : "Core社員UUIDが未取得のため、GASが氏名・社員番号・メールから社員マスタを照合します。") : "NOV HUBから開き直すと保存ボタンが有効になります。"}</p>
     </div>
     <dl>
       <div><dt>氏名</dt><dd>${escapeHtml(displayName)}</dd></div>
@@ -2540,18 +2543,3 @@ async function initDashboard() {
 }
 
 document.addEventListener("DOMContentLoaded", initDashboard);
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-

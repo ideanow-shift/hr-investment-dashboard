@@ -1,4 +1,4 @@
-﻿/**
+/**
  * 人材投資管理システム - GAS WebアプリAPI
  *
  * このCode.gsは、必ず対象のGoogleスプレッドシートから
@@ -366,7 +366,7 @@ function normalizeUuid_(value) {
 function requireDashboardOperator_(params) {
   const operator = getDashboardOperator_(params);
   if (!operator.employeeId) {
-    throw new Error("保存できませんでした：NOV HUBから開き直してください。HUBログイン情報がないため、操作履歴に社員IDを記録できません。");
+    throw new Error("保存できませんでした：HUBログイン情報からCore社員IDを特定できません。NOV HUBから開き直すか、社員マスタの氏名・メール・社員番号を確認してください。");
   }
   return operator;
 }
@@ -377,12 +377,32 @@ function getDashboardOperator_(params) {
   const actorName = sanitizeText((params && params.actorName) || (params && params.operatorName));
   const actorEmployeeCode = sanitizeText((params && params.actorEmployeeNumber) || (params && params.operatorEmployeeCode));
   const displayName = actorEmail || (actorName && actorEmployeeCode ? `${actorName} (${actorEmployeeCode})` : actorName);
+  const resolvedEmployeeId = normalizeUuid_(actorEmployeeId) || resolveDashboardOperatorEmployeeId_(actorEmail, actorEmployeeCode, actorName);
 
   return {
-    employeeId: normalizeUuid_(actorEmployeeId),
+    employeeId: resolvedEmployeeId,
     name: displayName || getOperatorName(),
     employeeCode: actorEmployeeCode
   };
+}
+
+function resolveDashboardOperatorEmployeeId_(email, employeeCode, actorName) {
+  const searchPlan = [
+    { label: "メールアドレス", column: "email", value: sanitizeText(email) },
+    { label: "社員番号", column: "employee_id", value: sanitizeText(employeeCode) },
+    { label: "氏名", column: "full_name", value: sanitizeText(actorName) }
+  ].filter(function(item) { return item.value; });
+
+  for (var index = 0; index < searchPlan.length; index += 1) {
+    var item = searchPlan[index];
+    var rows = getSupabaseRows_("employees", item.column + "=eq." + encodeURIComponent(item.value) + "&limit=2");
+    if (rows.length === 1 && normalizeUuid_(rows[0].id)) return rows[0].id;
+    if (rows.length > 1) {
+      throw new Error("HUBログイン情報の" + item.label + "が社員マスタで重複しています: " + item.value);
+    }
+  }
+
+  return "";
 }
 
 function convertSupabaseConfig_(row) {
@@ -1987,12 +2007,3 @@ function formatDateTimeValue(value) {
   }
   return String(value || "");
 }
-
-
-
-
-
-
-
-
-
