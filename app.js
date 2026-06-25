@@ -682,6 +682,21 @@ function buildStudentSummary(students) {
     if (student.expectedJoinStatus === "入社予定") summary.expectedJoiners += 1;
     if (student.gender === "男性") summary.male += 1;
     if (student.gender === "女性") summary.female += 1;
+
+    const followups = Array.isArray(student.followups) ? student.followups : [];
+    followups.forEach((followup) => {
+      const status = followup.status || "未対応";
+      if (!["完了", "不要"].includes(status)) {
+        summary.openFollowups += 1;
+        const urgency = getActionUrgency(followup.dueDate).level;
+        if (urgency === "overdue") summary.overdueFollowups += 1;
+        if (urgency === "today") summary.todayFollowups += 1;
+        if (["tomorrow", "soon"].includes(urgency)) summary.soonFollowups += 1;
+        if (urgency === "unscheduled") summary.unscheduledFollowups += 1;
+      }
+      if (status === "完了") summary.completedFollowups += 1;
+    });
+
     return summary;
   }, {
     needsFollowUp: 0,
@@ -690,7 +705,13 @@ function buildStudentSummary(students) {
     offered: 0,
     expectedJoiners: 0,
     male: 0,
-    female: 0
+    female: 0,
+    openFollowups: 0,
+    overdueFollowups: 0,
+    todayFollowups: 0,
+    soonFollowups: 0,
+    unscheduledFollowups: 0,
+    completedFollowups: 0
   });
 }
 
@@ -1354,19 +1375,24 @@ function generateActionCards() {
 function renderStudentSummary() {
   studentSummary = buildStudentSummary(getManagedStudents());
   const summaryItems = [
-    { label: "要フォロー", value: studentSummary.needsFollowUp || 0, sub: "未対応・対応中フォロー" },
-    { label: "見学予定者", value: studentSummary.salonTourScheduled || 0, sub: "サロン見学につなげる学生" },
-    { label: "面接予定者", value: studentSummary.interviewScheduled || 0, sub: "選考フォロー対象" },
-    { label: "内定者", value: studentSummary.offered || 0, sub: "内定後フォロー対象" },
-    { label: "入社予定者", value: studentSummary.expectedJoiners || 0, sub: "入社準備フォロー対象" },
-    { label: "男性", value: studentSummary.male || 0, sub: "学生管理の性別区分" },
-    { label: "女性", value: studentSummary.female || 0, sub: "学生管理の性別区分" }
+    { label: "要フォロー", value: studentSummary.needsFollowUp || 0, unit: "名", sub: "未対応・対応中フォローがある学生" },
+    { label: "未完了フォロー", value: studentSummary.openFollowups || 0, unit: "件", sub: "完了・不要を除く履歴" },
+    { label: "期限超過", value: studentSummary.overdueFollowups || 0, unit: "件", sub: "本日より前の未完了フォロー" },
+    { label: "今日対応", value: studentSummary.todayFollowups || 0, unit: "件", sub: "本日期日の未完了フォロー" },
+    { label: "近日対応", value: studentSummary.soonFollowups || 0, unit: "件", sub: "明日から7日以内の未完了フォロー" },
+    { label: "完了履歴", value: studentSummary.completedFollowups || 0, unit: "件", sub: "完了済みフォロー履歴" },
+    { label: "見学予定者", value: studentSummary.salonTourScheduled || 0, unit: "名", sub: "サロン見学につなげる学生" },
+    { label: "面接予定者", value: studentSummary.interviewScheduled || 0, unit: "名", sub: "選考フォロー対象" },
+    { label: "内定者", value: studentSummary.offered || 0, unit: "名", sub: "内定後フォロー対象" },
+    { label: "入社予定者", value: studentSummary.expectedJoiners || 0, unit: "名", sub: "入社準備フォロー対象" },
+    { label: "男性", value: studentSummary.male || 0, unit: "名", sub: "学生管理の性別区分" },
+    { label: "女性", value: studentSummary.female || 0, unit: "名", sub: "学生管理の性別区分" }
   ];
 
   document.getElementById("studentSummaryGrid").innerHTML = summaryItems.map((item) => `
     <article class="student-summary-card">
       <p>${item.label}</p>
-      <strong>${formatNumber.format(item.value)}<span>名</span></strong>
+      <strong>${formatNumber.format(item.value)}<span>${escapeHtml(item.unit || "名")}</span></strong>
       <small>${item.sub}</small>
     </article>
   `).join("");
