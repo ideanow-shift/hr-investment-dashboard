@@ -1841,6 +1841,68 @@ td {
   padding: 5px 9px;
 }
 
+.operation-log-action.is-create {
+  background: var(--green-soft);
+  color: #047857;
+}
+
+.operation-log-action.is-update {
+  background: var(--blue-soft);
+  color: #1d4ed8;
+}
+
+.operation-log-action.is-complete {
+  background: #dcfce7;
+  color: #166534;
+}
+
+.operation-log-title-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+  margin-bottom: 4px;
+}
+
+.operation-log-title-row h3 {
+  margin-bottom: 0;
+}
+
+.operation-log-target {
+  display: inline-flex;
+  border-radius: 999px;
+  background: var(--surface-soft);
+  color: var(--muted);
+  font-size: 11px;
+  font-weight: 700;
+  padding: 3px 8px;
+}
+
+.operation-log-target.is-student {
+  background: var(--blue-soft);
+  color: #1d4ed8;
+}
+
+.operation-log-target.is-followup {
+  background: var(--green-soft);
+  color: #047857;
+}
+
+.operation-log-target.is-fair {
+  background: var(--yellow-soft);
+  color: #854d0e;
+}
+
+.operation-log-target.is-school {
+  background: var(--accent-soft);
+  color: #9f1239;
+}
+
+.operation-log-target.is-setting {
+  background: #f1f5f9;
+  color: #475569;
+}
+
 .operation-log-card h3 {
   margin: 0 0 4px;
   font-size: 16px;

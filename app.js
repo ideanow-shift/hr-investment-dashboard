@@ -2444,6 +2444,25 @@ function getOperationLogTableLabel(tableName) {
   return labels[tableName] || tableName || "対象未設定";
 }
 
+function getOperationLogTableClass(tableName) {
+  const classes = {
+    talent_students: "is-student",
+    talent_student_followups: "is-followup",
+    talent_fairs: "is-fair",
+    talent_schools: "is-school",
+    talent_investment_settings: "is-setting"
+  };
+  return classes[tableName] || "is-default";
+}
+
+function getOperationLogActionClass(action) {
+  const text = String(action || "");
+  if (text.includes("追加")) return "is-create";
+  if (text.includes("更新")) return "is-update";
+  if (text.includes("完了")) return "is-complete";
+  return "is-default";
+}
+
 function formatOperationLogDate(value) {
   if (!value) return "日時未記録";
   const date = new Date(value);
@@ -2589,18 +2608,24 @@ function renderOperationLogs() {
     const hasActor = Boolean(log.actorEmployeeId);
     const actorLabel = log.actorName || maskEmployeeId(log.actorEmployeeId);
     const targetName = log.studentName || log.studentCode || getOperationLogTableLabel(log.tableName);
+    const tableLabel = getOperationLogTableLabel(log.tableName);
+    const tableClass = getOperationLogTableClass(log.tableName);
+    const actionClass = getOperationLogActionClass(log.action);
     return `
       <article class="operation-log-card">
         <div class="operation-log-main">
-          <span class="operation-log-action">${escapeHtml(log.action || "操作")}</span>
+          <span class="operation-log-action ${actionClass}">${escapeHtml(log.action || "操作")}</span>
           <div>
-            <h3>${escapeHtml(targetName)}</h3>
+            <div class="operation-log-title-row">
+              <h3>${escapeHtml(targetName)}</h3>
+              <span class="operation-log-target ${tableClass}">${escapeHtml(tableLabel)}</span>
+            </div>
             <p>${escapeHtml(log.detail || "詳細未記録")}</p>
           </div>
         </div>
         <div class="operation-log-meta">
           <span>${escapeHtml(formatOperationLogDate(log.createdAt))}</span>
-          <span>${escapeHtml(getOperationLogTableLabel(log.tableName))}</span>
+          <span>${escapeHtml(tableLabel)}</span>
           <strong class="${hasActor ? "is-linked" : "is-missing"}">${escapeHtml(actorLabel)}</strong>
           ${log.actorName && log.actorEmployeeId ? `<small>${escapeHtml(maskEmployeeId(log.actorEmployeeId))}</small>` : ""}
         </div>
