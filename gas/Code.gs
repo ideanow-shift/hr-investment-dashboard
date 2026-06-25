@@ -103,8 +103,13 @@ function getSupabaseDashboardData() {
   const fairs = getSupabaseRows_("talent_fairs", "is_active=eq.true&order=held_date.asc");
   const students = getSupabaseRows_("talent_students", "order=cohort.asc,student_code.asc");
   const followups = getSupabaseRows_("talent_student_followups", "order=due_date.asc,created_at.desc");
+  const employeeMap = getSupabaseEmployeeMap_(collectSupabaseEmployeeIds_(students, followups));
 
-  const convertedStudents = attachSupabaseFollowups_(students.map(convertSupabaseStudent_), followups);
+  const convertedStudents = attachSupabaseFollowups_(
+    students.map((student) => convertSupabaseStudent_(student, employeeMap)),
+    followups,
+    employeeMap
+  );
   const studentCohorts = buildSupabaseStudentCohorts_(convertedStudents);
 
   return {
@@ -405,6 +410,57 @@ function resolveDashboardOperatorEmployeeId_(email, employeeCode, actorName) {
   return "";
 }
 
+function collectSupabaseEmployeeIds_(students, followups) {
+  const ids = new Set();
+  const collect = function(row, columns) {
+    columns.forEach(function(column) {
+      const id = normalizeUuid_(row && row[column]);
+      if (id) ids.add(id);
+    });
+  };
+
+  students.forEach(function(student) {
+    collect(student, ["owner_employee_id", "created_by_employee_id", "updated_by_employee_id"]);
+  });
+  followups.forEach(function(followup) {
+    collect(followup, ["owner_employee_id", "created_by_employee_id", "updated_by_employee_id"]);
+  });
+
+  return Array.from(ids);
+}
+
+function getSupabaseEmployeeMap_(employeeIds) {
+  if (!employeeIds.length) return {};
+
+  try {
+    const rows = getSupabaseRows_("employees", `id=in.(${employeeIds.map(encodeURIComponent).join(",")})`);
+    return rows.reduce(function(map, row) {
+      const id = String(row.id || "");
+      if (id) map[id] = row;
+      return map;
+    }, {});
+  } catch (error) {
+    console.warn(`社員マスタの読み取りに失敗しました: ${error.message}`);
+    return {};
+  }
+}
+
+function getEmployeeDisplayName_(employeeMap, employeeId) {
+  const id = normalizeUuid_(employeeId);
+  const employee = id ? employeeMap[id] : null;
+  if (!employee) return "";
+
+  return String(
+    employee.full_name ||
+    employee.name ||
+    employee.display_name ||
+    employee.employee_name ||
+    employee.email ||
+    employee.employee_id ||
+    ""
+  );
+}
+
 function convertSupabaseConfig_(row) {
   if (!row) {
     return {
@@ -442,7 +498,7 @@ function convertSupabaseFair_(row) {
   };
 }
 
-function convertSupabaseStudent_(row) {
+function convertSupabaseStudent_(row, employeeMap) {
   return {
     id: String(row.id || ""),
     studentId: String(row.student_code || row.id || ""),
@@ -459,17 +515,17 @@ function convertSupabaseStudent_(row) {
     resultStatus: String(row.result_status || "未定"),
     offerStatus: String(row.offer_status || "未定"),
     expectedJoinStatus: String(row.expected_join_status || "未定"),
-    owner: "",
+    owner: getEmployeeDisplayName_(employeeMap, row.owner_employee_id),
     nextAction: String(row.next_action || ""),
     nextActionDate: String(row.next_action_date || ""),
     memo: String(row.memo || ""),
     managementStatus: String(row.management_status || "有効"),
     updatedAt: formatDateTimeValue(row.updated_at),
-    updatedBy: ""
+    updatedBy: getEmployeeDisplayName_(employeeMap, row.updated_by_employee_id)
   };
 }
 
-function convertSupabaseFollowup_(row) {
+function convertSupabaseFollowup_(row, employeeMap) {
   return {
     id: String(row.id || ""),
     studentRecordId: String(row.student_id || ""),
@@ -478,13 +534,15 @@ function convertSupabaseFollowup_(row) {
     status: String(row.status || "未対応"),
     memo: String(row.memo || ""),
     createdAt: formatDateTimeValue(row.created_at),
-    updatedAt: formatDateTimeValue(row.updated_at)
+    updatedAt: formatDateTimeValue(row.updated_at),
+    updatedBy: getEmployeeDisplayName_(employeeMap, row.updated_by_employee_id),
+    updatedByEmployeeId: String(row.updated_by_employee_id || "")
   };
 }
 
-function attachSupabaseFollowups_(students, followupRows) {
+function attachSupabaseFollowups_(students, followupRows, employeeMap) {
   const followupsByStudentId = followupRows.reduce((map, row) => {
-    const followup = convertSupabaseFollowup_(row);
+    const followup = convertSupabaseFollowup_(row, employeeMap);
     if (!map[followup.studentRecordId]) map[followup.studentRecordId] = [];
     map[followup.studentRecordId].push(followup);
     return map;

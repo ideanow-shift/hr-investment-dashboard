@@ -399,7 +399,9 @@ function normalizeFollowup(followup) {
     status: String(followup.status || "未対応"),
     memo: String(followup.memo || ""),
     createdAt: String(followup.createdAt || ""),
-    updatedAt: String(followup.updatedAt || "")
+    updatedAt: String(followup.updatedAt || ""),
+    updatedBy: String(followup.updatedBy || ""),
+    updatedByEmployeeId: String(followup.updatedByEmployeeId || "")
   };
 }
 
@@ -1757,6 +1759,9 @@ function renderStudentFollowupSection(student) {
               <span>${escapeHtml(followup.dueDate || "期日未設定")}</span>
               <b>${escapeHtml(followup.status || "未対応")}</b>
             </div>
+            <p class="followup-audit">
+              最終更新：${escapeHtml(followup.updatedAt || "未記録")} / ${escapeHtml(followup.updatedBy || followup.updatedByEmployeeId || "更新者未記録")}
+            </p>
             ${followup.id ? `
               <form class="followup-status-form" data-followup-status-form>
                 <input type="hidden" name="followupId" value="${escapeHtml(followup.id)}">
