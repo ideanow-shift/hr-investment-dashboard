@@ -1375,27 +1375,38 @@ function generateActionCards() {
 function renderStudentSummary() {
   studentSummary = buildStudentSummary(getManagedStudents());
   const summaryItems = [
-    { label: "要フォロー", value: studentSummary.needsFollowUp || 0, unit: "名", sub: "未対応・対応中フォローがある学生" },
-    { label: "未完了フォロー", value: studentSummary.openFollowups || 0, unit: "件", sub: "完了・不要を除く履歴" },
-    { label: "期限超過", value: studentSummary.overdueFollowups || 0, unit: "件", sub: "本日より前の未完了フォロー" },
-    { label: "今日対応", value: studentSummary.todayFollowups || 0, unit: "件", sub: "本日期日の未完了フォロー" },
-    { label: "近日対応", value: studentSummary.soonFollowups || 0, unit: "件", sub: "明日から7日以内の未完了フォロー" },
-    { label: "完了履歴", value: studentSummary.completedFollowups || 0, unit: "件", sub: "完了済みフォロー履歴" },
-    { label: "見学予定者", value: studentSummary.salonTourScheduled || 0, unit: "名", sub: "サロン見学につなげる学生" },
-    { label: "面接予定者", value: studentSummary.interviewScheduled || 0, unit: "名", sub: "選考フォロー対象" },
-    { label: "内定者", value: studentSummary.offered || 0, unit: "名", sub: "内定後フォロー対象" },
-    { label: "入社予定者", value: studentSummary.expectedJoiners || 0, unit: "名", sub: "入社準備フォロー対象" },
-    { label: "男性", value: studentSummary.male || 0, unit: "名", sub: "学生管理の性別区分" },
-    { label: "女性", value: studentSummary.female || 0, unit: "名", sub: "学生管理の性別区分" }
+    { label: "要フォロー", value: studentSummary.needsFollowUp || 0, unit: "名", sub: "未対応・対応中フォローがある学生", filterKey: "needsFollowUp", dueKey: "all" },
+    { label: "未完了フォロー", value: studentSummary.openFollowups || 0, unit: "件", sub: "完了・不要を除く履歴", filterKey: "needsFollowUp", dueKey: "all" },
+    { label: "期限超過", value: studentSummary.overdueFollowups || 0, unit: "件", sub: "本日より前の未完了フォロー", filterKey: "needsFollowUp", dueKey: "overdue" },
+    { label: "今日対応", value: studentSummary.todayFollowups || 0, unit: "件", sub: "本日期日の未完了フォロー", filterKey: "needsFollowUp", dueKey: "today" },
+    { label: "近日対応", value: studentSummary.soonFollowups || 0, unit: "件", sub: "明日から7日以内の未完了フォロー", filterKey: "needsFollowUp", dueKey: "soon" },
+    { label: "完了履歴", value: studentSummary.completedFollowups || 0, unit: "件", sub: "完了済みフォロー履歴", filterKey: "completedFollowup", dueKey: "all" },
+    { label: "見学予定者", value: studentSummary.salonTourScheduled || 0, unit: "名", sub: "サロン見学につなげる学生", filterKey: "salonTour", dueKey: "all" },
+    { label: "面接予定者", value: studentSummary.interviewScheduled || 0, unit: "名", sub: "選考フォロー対象", filterKey: "interview", dueKey: "all" },
+    { label: "内定者", value: studentSummary.offered || 0, unit: "名", sub: "内定後フォロー対象", filterKey: "offered", dueKey: "all" },
+    { label: "入社予定者", value: studentSummary.expectedJoiners || 0, unit: "名", sub: "入社準備フォロー対象", filterKey: "expectedJoin", dueKey: "all" },
+    { label: "男性", value: studentSummary.male || 0, unit: "名", sub: "学生管理の性別区分", filterKey: "male", dueKey: "all" },
+    { label: "女性", value: studentSummary.female || 0, unit: "名", sub: "学生管理の性別区分", filterKey: "female", dueKey: "all" }
   ];
 
-  document.getElementById("studentSummaryGrid").innerHTML = summaryItems.map((item) => `
-    <article class="student-summary-card">
+  const summaryGrid = document.getElementById("studentSummaryGrid");
+  summaryGrid.innerHTML = summaryItems.map((item) => `
+    <button class="student-summary-card clickable" type="button" data-summary-filter="${escapeHtml(item.filterKey || "all")}" data-summary-due="${escapeHtml(item.dueKey || "all")}">
       <p>${item.label}</p>
       <strong>${formatNumber.format(item.value)}<span>${escapeHtml(item.unit || "名")}</span></strong>
       <small>${item.sub}</small>
-    </article>
+    </button>
   `).join("");
+
+  summaryGrid.querySelectorAll("[data-summary-filter]").forEach((button) => {
+    button.addEventListener("click", () => {
+      activeStudentFilter = button.dataset.summaryFilter || "all";
+      activeStudentDueFilter = button.dataset.summaryDue || "all";
+      studentSearchQuery = "";
+      renderStudentList();
+      document.getElementById("studentList")?.scrollIntoView({ behavior: "smooth", block: "start" });
+    });
+  });
 }
 
 function renderStudentCohortTabs() {

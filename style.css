@@ -843,10 +843,21 @@ td {
 }
 
 .student-summary-card {
+  width: 100%;
   border: 1px solid var(--line);
   border-radius: 8px;
   background: var(--surface-soft);
   padding: 14px;
+  text-align: left;
+}
+
+.student-summary-card.clickable {
+  cursor: pointer;
+}
+
+.student-summary-card.clickable:hover {
+  border-color: var(--accent);
+  background: var(--accent-soft);
 }
 
 .student-summary-card p {
