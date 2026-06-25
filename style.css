@@ -894,6 +894,16 @@ td {
   outline: 2px solid var(--accent-soft);
 }
 
+.student-due-filters {
+  margin-bottom: 8px;
+}
+
+.student-due-filter.active {
+  border-color: var(--danger);
+  background: var(--red-soft);
+  color: var(--text);
+}
+
 .student-filters {
   display: flex;
   gap: 8px;

@@ -215,6 +215,7 @@ let studentCohorts = [
 ];
 let activeStudentCohort = "standard";
 let activeStudentFilter = "all";
+let activeStudentDueFilter = "all";
 let studentSearchQuery = "";
 let studentSummary = buildStudentSummary(studentData);
 let operationLogs = [];
@@ -1981,6 +1982,41 @@ function getStudentFilters() {
   ];
 }
 
+function getStudentDueFilters() {
+  return [
+    { key: "all", label: "期限すべて", predicate: () => true },
+    { key: "overdue", label: "期限超過", predicate: (student) => getActionUrgency(getPrimaryStudentAction(student)?.dueDate).level === "overdue" },
+    { key: "today", label: "今日対応", predicate: (student) => getActionUrgency(getPrimaryStudentAction(student)?.dueDate).level === "today" },
+    { key: "soon", label: "近日対応", predicate: (student) => ["tomorrow", "soon"].includes(getActionUrgency(getPrimaryStudentAction(student)?.dueDate).level) },
+    { key: "unscheduled", label: "日程未設定", predicate: (student) => getActionUrgency(getPrimaryStudentAction(student)?.dueDate).level === "unscheduled" }
+  ];
+}
+
+function renderStudentDueFilters(activeKey = activeStudentDueFilter) {
+  const filters = getStudentDueFilters();
+  const filterWrap = document.getElementById("studentDueFilters");
+  if (!filterWrap) return;
+
+  const countBase = activeStudentFilter === "inactive" ? getActiveStudents() : getManagedStudents();
+  const statusFilter = getStudentFilters().find((filter) => filter.key === activeStudentFilter) || getStudentFilters()[0];
+  const scopedStudents = countBase.filter(statusFilter.predicate).filter(matchesStudentSearch);
+
+  filterWrap.innerHTML = filters.map((filter) => {
+    const count = scopedStudents.filter(filter.predicate).length;
+    return `
+      <button class="student-filter student-due-filter ${filter.key === activeKey ? "active" : ""}" type="button" data-student-due-filter="${filter.key}">
+        ${filter.label}<span>${count}</span>
+      </button>
+    `;
+  }).join("");
+
+  filterWrap.querySelectorAll("[data-student-due-filter]").forEach((button) => {
+    button.addEventListener("click", () => {
+      activeStudentDueFilter = button.dataset.studentDueFilter;
+      renderStudentList();
+    });
+  });
+}
 function renderStudentFilters(activeKey = activeStudentFilter) {
   const filters = getStudentFilters();
   const filterWrap = document.getElementById("studentFilters");
@@ -2053,10 +2089,11 @@ function renderStudentSearchControls() {
   };
 
   if (resetButton) {
-    const hasCondition = activeStudentFilter !== "all" || Boolean(studentSearchQuery.trim());
+    const hasCondition = activeStudentFilter !== "all" || activeStudentDueFilter !== "all" || Boolean(studentSearchQuery.trim());
     resetButton.disabled = !hasCondition;
     resetButton.onclick = () => {
       activeStudentFilter = "all";
+      activeStudentDueFilter = "all";
       studentSearchQuery = "";
       renderStudentList();
       input.focus();
@@ -2077,11 +2114,17 @@ function renderStudentList(activeKey = activeStudentFilter) {
   activeStudentFilter = activeFilter.key;
   renderStudentFilters(activeStudentFilter);
   renderStudentSearchControls();
+  renderStudentDueFilters(activeStudentDueFilter);
+
+  const dueFilters = getStudentDueFilters();
+  const activeDueFilter = dueFilters.find((filter) => filter.key === activeStudentDueFilter) || dueFilters[0];
+  activeStudentDueFilter = activeDueFilter.key;
 
   const sourceStudents = activeStudentFilter === "inactive" ? getActiveStudents() : getManagedStudents();
   const students = sourceStudents
     .filter(activeFilter.predicate)
     .filter(matchesStudentSearch)
+    .filter(activeDueFilter.predicate)
     .sort((a, b) => {
       const aAction = getPrimaryStudentAction(a);
       const bAction = getPrimaryStudentAction(b);
@@ -2091,7 +2134,8 @@ function renderStudentList(activeKey = activeStudentFilter) {
     });
 
   const searchLabel = studentSearchQuery.trim() ? ` / 検索「${studentSearchQuery.trim()}」` : "";
-  document.getElementById("studentFilterCount").textContent = `${getActiveCohortLabel()} / ${activeFilter.label}${searchLabel}：${students.length}名`;
+  const dueLabel = activeDueFilter.key !== "all" ? ` / ${activeDueFilter.label}` : "";
+  document.getElementById("studentFilterCount").textContent = `${getActiveCohortLabel()} / ${activeFilter.label}${dueLabel}${searchLabel}：${students.length}名`;
 
   if (students.length === 0) {
     document.getElementById("studentList").innerHTML = `
