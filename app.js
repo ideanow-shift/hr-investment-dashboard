@@ -415,6 +415,7 @@ function normalizeOperationLog(log) {
     studentCode: String(log.studentCode || ""),
     studentName: String(log.studentName || ""),
     actorEmployeeId: String(log.actorEmployeeId || ""),
+    actorName: String(log.actorName || ""),
     detail: String(log.detail || ""),
     createdAt: String(log.createdAt || "")
   };
@@ -2535,6 +2536,7 @@ function renderOperationLogs() {
 
   list.innerHTML = operationLogs.map((log) => {
     const hasActor = Boolean(log.actorEmployeeId);
+    const actorLabel = log.actorName || maskEmployeeId(log.actorEmployeeId);
     const targetName = log.studentName || log.studentCode || getOperationLogTableLabel(log.tableName);
     return `
       <article class="operation-log-card">
@@ -2548,7 +2550,8 @@ function renderOperationLogs() {
         <div class="operation-log-meta">
           <span>${escapeHtml(formatOperationLogDate(log.createdAt))}</span>
           <span>${escapeHtml(getOperationLogTableLabel(log.tableName))}</span>
-          <strong class="${hasActor ? "is-linked" : "is-missing"}">${escapeHtml(maskEmployeeId(log.actorEmployeeId))}</strong>
+          <strong class="${hasActor ? "is-linked" : "is-missing"}">${escapeHtml(actorLabel)}</strong>
+          ${log.actorName && log.actorEmployeeId ? `<small>${escapeHtml(maskEmployeeId(log.actorEmployeeId))}</small>` : ""}
         </div>
       </article>
     `;

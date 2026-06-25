@@ -103,7 +103,8 @@ function getSupabaseDashboardData() {
   const fairs = getSupabaseRows_("talent_fairs", "is_active=eq.true&order=held_date.asc");
   const students = getSupabaseRows_("talent_students", "order=cohort.asc,student_code.asc");
   const followups = getSupabaseRows_("talent_student_followups", "order=due_date.asc,created_at.desc");
-  const employeeMap = getSupabaseEmployeeMap_(collectSupabaseEmployeeIds_(students, followups));
+  const operationLogs = getSupabaseOperationLogRows_();
+  const employeeMap = getSupabaseEmployeeMap_(collectSupabaseEmployeeIds_(students, followups, operationLogs));
 
   const convertedStudents = attachSupabaseFollowups_(
     students.map((student) => convertSupabaseStudent_(student, employeeMap)),
@@ -118,23 +119,26 @@ function getSupabaseDashboardData() {
     schools: buildSupabaseSchoolAnalysis_(schools, convertedStudents),
     students: convertedStudents.filter((student) => student.cohort === "27卒"),
     studentCohorts: studentCohorts,
-    operationLogs: getSupabaseOperationLogs_(),
+    operationLogs: operationLogs.map((log) => convertSupabaseOperationLog_(log, employeeMap)),
     studentSummary: buildStudentSummary(convertedStudents),
     dataSource: "supabase"
   };
 }
 
 function getSupabaseOperationLogs_() {
+  return getSupabaseOperationLogRows_().map(convertSupabaseOperationLog_);
+}
+
+function getSupabaseOperationLogRows_() {
   try {
-    const rows = getSupabaseRows_("talent_operation_logs", "order=created_at.desc&limit=30");
-    return rows.map(convertSupabaseOperationLog_);
+    return getSupabaseRows_("talent_operation_logs", "order=created_at.desc&limit=30");
   } catch (error) {
     console.warn(`操作履歴の読み取りに失敗しました: ${error.message}`);
     return [];
   }
 }
 
-function convertSupabaseOperationLog_(row) {
+function convertSupabaseOperationLog_(row, employeeMap) {
   return {
     id: String(row.id || ""),
     action: String(row.action || ""),
@@ -144,6 +148,7 @@ function convertSupabaseOperationLog_(row) {
     studentCode: String(row.student_code || ""),
     studentName: String(row.student_name_snapshot || ""),
     actorEmployeeId: String(row.actor_employee_id || ""),
+    actorName: getEmployeeDisplayName_(employeeMap, row.actor_employee_id),
     detail: String(row.detail || ""),
     createdAt: row.created_at ? String(row.created_at) : ""
   };
@@ -410,7 +415,7 @@ function resolveDashboardOperatorEmployeeId_(email, employeeCode, actorName) {
   return "";
 }
 
-function collectSupabaseEmployeeIds_(students, followups) {
+function collectSupabaseEmployeeIds_(students, followups, operationLogs) {
   const ids = new Set();
   const collect = function(row, columns) {
     columns.forEach(function(column) {
@@ -424,6 +429,9 @@ function collectSupabaseEmployeeIds_(students, followups) {
   });
   followups.forEach(function(followup) {
     collect(followup, ["owner_employee_id", "created_by_employee_id", "updated_by_employee_id"]);
+  });
+  (operationLogs || []).forEach(function(log) {
+    collect(log, ["actor_employee_id"]);
   });
 
   return Array.from(ids);
@@ -447,7 +455,7 @@ function getSupabaseEmployeeMap_(employeeIds) {
 
 function getEmployeeDisplayName_(employeeMap, employeeId) {
   const id = normalizeUuid_(employeeId);
-  const employee = id ? employeeMap[id] : null;
+  const employee = id && employeeMap ? employeeMap[id] : null;
   if (!employee) return "";
 
   return String(
