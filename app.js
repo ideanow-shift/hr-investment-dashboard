@@ -942,7 +942,7 @@ function renderFairForm(fair = {}, mode = "update") {
       </label>
       <div class="student-form-actions">
         <p class="student-form-status" aria-live="polite"></p>
-        <button class="refresh-button" type="submit">${isAdd ? "フェアを追加" : "更新を保存"}</button>
+        <button class="refresh-button" type="submit" ${getWriteDisabledAttribute()}>${isAdd ? "フェアを追加" : "更新を保存"}</button>
       </div>
     </form>
   `;
@@ -1175,7 +1175,7 @@ function renderSchoolForm(school = {}, mode = "update") {
       </label>
       <div class="student-form-actions">
         <p class="student-form-status" aria-live="polite"></p>
-        <button class="refresh-button" type="submit">${isAdd ? "学校を追加" : "更新を保存"}</button>
+        <button class="refresh-button" type="submit" ${getWriteDisabledAttribute()}>${isAdd ? "学校を追加" : "更新を保存"}</button>
       </div>
     </form>
   `;
@@ -1392,6 +1392,18 @@ function renderRequiredLabel(label) {
   return `${label}<b class="required-mark">必須</b>`;
 }
 
+function canWriteFromDashboard() {
+  return Boolean(getHubOperatorParams().operatorEmployeeId);
+}
+
+function getWriteDisabledAttribute(extraDisabled = false) {
+  if (extraDisabled) return "disabled";
+  if (!canWriteFromDashboard()) {
+    return 'disabled title="NOV HUBから開き直すと保存できます"';
+  }
+  return "";
+}
+
 function buildStudentSaveConfirmMessage(payload, mode) {
   const action = mode === "add" ? "追加" : "更新";
   return [
@@ -1451,7 +1463,7 @@ function renderSettingsForm() {
       </div>
       <div class="student-form-actions">
         <p class="student-form-status" aria-live="polite"></p>
-        <button class="refresh-button" type="submit">目標を保存</button>
+        <button class="refresh-button" type="submit" ${getWriteDisabledAttribute()}>目標を保存</button>
       </div>
     </form>
   `;
@@ -1655,7 +1667,7 @@ function renderStudentFollowupSection(student) {
                 <select name="status" ${isActiveCohortEditable() ? "" : "disabled"}>
                   ${["未対応", "対応中", "完了", "不要"].map((status) => `<option value="${status}" ${status === followup.status ? "selected" : ""}>${status}</option>`).join("")}
                 </select>
-                <button class="detail-button compact" type="submit" ${isActiveCohortEditable() ? "" : "disabled"}>状態更新</button>
+                <button class="detail-button compact" type="submit" ${getWriteDisabledAttribute(!isActiveCohortEditable())}>状態更新</button>
                 <span class="followup-status-message" aria-live="polite"></span>
               </form>
             ` : ""}
@@ -1690,7 +1702,7 @@ function renderFollowupForm(student) {
       </label>
       <div class="student-form-actions">
         <p class="student-form-status" aria-live="polite"></p>
-        <button class="refresh-button" type="submit" ${disabled}>履歴を追加</button>
+        <button class="refresh-button" type="submit" ${getWriteDisabledAttribute(!isActiveCohortEditable())}>履歴を追加</button>
       </div>
     </form>
   `;
@@ -1851,7 +1863,7 @@ function renderStudentForm(student = {}, mode = "update") {
       </label>
       <div class="student-form-actions">
         <p class="student-form-status" aria-live="polite"></p>
-        <button class="refresh-button" type="submit" ${disabled}>${submitText}</button>
+        <button class="refresh-button" type="submit" ${getWriteDisabledAttribute(!isActiveCohortEditable())}>${submitText}</button>
       </div>
     </form>
   `;
@@ -2464,6 +2476,7 @@ async function initDashboard() {
 }
 
 document.addEventListener("DOMContentLoaded", initDashboard);
+
 
 
 

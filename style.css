@@ -1294,8 +1294,17 @@ td {
 }
 
 .operator-notice.is-missing {
-  border-color: #fed7aa;
-  background: #fff7ed;
+  border-color: #fecaca;
+  background: #fff1f2;
+}
+
+.operator-notice.is-missing strong {
+  color: var(--danger);
+}
+
+.operator-notice.is-missing small {
+  color: #9f1239;
+  font-weight: 600;
 }
 .required-mark {
   border-radius: 999px;
@@ -1718,4 +1727,5 @@ td {
   background: #fee2e2;
   color: #b91c1c;
 }
+
 
