@@ -2234,20 +2234,20 @@ function getStudentPriority(student) {
   return { label: "通常フォロー", className: "priority-low" };
 }
 
-function renderStudentList(activeKey = activeStudentFilter) {
+function getFilteredStudentList(activeKey = activeStudentFilter) {
   const filters = getStudentFilters();
   const activeFilter = filters.find((filter) => filter.key === activeKey) || filters[0];
   activeStudentFilter = activeFilter.key;
-  renderStudentFilters(activeStudentFilter);
-  renderStudentSearchControls();
-  renderStudentDueFilters(activeStudentDueFilter);
 
   const dueFilters = getStudentDueFilters();
   const activeDueFilter = dueFilters.find((filter) => filter.key === activeStudentDueFilter) || dueFilters[0];
   activeStudentDueFilter = activeDueFilter.key;
 
   const sourceStudents = activeStudentFilter === "inactive" ? getActiveStudents() : getManagedStudents();
-  const students = sourceStudents
+  return {
+    activeFilter,
+    activeDueFilter,
+    students: sourceStudents
     .filter(activeFilter.predicate)
     .filter(matchesStudentSearch)
     .filter(activeDueFilter.predicate)
@@ -2257,11 +2257,93 @@ function renderStudentList(activeKey = activeStudentFilter) {
       const urgencyCompare = getActionSortWeight(aAction?.dueDate) - getActionSortWeight(bAction?.dueDate);
       if (urgencyCompare !== 0) return urgencyCompare;
       return getActionSortDate(aAction?.dueDate).localeCompare(getActionSortDate(bAction?.dueDate));
-    });
+    })
+  };
+}
+
+function downloadStudentCsv() {
+  const { students } = getFilteredStudentList();
+  if (!students.length) return;
+
+  const headers = [
+    "学生ID",
+    "区分",
+    "氏名",
+    "性別",
+    "学校名",
+    "学年",
+    "流入元",
+    "接触日",
+    "LINE登録",
+    "見学",
+    "面接",
+    "選考結果",
+    "内定",
+    "入社予定",
+    "担当",
+    "次アクション日",
+    "次アクション",
+    "管理状態",
+    "最終更新",
+    "更新者"
+  ];
+  const csvRows = [
+    headers.map(escapeCsvCell).join(","),
+    ...students.map((student) => [
+      student.studentId,
+      student.cohort || getActiveCohortLabel(),
+      student.name,
+      student.gender,
+      student.school,
+      student.grade,
+      student.source,
+      student.contactDate,
+      student.lineStatus,
+      student.salonTourStatus,
+      student.interviewStatus,
+      student.resultStatus,
+      student.offerStatus,
+      student.expectedJoinStatus,
+      student.owner,
+      student.nextActionDate,
+      student.nextAction,
+      student.managementStatus,
+      student.updatedAt,
+      student.updatedBy
+    ].map(escapeCsvCell).join(","))
+  ];
+
+  const blob = new Blob([`\ufeff${csvRows.join("\r\n")}`], { type: "text/csv;charset=utf-8" });
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement("a");
+  link.href = url;
+  link.download = `nov-talent-students-${getActiveCohortLabel()}-${new Date().toISOString().slice(0, 10)}.csv`;
+  document.body.appendChild(link);
+  link.click();
+  link.remove();
+  URL.revokeObjectURL(url);
+}
+
+function setupStudentCsvExport(count) {
+  const button = document.getElementById("studentCsvExportButton");
+  if (!button) return;
+  button.disabled = count === 0;
+  const countLabel = button.querySelector("span");
+  if (countLabel) countLabel.textContent = formatNumber.format(count);
+  button.onclick = downloadStudentCsv;
+}
+
+function renderStudentList(activeKey = activeStudentFilter) {
+  renderStudentFilters(activeStudentFilter);
+  renderStudentSearchControls();
+  renderStudentDueFilters(activeStudentDueFilter);
+
+  const { activeFilter, activeDueFilter, students } = getFilteredStudentList(activeKey);
 
   const searchLabel = studentSearchQuery.trim() ? ` / 検索「${studentSearchQuery.trim()}」` : "";
   const dueLabel = activeDueFilter.key !== "all" ? ` / ${activeDueFilter.label}` : "";
   document.getElementById("studentFilterCount").textContent = `${getActiveCohortLabel()} / ${activeFilter.label}${dueLabel}${searchLabel}：${students.length}名`;
+  setupStudentCsvExport(students.length);
 
   if (students.length === 0) {
     document.getElementById("studentList").innerHTML = `

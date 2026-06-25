@@ -144,7 +144,10 @@
       <div class="student-action-wrap">
         <div class="student-list-heading">
           <h3>学生フォロー一覧</h3>
-          <p id="studentFilterCount" class="section-note"></p>
+          <div class="student-list-heading-actions">
+            <p id="studentFilterCount" class="section-note"></p>
+            <button id="studentCsvExportButton" class="student-csv-export" type="button">CSV出力<span>0</span></button>
+          </div>
         </div>
         <div class="student-search-panel" aria-label="学生フォロー検索">
           <label for="studentSearchInput">学生検索</label>
@@ -339,6 +342,6 @@
     </section>
   </div>
 
-  <script src="app.js?v=20260626-operation-log-csv"></script>
+  <script src="app.js?v=20260626-student-csv"></script>
 </body>
 </html>

@@ -904,6 +904,53 @@ td {
   margin-bottom: 0;
 }
 
+.student-list-heading-actions {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.student-list-heading-actions .section-note {
+  margin-bottom: 0;
+}
+
+.student-csv-export {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: #fff;
+  color: var(--text);
+  cursor: pointer;
+  font: inherit;
+  padding: 8px 12px;
+  white-space: nowrap;
+}
+
+.student-csv-export span {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 22px;
+  border-radius: 999px;
+  background: var(--surface-soft);
+  color: var(--muted);
+  font-size: 12px;
+}
+
+.student-csv-export:hover {
+  border-color: var(--accent);
+  background: var(--accent-soft);
+}
+
+.student-csv-export:disabled {
+  cursor: not-allowed;
+  opacity: 0.55;
+}
+
 .student-search-panel {
   display: grid;
   grid-template-columns: minmax(180px, 1fr) auto;
@@ -1499,7 +1546,8 @@ td {
   .header-inner,
   .header-actions,
   .section-heading,
-  .school-card-footer {
+  .school-card-footer,
+  .student-list-heading-actions {
     align-items: flex-start;
     flex-direction: column;
   }
