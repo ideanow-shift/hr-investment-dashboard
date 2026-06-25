@@ -1408,7 +1408,8 @@ td {
   .decision-grid,
   .school-grid,
   .student-summary-grid,
-  .detail-grid {
+  .detail-grid,
+  .operation-log-summary {
     grid-template-columns: 1fr;
   }
 
@@ -1607,6 +1608,40 @@ td {
 .operation-log-list {
   display: grid;
   gap: 12px;
+}
+
+.operation-log-summary {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 12px;
+  margin-bottom: 16px;
+}
+
+.operation-log-summary-card {
+  display: grid;
+  gap: 5px;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  background: #fff;
+  padding: 14px;
+}
+
+.operation-log-summary-card span,
+.operation-log-summary-card small {
+  color: var(--muted);
+}
+
+.operation-log-summary-card strong {
+  color: var(--text);
+  font-size: 24px;
+}
+
+.operation-log-summary-card.is-linked {
+  border-left: 4px solid var(--green);
+}
+
+.operation-log-summary-card.is-warning {
+  border-left: 4px solid var(--yellow);
 }
 
 .operation-log-card {

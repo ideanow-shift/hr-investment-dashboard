@@ -2188,9 +2188,41 @@ function maskEmployeeId(value) {
   return `HUB社員IDあり ...${value.slice(-8)}`;
 }
 
+function renderOperationLogSummary() {
+  const summary = document.getElementById("operationLogSummary");
+  if (!summary) return;
+
+  const linkedCount = operationLogs.filter((log) => log.actorEmployeeId).length;
+  const missingCount = operationLogs.length - linkedCount;
+  const latestLog = operationLogs[0];
+  summary.innerHTML = `
+    <div class="operation-log-summary-card">
+      <span>直近履歴</span>
+      <strong>${formatNumber.format(operationLogs.length)}</strong>
+      <small>最大30件を表示</small>
+    </div>
+    <div class="operation-log-summary-card is-linked">
+      <span>HUB社員IDあり</span>
+      <strong>${formatNumber.format(linkedCount)}</strong>
+      <small>HUB経由の保存確認</small>
+    </div>
+    <div class="operation-log-summary-card ${missingCount ? "is-warning" : "is-linked"}">
+      <span>HUB社員IDなし</span>
+      <strong>${formatNumber.format(missingCount)}</strong>
+      <small>${missingCount ? "直開き・検証保存の可能性" : "問題なし"}</small>
+    </div>
+    <div class="operation-log-summary-card">
+      <span>最新操作</span>
+      <strong>${escapeHtml(latestLog?.action || "なし")}</strong>
+      <small>${escapeHtml(latestLog ? formatOperationLogDate(latestLog.createdAt) : "履歴未取得")}</small>
+    </div>
+  `;
+}
+
 function renderOperationLogs() {
   const list = document.getElementById("operationLogList");
   if (!list) return;
+  renderOperationLogSummary();
 
   if (!operationLogs.length) {
     list.innerHTML = `
