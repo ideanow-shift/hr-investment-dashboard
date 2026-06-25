@@ -2342,6 +2342,13 @@ function readStoredHubContext(storage) {
 }
 
 function getHubCurrentEmployee() {
+  try {
+    const helperContext = window.NovHubContext?.read?.();
+    if (helperContext) return helperContext;
+  } catch (_) {
+    // Fall back to direct globals and storage.
+  }
+
   return window.novHub?.currentEmployee
     || window.NOV_HUB_CURRENT_EMPLOYEE
     || readStoredHubContext(window.sessionStorage)
@@ -2354,17 +2361,21 @@ function getHubOperatorParams() {
   if (!employee || typeof employee !== "object") return {};
 
   const displayName = employee.displayName || employee.name || employee.fullName || employee.employeeName || "";
+  const coreEmployeeId = employee.coreEmployeeId || employee.supabaseEmployeeId || employee.staffId || employee.id || employee.employeeId || "";
+  const employeeNumber = employee.employeeNumber || employee.employee_no || employee.employeeNo || employee.employee_id || employee.employeeCode || employee.staffCode || "";
+  const departmentName = employee.departmentName || employee.department?.name || "";
+  const positionName = employee.positionName || employee.position?.name || "";
   return {
-    actorEmployeeId: employee.coreEmployeeId || employee.id || "",
-    actorEmployeeNumber: employee.employeeNumber || employee.employee_id || employee.employeeId || employee.employeeCode || employee.staffCode || "",
+    actorEmployeeId: coreEmployeeId,
+    actorEmployeeNumber: employeeNumber,
     actorEmail: employee.email || "",
     actorName: displayName,
     actorRoleKeys: Array.isArray(employee.roleKeys) ? employee.roleKeys.join(",") : "",
-    operatorEmployeeId: employee.coreEmployeeId || employee.id || "",
-    operatorEmployeeCode: employee.employeeNumber || employee.employee_id || employee.employeeId || employee.employeeCode || employee.staffCode || "",
+    operatorEmployeeId: coreEmployeeId,
+    operatorEmployeeCode: employeeNumber,
     operatorName: displayName,
-    operatorDepartmentName: employee.departmentName || "",
-    operatorPositionName: employee.positionName || ""
+    operatorDepartmentName: departmentName,
+    operatorPositionName: positionName
   };
 }
 function renderOperatorNotice() {
@@ -2380,8 +2391,8 @@ function renderOperatorNotice() {
   }
 
   const displayName = employee.displayName || employee.name || employee.fullName || employee.employeeName || "ログイン中";
-  const employeeCode = employee.employee_id || employee.employeeId || employee.employeeCode || employee.staffCode || "社員ID未取得";
-  const roleText = employee.departmentName || employee.positionName || employee.roleName || "HUBログイン";
+  const employeeCode = employee.employeeNumber || employee.employee_no || employee.employeeNo || employee.employee_id || employee.employeeCode || employee.staffCode || "社員番号未取得";
+  const roleText = employee.departmentName || employee.department?.name || employee.positionName || employee.position?.name || employee.roleName || "HUBログイン";
   return `
     <div class="operator-notice">
       <span>操作ユーザー</span>
@@ -2396,14 +2407,16 @@ function renderHubContextBadge() {
   if (!badge) return;
   const employee = getHubCurrentEmployee();
   if (!employee) {
-    badge.hidden = true;
-    badge.textContent = "";
+    badge.hidden = false;
+    badge.classList.add("is-missing");
+    badge.innerHTML = `<span>HUB</span><strong>未連携</strong><small>HUBから開くと操作履歴に社員IDを記録</small>`;
     return;
   }
 
   const displayName = employee.displayName || employee.name || employee.fullName || employee.employeeName || "ログイン中";
-  const roleName = employee.roleName || employee.positionName || employee.departmentName || "HUB";
+  const roleName = employee.roleName || employee.positionName || employee.position?.name || employee.departmentName || employee.department?.name || "HUB";
   badge.hidden = false;
+  badge.classList.remove("is-missing");
   badge.innerHTML = `<span>HUB</span><strong>${escapeHtml(displayName)}</strong><small>${escapeHtml(roleName)}</small>`;
 }
 

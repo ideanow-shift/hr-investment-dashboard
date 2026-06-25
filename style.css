@@ -1605,6 +1605,15 @@ td {
   line-height: 1.25;
 }
 
+.hub-context-badge.is-missing {
+  background: #fff7ed;
+  border-color: #fed7aa;
+}
+
+.hub-context-badge.is-missing strong {
+  color: #9a3412;
+}
+
 .operation-log-list {
   display: grid;
   gap: 12px;
