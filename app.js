@@ -220,6 +220,7 @@ let studentSearchQuery = "";
 let studentSummary = buildStudentSummary(studentData);
 let operationLogs = [];
 let activeOperationLogFilter = "all";
+let operationLogSearchQuery = "";
 
 async function fetchDashboardData() {
   if (!GAS_API_URL) {
@@ -2575,9 +2576,70 @@ function setupOperationLogFilters() {
   });
 }
 
+function normalizeOperationLogSearchText(value) {
+  return String(value || "").toLowerCase().replace(/\s+/g, "");
+}
+
+function getOperationLogSearchText(log) {
+  return normalizeOperationLogSearchText([
+    log.action,
+    log.tableName,
+    getOperationLogTableLabel(log.tableName),
+    log.recordId,
+    log.studentId,
+    log.studentCode,
+    log.studentName,
+    log.actorEmployeeId,
+    log.actorName,
+    log.detail,
+    log.createdAt,
+    formatOperationLogDate(log.createdAt)
+  ].join(" "));
+}
+
+function matchesOperationLogSearch(log) {
+  const query = normalizeOperationLogSearchText(operationLogSearchQuery);
+  if (!query) return true;
+  return getOperationLogSearchText(log).includes(query);
+}
+
+function renderOperationLogSearch() {
+  return `
+    <div class="operation-log-search">
+      <label for="operationLogSearchInput">操作履歴を検索</label>
+      <input id="operationLogSearchInput" type="search" value="${escapeHtml(operationLogSearchQuery)}" placeholder="学生名・操作・担当者名・詳細で検索">
+      <button class="detail-button compact" type="button" data-operation-log-search-reset ${operationLogSearchQuery.trim() ? "" : "disabled"}>クリア</button>
+    </div>
+  `;
+}
+
+function setupOperationLogSearch() {
+  const input = document.getElementById("operationLogSearchInput");
+  const resetButton = document.querySelector("[data-operation-log-search-reset]");
+  if (input) {
+    input.addEventListener("input", () => {
+      operationLogSearchQuery = input.value;
+      renderOperationLogs();
+      const nextInput = document.getElementById("operationLogSearchInput");
+      if (nextInput) {
+        nextInput.focus();
+        nextInput.setSelectionRange(nextInput.value.length, nextInput.value.length);
+      }
+    });
+  }
+
+  if (resetButton) {
+    resetButton.addEventListener("click", () => {
+      operationLogSearchQuery = "";
+      renderOperationLogs();
+      document.getElementById("operationLogSearchInput")?.focus();
+    });
+  }
+}
+
 function getFilteredOperationLogs() {
   const filter = getOperationLogFilters().find((item) => item.key === activeOperationLogFilter) || getOperationLogFilters()[0];
-  return operationLogs.filter(filter.predicate);
+  return operationLogs.filter(filter.predicate).filter(matchesOperationLogSearch);
 }
 
 function renderOperationLogs() {
@@ -2596,14 +2658,17 @@ function renderOperationLogs() {
   if (!filteredLogs.length) {
     list.innerHTML = `
       ${renderOperationLogFilters()}
+      ${renderOperationLogSearch()}
       <div class="student-empty">この条件に該当する操作履歴はありません。</div>
     `;
     setupOperationLogFilters();
+    setupOperationLogSearch();
     return;
   }
 
   list.innerHTML = `
     ${renderOperationLogFilters()}
+    ${renderOperationLogSearch()}
     ${filteredLogs.map((log) => {
     const hasActor = Boolean(log.actorEmployeeId);
     const actorLabel = log.actorName || maskEmployeeId(log.actorEmployeeId);
@@ -2634,6 +2699,7 @@ function renderOperationLogs() {
   }).join("")}
   `;
   setupOperationLogFilters();
+  setupOperationLogSearch();
 }
 
 function renderDashboard(isConnected) {
