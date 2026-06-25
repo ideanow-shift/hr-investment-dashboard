@@ -884,6 +884,7 @@ function renderFairForm(fair = {}, mode = "update") {
           <li>保存後、フェアROI・採用ファネル・次に取るべき行動へ再反映されます。</li>
         </ul>
       </div>
+      ${renderOperatorNotice()}
       <div class="student-form-grid">
         <label>
           <span>${renderRequiredLabel("フェア名")}</span>
@@ -1128,6 +1129,7 @@ function renderSchoolForm(school = {}, mode = "update") {
           <li>エリア・メモは学校訪問や重点投資判断の補足情報として使います。</li>
         </ul>
       </div>
+      ${renderOperatorNotice()}
       <div class="student-form-grid">
         <label>
           <span>${renderRequiredLabel("学校名")}</span>
@@ -1406,6 +1408,7 @@ function renderSettingsForm() {
           <li>保存後は右上バッジがGAS Connectedの状態で再取得されます。</li>
         </ul>
       </div>
+      ${renderOperatorNotice()}
       <div class="student-form-grid">
         <label>
           <span>年度</span>
@@ -1777,6 +1780,7 @@ function renderStudentForm(student = {}, mode = "update") {
           <li>誤登録や対象外は削除せず、管理状態を「管理対象外」にします。</li>
         </ul>
       </div>
+      ${renderOperatorNotice()}
       <div class="student-form-grid">
         <label>
           <span>${renderRequiredLabel("氏名")}</span>
@@ -2248,6 +2252,29 @@ function getHubOperatorParams() {
     operatorPositionName: employee.positionName || ""
   };
 }
+function renderOperatorNotice() {
+  const employee = getHubCurrentEmployee();
+  if (!employee || typeof employee !== "object") {
+    return `
+      <div class="operator-notice is-missing">
+        <span>操作ユーザー</span>
+        <strong>HUB未連携</strong>
+        <small>保存は可能ですが、社員ID付きの操作履歴はHUB組み込み後に記録されます。</small>
+      </div>
+    `;
+  }
+
+  const displayName = employee.displayName || employee.name || employee.fullName || employee.employeeName || "ログイン中";
+  const employeeCode = employee.employee_id || employee.employeeId || employee.employeeCode || employee.staffCode || "社員ID未取得";
+  const roleText = employee.departmentName || employee.positionName || employee.roleName || "HUBログイン";
+  return `
+    <div class="operator-notice">
+      <span>操作ユーザー</span>
+      <strong>${escapeHtml(displayName)}</strong>
+      <small>${escapeHtml(employeeCode)} / ${escapeHtml(roleText)}</small>
+    </div>
+  `;
+}
 
 function renderHubContextBadge() {
   const badge = document.getElementById("hubContextBadge");
@@ -2304,6 +2331,9 @@ async function initDashboard() {
 }
 
 document.addEventListener("DOMContentLoaded", initDashboard);
+
+
+
 
 
 

@@ -1271,6 +1271,32 @@ td {
   margin-bottom: 0;
 }
 
+.operator-notice {
+  align-items: center;
+  border: 1px solid #bbf7d0;
+  border-radius: 8px;
+  background: #f0fdf4;
+  color: var(--text);
+  display: grid;
+  gap: 3px;
+  margin-bottom: 14px;
+  padding: 10px 12px;
+}
+
+.operator-notice span,
+.operator-notice small {
+  color: var(--muted);
+  font-size: 12px;
+}
+
+.operator-notice strong {
+  font-size: 14px;
+}
+
+.operator-notice.is-missing {
+  border-color: #fed7aa;
+  background: #fff7ed;
+}
 .required-mark {
   border-radius: 999px;
   background: #fee2e2;
@@ -1572,3 +1598,4 @@ td {
   font-size: 13px;
   line-height: 1.25;
 }
+
