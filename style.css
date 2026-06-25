@@ -1729,3 +1729,63 @@ td {
 }
 
 
+
+.hub-diagnostics {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(280px, 1.4fr);
+  gap: 16px;
+  align-items: start;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  background: #fff;
+  margin-bottom: 16px;
+  padding: 16px;
+}
+
+.hub-diagnostics h3 {
+  margin-bottom: 6px;
+}
+
+.hub-diagnostics p {
+  color: var(--muted);
+  margin-bottom: 0;
+}
+
+.hub-diagnostics dl {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+  margin: 0;
+}
+
+.hub-diagnostics div:has(dt) {
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--surface-soft);
+  padding: 10px;
+}
+
+.hub-diagnostics dt {
+  color: var(--muted);
+  font-size: 12px;
+  margin-bottom: 4px;
+}
+
+.hub-diagnostics dd {
+  margin: 0;
+  overflow-wrap: anywhere;
+  font-weight: 700;
+}
+
+.hub-diagnostics.is-connected {
+  border-left: 4px solid var(--green);
+}
+
+.hub-diagnostics.is-missing {
+  border-left: 4px solid var(--danger);
+  background: #fff1f2;
+}
+
+.hub-diagnostics.is-missing h3 {
+  color: var(--danger);
+}

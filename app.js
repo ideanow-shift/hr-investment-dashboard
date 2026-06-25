@@ -2205,6 +2205,34 @@ function maskEmployeeId(value) {
   return `HUB社員IDあり ...${value.slice(-8)}`;
 }
 
+function renderHubDiagnostics() {
+  const panel = document.getElementById("hubDiagnostics");
+  if (!panel) return;
+
+  const employee = getHubCurrentEmployee();
+  const operatorParams = getHubOperatorParams();
+  const canWrite = Boolean(operatorParams.operatorEmployeeId);
+  const displayName = employee?.displayName || employee?.name || employee?.fullName || employee?.employeeName || "未取得";
+  const employeeNumber = operatorParams.operatorEmployeeCode || "未取得";
+  const employeeId = operatorParams.operatorEmployeeId || "未取得";
+  const department = operatorParams.operatorDepartmentName || operatorParams.operatorPositionName || "未取得";
+
+  panel.className = `hub-diagnostics ${canWrite ? "is-connected" : "is-missing"}`;
+  panel.innerHTML = `
+    <div>
+      <p class="section-kicker">HUB Context Check</p>
+      <h3>${canWrite ? "HUB連携済み：保存できます" : "HUB未連携：保存できません"}</h3>
+      <p>${canWrite ? "この状態で保存すると、操作履歴にHUB社員IDが記録されます。" : "NOV HUBから開き直すと保存ボタンが有効になります。"}</p>
+    </div>
+    <dl>
+      <div><dt>氏名</dt><dd>${escapeHtml(displayName)}</dd></div>
+      <div><dt>社員番号</dt><dd>${escapeHtml(employeeNumber)}</dd></div>
+      <div><dt>所属/役職</dt><dd>${escapeHtml(department)}</dd></div>
+      <div><dt>Core社員UUID</dt><dd>${escapeHtml(employeeId)}</dd></div>
+    </dl>
+  `;
+}
+
 function renderOperationLogSummary() {
   const summary = document.getElementById("operationLogSummary");
   if (!summary) return;
@@ -2273,6 +2301,7 @@ function renderOperationLogs() {
 function renderDashboard(isConnected) {
   updateDataSourceStatus(isConnected);
   renderHubContextBadge();
+  renderHubDiagnostics();
   document.getElementById("appTitle").textContent = dashboardConfig.appName;
   document.title = dashboardConfig.appName;
 
@@ -2476,6 +2505,7 @@ async function initDashboard() {
 }
 
 document.addEventListener("DOMContentLoaded", initDashboard);
+
 
 
 
