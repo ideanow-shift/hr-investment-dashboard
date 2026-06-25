@@ -737,13 +737,17 @@ function parseNonNegativeInteger_(value) {
 }
 
 function updateSupabaseSettingsFromDashboard_(params) {
-  const operator = getDashboardOperator_(params);
   const payload = buildSettingsPayload_(params);
+  const operator = getDashboardOperator_(params);
   const existingRows = getSupabaseRows_(
     "talent_investment_settings",
     `fiscal_year=eq.${encodeURIComponent(payload.fiscal_year)}&corporation_id=is.null&limit=1`
   );
   const existing = existingRows[0] || null;
+  if (operator.employeeId) {
+    payload.updated_by_employee_id = operator.employeeId;
+    if (!existing) payload.created_by_employee_id = operator.employeeId;
+  }
   const savedRows = existing
     ? requestSupabase_("patch", "talent_investment_settings", `id=eq.${existing.id}`, payload)
     : requestSupabase_("post", "talent_investment_settings", "", payload);
@@ -756,10 +760,10 @@ function updateSupabaseSettingsFromDashboard_(params) {
     student_id: null,
     student_code: "",
     student_name_snapshot: "",
+    actor_employee_id: operator.employeeId || null,
     detail: `ダッシュボードから年度目標を更新: ${payload.fiscal_year}`,
     before_data: existing,
-    after_data: saved,
-    actor_employee_id: operator.employeeId || null
+    after_data: saved
   });
 
   return {
@@ -769,7 +773,6 @@ function updateSupabaseSettingsFromDashboard_(params) {
     settingId: saved.id || ""
   };
 }
-
 function updateSpreadsheetSettingsFromDashboard_(params) {
   const payload = buildSettingsPayload_(params);
   const sheet = getRequiredSheet("年度設定");
@@ -1945,6 +1948,8 @@ function formatDateTimeValue(value) {
   }
   return String(value || "");
 }
+
+
 
 
 
