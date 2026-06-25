@@ -1013,6 +1013,23 @@ td {
   background: var(--accent-soft);
 }
 
+.student-card-overdue {
+  border-left: 4px solid var(--danger);
+  background: #fff7f7;
+}
+
+.student-card-today,
+.student-card-tomorrow,
+.student-card-soon {
+  border-left: 4px solid var(--yellow);
+  background: #fffdf3;
+}
+
+.student-card-unscheduled {
+  border-left: 4px solid #94a3b8;
+  background: #f8fafc;
+}
+
 .student-card-main {
   display: grid;
   grid-template-columns: minmax(0, 0.9fr) minmax(220px, 1fr);
@@ -1597,7 +1614,8 @@ td {
   background: #fee2e2;
 }
 
-.urgency-today {
+.urgency-today,
+.urgency-tomorrow {
   color: #9a3412;
   background: #ffedd5;
 }

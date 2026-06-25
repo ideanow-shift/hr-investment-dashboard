@@ -565,20 +565,30 @@ function parseLocalDate(value) {
 
 function getActionUrgency(dueDate) {
   const target = parseLocalDate(dueDate);
-  if (!target) return { label: "日程未設定", className: "urgency-unscheduled" };
+  if (!target) return { label: "日程未設定", className: "urgency-unscheduled", level: "unscheduled", sortWeight: 3 };
   const today = new Date();
   today.setHours(0, 0, 0, 0);
   target.setHours(0, 0, 0, 0);
   const diffDays = Math.round((target - today) / 86400000);
-  if (diffDays < 0) return { label: `${Math.abs(diffDays)}日超過`, className: "urgency-overdue" };
-  if (diffDays === 0) return { label: "今日対応", className: "urgency-today" };
-  if (diffDays <= 3) return { label: `${diffDays}日以内`, className: "urgency-soon" };
-  return { label: "予定", className: "urgency-normal" };
+  if (diffDays < 0) return { label: `${Math.abs(diffDays)}日超過`, className: "urgency-overdue", level: "overdue", sortWeight: 0 };
+  if (diffDays === 0) return { label: "今日対応", className: "urgency-today", level: "today", sortWeight: 1 };
+  if (diffDays === 1) return { label: "明日対応", className: "urgency-tomorrow", level: "tomorrow", sortWeight: 2 };
+  if (diffDays <= 3) return { label: `${diffDays}日以内`, className: "urgency-soon", level: "soon", sortWeight: 2 };
+  return { label: "予定あり", className: "urgency-normal", level: "normal", sortWeight: 4 };
 }
 
 function renderUrgencyBadge(dueDate) {
   const urgency = getActionUrgency(dueDate);
   return `<em class="urgency-badge ${urgency.className}">${escapeHtml(urgency.label)}</em>`;
+}
+
+function getActionSortWeight(dueDate) {
+  return getActionUrgency(dueDate).sortWeight;
+}
+
+function getStudentUrgencyClass(action) {
+  if (!action) return "student-card-unscheduled";
+  return `student-card-${getActionUrgency(action.dueDate).level}`;
 }
 
 function getStudentActionItems(student) {
@@ -610,6 +620,8 @@ function getStudentActionItems(student) {
 
 function getPrimaryStudentAction(student) {
   const items = getStudentActionItems(student).sort((a, b) => {
+    const urgencyCompare = getActionSortWeight(a.dueDate) - getActionSortWeight(b.dueDate);
+    if (urgencyCompare !== 0) return urgencyCompare;
     const dateCompare = getActionSortDate(a.dueDate).localeCompare(getActionSortDate(b.dueDate));
     if (dateCompare !== 0) return dateCompare;
     return Number(b.isFollowup) - Number(a.isFollowup);
@@ -1924,6 +1936,8 @@ function renderStudentActions() {
   const actionItems = getManagedStudents()
     .flatMap(getStudentActionItems)
     .sort((a, b) => {
+      const urgencyCompare = getActionSortWeight(a.dueDate) - getActionSortWeight(b.dueDate);
+      if (urgencyCompare !== 0) return urgencyCompare;
       const dateCompare = getActionSortDate(a.dueDate).localeCompare(getActionSortDate(b.dueDate));
       if (dateCompare !== 0) return dateCompare;
       return Number(b.isFollowup) - Number(a.isFollowup);
@@ -2071,6 +2085,8 @@ function renderStudentList(activeKey = activeStudentFilter) {
     .sort((a, b) => {
       const aAction = getPrimaryStudentAction(a);
       const bAction = getPrimaryStudentAction(b);
+      const urgencyCompare = getActionSortWeight(aAction?.dueDate) - getActionSortWeight(bAction?.dueDate);
+      if (urgencyCompare !== 0) return urgencyCompare;
       return getActionSortDate(aAction?.dueDate).localeCompare(getActionSortDate(bAction?.dueDate));
     });
 
@@ -2089,10 +2105,10 @@ function renderStudentList(activeKey = activeStudentFilter) {
     const primaryAction = getPrimaryStudentAction(student);
 
     return `
-      <article class="student-card" data-student-id="${student.studentId}">
+      <article class="student-card ${getStudentUrgencyClass(primaryAction)}" data-student-id="${escapeHtml(student.studentId)}">
         <div class="student-card-main">
           <div>
-            <span class="priority-pill ${priority.className}">${priority.label}</span>
+            <span class="priority-pill ${priority.className}">${escapeHtml(priority.label)}</span>
             <h3>${escapeHtml(student.name || "氏名未設定")}</h3>
             <p>${escapeHtml(student.school || "学校未設定")} / ${escapeHtml(student.grade || "学年未設定")} / ${escapeHtml(student.gender || "性別未設定")}</p>
           </div>
