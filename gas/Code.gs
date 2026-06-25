@@ -92,6 +92,7 @@ function getSpreadsheetDashboardData() {
     schools: getSchoolData(),
     students: students,
     studentCohorts: studentCohorts,
+    operationLogs: [],
     studentSummary: buildStudentSummary(students)
   };
 }
@@ -112,8 +113,34 @@ function getSupabaseDashboardData() {
     schools: buildSupabaseSchoolAnalysis_(schools, convertedStudents),
     students: convertedStudents.filter((student) => student.cohort === "27卒"),
     studentCohorts: studentCohorts,
+    operationLogs: getSupabaseOperationLogs_(),
     studentSummary: buildStudentSummary(convertedStudents),
     dataSource: "supabase"
+  };
+}
+
+function getSupabaseOperationLogs_() {
+  try {
+    const rows = getSupabaseRows_("talent_operation_logs", "order=created_at.desc&limit=30");
+    return rows.map(convertSupabaseOperationLog_);
+  } catch (error) {
+    console.warn(`操作履歴の読み取りに失敗しました: ${error.message}`);
+    return [];
+  }
+}
+
+function convertSupabaseOperationLog_(row) {
+  return {
+    id: String(row.id || ""),
+    action: String(row.action || ""),
+    tableName: String(row.table_name || ""),
+    recordId: String(row.record_id || ""),
+    studentId: String(row.student_id || ""),
+    studentCode: String(row.student_code || ""),
+    studentName: String(row.student_name_snapshot || ""),
+    actorEmployeeId: String(row.actor_employee_id || ""),
+    detail: String(row.detail || ""),
+    createdAt: row.created_at ? String(row.created_at) : ""
   };
 }
 

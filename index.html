@@ -34,6 +34,7 @@
       <button class="dashboard-tab" type="button" data-view="fair">フェア分析</button>
       <button class="dashboard-tab" type="button" data-view="school">学校分析</button>
       <button class="dashboard-tab" type="button" data-view="student">学生フォロー</button>
+      <button class="dashboard-tab" type="button" data-view="logs">操作履歴</button>
       <button class="dashboard-tab" type="button" data-view="guide">使い方</button>
     </nav>
 
@@ -148,6 +149,17 @@
         <div id="studentFilters" class="student-filters" aria-label="学生フォロー絞り込み"></div>
         <div id="studentList" class="student-list"></div>
       </div>
+    </section>
+
+    <section class="section-block dashboard-view view-hidden" data-view="logs" aria-labelledby="operationLogTitle">
+      <div class="section-heading">
+        <div>
+          <p class="section-kicker">Operation Logs</p>
+          <h2 id="operationLogTitle">操作履歴</h2>
+        </div>
+        <p class="section-note">ダッシュボードからの追加・更新と、HUB社員ID付きで記録できているかを確認します。</p>
+      </div>
+      <div id="operationLogList" class="operation-log-list"></div>
     </section>
 
     <section class="section-block dashboard-view view-hidden" data-view="guide" aria-labelledby="guideTitle">

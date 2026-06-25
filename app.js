@@ -215,6 +215,7 @@ let studentCohorts = [
 ];
 let activeStudentCohort = "standard";
 let studentSummary = buildStudentSummary(studentData);
+let operationLogs = [];
 
 async function fetchDashboardData() {
   if (!GAS_API_URL) {
@@ -346,6 +347,10 @@ function applyDashboardData(data) {
     activeStudentCohort = "standard";
   }
 
+  if (Array.isArray(data.operationLogs)) {
+    operationLogs = data.operationLogs.map(normalizeOperationLog);
+  }
+
   studentSummary = buildStudentSummary(getActiveStudents());
 }
 
@@ -386,6 +391,21 @@ function normalizeFollowup(followup) {
     memo: String(followup.memo || ""),
     createdAt: String(followup.createdAt || ""),
     updatedAt: String(followup.updatedAt || "")
+  };
+}
+
+function normalizeOperationLog(log) {
+  return {
+    id: String(log.id || ""),
+    action: String(log.action || ""),
+    tableName: String(log.tableName || ""),
+    recordId: String(log.recordId || ""),
+    studentId: String(log.studentId || ""),
+    studentCode: String(log.studentCode || ""),
+    studentName: String(log.studentName || ""),
+    actorEmployeeId: String(log.actorEmployeeId || ""),
+    detail: String(log.detail || ""),
+    createdAt: String(log.createdAt || "")
   };
 }
 
@@ -2139,6 +2159,68 @@ function setupStudentModal() {
   });
 }
 
+function getOperationLogTableLabel(tableName) {
+  const labels = {
+    talent_students: "学生管理",
+    talent_student_followups: "フォロー履歴",
+    talent_fairs: "フェア",
+    talent_schools: "学校",
+    talent_investment_settings: "年度設定"
+  };
+  return labels[tableName] || tableName || "対象未設定";
+}
+
+function formatOperationLogDate(value) {
+  if (!value) return "日時未記録";
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return value;
+  return new Intl.DateTimeFormat("ja-JP", {
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+    hour: "2-digit",
+    minute: "2-digit"
+  }).format(date);
+}
+
+function maskEmployeeId(value) {
+  if (!value) return "HUB社員IDなし";
+  return `HUB社員IDあり ...${value.slice(-8)}`;
+}
+
+function renderOperationLogs() {
+  const list = document.getElementById("operationLogList");
+  if (!list) return;
+
+  if (!operationLogs.length) {
+    list.innerHTML = `
+      <div class="student-empty">操作履歴はまだ取得できていません。データ更新後に再確認してください。</div>
+    `;
+    return;
+  }
+
+  list.innerHTML = operationLogs.map((log) => {
+    const hasActor = Boolean(log.actorEmployeeId);
+    const targetName = log.studentName || log.studentCode || getOperationLogTableLabel(log.tableName);
+    return `
+      <article class="operation-log-card">
+        <div class="operation-log-main">
+          <span class="operation-log-action">${escapeHtml(log.action || "操作")}</span>
+          <div>
+            <h3>${escapeHtml(targetName)}</h3>
+            <p>${escapeHtml(log.detail || "詳細未記録")}</p>
+          </div>
+        </div>
+        <div class="operation-log-meta">
+          <span>${escapeHtml(formatOperationLogDate(log.createdAt))}</span>
+          <span>${escapeHtml(getOperationLogTableLabel(log.tableName))}</span>
+          <strong class="${hasActor ? "is-linked" : "is-missing"}">${escapeHtml(maskEmployeeId(log.actorEmployeeId))}</strong>
+        </div>
+      </article>
+    `;
+  }).join("");
+}
+
 function renderDashboard(isConnected) {
   updateDataSourceStatus(isConnected);
   renderHubContextBadge();
@@ -2157,6 +2239,7 @@ function renderDashboard(isConnected) {
   renderStudentSummary();
   renderStudentActions();
   renderStudentList();
+  renderOperationLogs();
 }
 
 async function refreshDashboardData() {

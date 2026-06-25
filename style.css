@@ -1418,7 +1418,8 @@ td {
 
   .student-list-heading,
   .student-card,
-  .student-card-main {
+  .student-card-main,
+  .operation-log-card {
     grid-template-columns: 1fr;
   }
 
@@ -1453,6 +1454,10 @@ td {
 
   .student-action-meta {
     text-align: left;
+  }
+
+  .operation-log-meta {
+    justify-items: start;
   }
 
   .funnel-step {
@@ -1597,5 +1602,76 @@ td {
 .hub-context-badge strong {
   font-size: 13px;
   line-height: 1.25;
+}
+
+.operation-log-list {
+  display: grid;
+  gap: 12px;
+}
+
+.operation-log-card {
+  display: grid;
+  grid-template-columns: 1fr minmax(220px, 280px);
+  gap: 16px;
+  align-items: center;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  background: #fff;
+  padding: 14px;
+}
+
+.operation-log-main {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: 12px;
+  align-items: start;
+}
+
+.operation-log-action {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 52px;
+  border-radius: 999px;
+  background: var(--blue-soft);
+  color: var(--navy);
+  font-size: 12px;
+  font-weight: 700;
+  padding: 5px 9px;
+}
+
+.operation-log-card h3 {
+  margin: 0 0 4px;
+  font-size: 16px;
+}
+
+.operation-log-card p {
+  margin: 0;
+  color: var(--muted);
+  line-height: 1.6;
+}
+
+.operation-log-meta {
+  display: grid;
+  gap: 5px;
+  justify-items: end;
+  color: var(--muted);
+  font-size: 13px;
+}
+
+.operation-log-meta strong {
+  border-radius: 999px;
+  padding: 4px 9px;
+  font-size: 12px;
+}
+
+.operation-log-meta strong.is-linked {
+  background: #dcfce7;
+  color: #166534;
+}
+
+.operation-log-meta strong.is-missing {
+  background: #fee2e2;
+  color: #b91c1c;
 }
 
