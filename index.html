@@ -146,6 +146,11 @@
           <h3>学生フォロー一覧</h3>
           <p id="studentFilterCount" class="section-note"></p>
         </div>
+        <div class="student-search-panel" aria-label="学生フォロー検索">
+          <label for="studentSearchInput">学生検索</label>
+          <input id="studentSearchInput" type="search" placeholder="氏名・学校名・流入元・次アクションで検索">
+          <button id="studentFilterResetButton" class="detail-button compact" type="button">絞り込み解除</button>
+        </div>
         <div id="studentFilters" class="student-filters" aria-label="学生フォロー絞り込み"></div>
         <div id="studentList" class="student-list"></div>
       </div>
@@ -329,6 +334,6 @@
     </section>
   </div>
 
-  <script src="app.js?v=20260625-employee-resolve"></script>
+  <script src="app.js?v=20260625-student-search"></script>
 </body>
 </html>

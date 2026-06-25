@@ -1,4 +1,4 @@
-﻿:root {
+:root {
   --bg: #ffffff;
   --surface: #ffffff;
   --surface-soft: #f9f9f9;
@@ -865,6 +865,35 @@ td {
   margin-bottom: 0;
 }
 
+.student-search-panel {
+  display: grid;
+  grid-template-columns: minmax(180px, 1fr) auto;
+  gap: 8px;
+  align-items: end;
+  margin-bottom: 12px;
+}
+
+.student-search-panel label {
+  grid-column: 1 / -1;
+  color: var(--muted);
+  font-size: 12px;
+}
+
+.student-search-panel input {
+  width: 100%;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: #ffffff;
+  color: var(--text);
+  font: inherit;
+  padding: 10px 12px;
+}
+
+.student-search-panel input:focus {
+  border-color: var(--accent);
+  outline: 2px solid var(--accent-soft);
+}
+
 .student-filters {
   display: flex;
   gap: 8px;
@@ -1427,6 +1456,7 @@ td {
   }
 
   .student-list-heading,
+  .student-search-panel,
   .student-card,
   .student-card-main,
   .operation-log-card {

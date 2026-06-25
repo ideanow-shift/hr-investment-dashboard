@@ -214,6 +214,8 @@ let studentCohorts = [
   { key: "standard", label: "学生管理", sheetName: "学生管理", students: studentData }
 ];
 let activeStudentCohort = "standard";
+let activeStudentFilter = "all";
+let studentSearchQuery = "";
 let studentSummary = buildStudentSummary(studentData);
 let operationLogs = [];
 
@@ -1965,9 +1967,10 @@ function getStudentFilters() {
   ];
 }
 
-function renderStudentFilters(activeKey = "all") {
+function renderStudentFilters(activeKey = activeStudentFilter) {
   const filters = getStudentFilters();
   const filterWrap = document.getElementById("studentFilters");
+  if (!filterWrap) return;
 
   filterWrap.innerHTML = filters.map((filter) => {
     const countBase = filter.key === "inactive" ? getActiveStudents() : getManagedStudents();
@@ -1981,9 +1984,70 @@ function renderStudentFilters(activeKey = "all") {
 
   filterWrap.querySelectorAll("[data-student-filter]").forEach((button) => {
     button.addEventListener("click", () => {
-      renderStudentList(button.dataset.studentFilter);
+      activeStudentFilter = button.dataset.studentFilter;
+      renderStudentList();
     });
   });
+}
+
+function normalizeStudentSearchText(value) {
+  return String(value || "").toLowerCase().replace(/\\s+/g, "");
+}
+
+function getStudentSearchText(student) {
+  const followupText = Array.isArray(student.followups)
+    ? student.followups.map((followup) => [followup.actionTitle, followup.memo, followup.status].join(" ")).join(" ")
+    : "";
+  return normalizeStudentSearchText([
+    student.studentId,
+    student.name,
+    student.school,
+    student.grade,
+    student.gender,
+    student.source,
+    student.lineStatus,
+    student.salonTourStatus,
+    student.interviewStatus,
+    student.resultStatus,
+    student.offerStatus,
+    student.expectedJoinStatus,
+    student.owner,
+    student.nextAction,
+    student.memo,
+    followupText
+  ].join(" "));
+}
+
+function matchesStudentSearch(student) {
+  const query = normalizeStudentSearchText(studentSearchQuery);
+  if (!query) return true;
+  return getStudentSearchText(student).includes(query);
+}
+
+function renderStudentSearchControls() {
+  const input = document.getElementById("studentSearchInput");
+  const resetButton = document.getElementById("studentFilterResetButton");
+  if (!input) return;
+
+  if (document.activeElement !== input) {
+    input.value = studentSearchQuery;
+  }
+
+  input.oninput = () => {
+    studentSearchQuery = input.value;
+    renderStudentList();
+  };
+
+  if (resetButton) {
+    const hasCondition = activeStudentFilter !== "all" || Boolean(studentSearchQuery.trim());
+    resetButton.disabled = !hasCondition;
+    resetButton.onclick = () => {
+      activeStudentFilter = "all";
+      studentSearchQuery = "";
+      renderStudentList();
+      input.focus();
+    };
+  }
 }
 
 function getStudentPriority(student) {
@@ -1993,21 +2057,25 @@ function getStudentPriority(student) {
   return { label: "通常フォロー", className: "priority-low" };
 }
 
-function renderStudentList(activeKey = "all") {
-  renderStudentFilters(activeKey);
-
+function renderStudentList(activeKey = activeStudentFilter) {
   const filters = getStudentFilters();
   const activeFilter = filters.find((filter) => filter.key === activeKey) || filters[0];
-  const sourceStudents = activeKey === "inactive" ? getActiveStudents() : getManagedStudents();
+  activeStudentFilter = activeFilter.key;
+  renderStudentFilters(activeStudentFilter);
+  renderStudentSearchControls();
+
+  const sourceStudents = activeStudentFilter === "inactive" ? getActiveStudents() : getManagedStudents();
   const students = sourceStudents
     .filter(activeFilter.predicate)
+    .filter(matchesStudentSearch)
     .sort((a, b) => {
       const aAction = getPrimaryStudentAction(a);
       const bAction = getPrimaryStudentAction(b);
       return getActionSortDate(aAction?.dueDate).localeCompare(getActionSortDate(bAction?.dueDate));
     });
 
-  document.getElementById("studentFilterCount").textContent = `${getActiveCohortLabel()} / ${activeFilter.label}：${students.length}名`;
+  const searchLabel = studentSearchQuery.trim() ? ` / 検索「${studentSearchQuery.trim()}」` : "";
+  document.getElementById("studentFilterCount").textContent = `${getActiveCohortLabel()} / ${activeFilter.label}${searchLabel}：${students.length}名`;
 
   if (students.length === 0) {
     document.getElementById("studentList").innerHTML = `
@@ -2025,15 +2093,15 @@ function renderStudentList(activeKey = "all") {
         <div class="student-card-main">
           <div>
             <span class="priority-pill ${priority.className}">${priority.label}</span>
-            <h3>${student.name || "氏名未設定"}</h3>
-            <p>${student.school || "学校未設定"} / ${student.grade || "学年未設定"} / ${student.gender || "性別未設定"}</p>
+            <h3>${escapeHtml(student.name || "氏名未設定")}</h3>
+            <p>${escapeHtml(student.school || "学校未設定")} / ${escapeHtml(student.grade || "学年未設定")} / ${escapeHtml(student.gender || "性別未設定")}</p>
           </div>
           <div class="student-card-status">
-            <span>LINE：${student.lineStatus || "未設定"}</span>
-            <span>見学：${student.salonTourStatus || "未設定"}</span>
-            <span>面接：${student.interviewStatus || "未設定"}</span>
-            <span>内定：${student.offerStatus || "未定"}</span>
-            <span>管理：${student.managementStatus || "有効"}</span>
+            <span>LINE：${escapeHtml(student.lineStatus || "未設定")}</span>
+            <span>見学：${escapeHtml(student.salonTourStatus || "未設定")}</span>
+            <span>面接：${escapeHtml(student.interviewStatus || "未設定")}</span>
+            <span>内定：${escapeHtml(student.offerStatus || "未定")}</span>
+            <span>管理：${escapeHtml(student.managementStatus || "有効")}</span>
           </div>
         </div>
         <div class="student-next-action">
