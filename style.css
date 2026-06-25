@@ -1739,6 +1739,43 @@ td {
   gap: 12px;
 }
 
+.operation-log-filters {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.operation-log-filter {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  background: #fff;
+  color: var(--muted);
+  cursor: pointer;
+  font: inherit;
+  padding: 8px 12px;
+}
+
+.operation-log-filter span {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 22px;
+  border-radius: 999px;
+  background: var(--surface-soft);
+  color: var(--text);
+  font-size: 12px;
+}
+
+.operation-log-filter:hover,
+.operation-log-filter.active {
+  border-color: var(--accent);
+  background: var(--accent-soft);
+  color: var(--text);
+}
+
 .operation-log-summary {
   display: grid;
   grid-template-columns: repeat(4, minmax(0, 1fr));

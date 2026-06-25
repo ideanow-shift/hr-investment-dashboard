@@ -219,6 +219,7 @@ let activeStudentDueFilter = "all";
 let studentSearchQuery = "";
 let studentSummary = buildStudentSummary(studentData);
 let operationLogs = [];
+let activeOperationLogFilter = "all";
 
 async function fetchDashboardData() {
   if (!GAS_API_URL) {
@@ -2522,6 +2523,44 @@ function renderOperationLogSummary() {
   `;
 }
 
+function getOperationLogFilters() {
+  return [
+    { key: "all", label: "すべて", predicate: () => true },
+    { key: "linked", label: "HUB社員IDあり", predicate: (log) => Boolean(log.actorEmployeeId) },
+    { key: "missing", label: "HUB社員IDなし", predicate: (log) => !log.actorEmployeeId }
+  ];
+}
+
+function renderOperationLogFilters() {
+  const filters = getOperationLogFilters();
+  return `
+    <div class="operation-log-filters" aria-label="操作履歴フィルター">
+      ${filters.map((filter) => {
+        const count = operationLogs.filter(filter.predicate).length;
+        return `
+          <button class="operation-log-filter ${activeOperationLogFilter === filter.key ? "active" : ""}" type="button" data-operation-log-filter="${filter.key}">
+            ${escapeHtml(filter.label)}<span>${formatNumber.format(count)}</span>
+          </button>
+        `;
+      }).join("")}
+    </div>
+  `;
+}
+
+function setupOperationLogFilters() {
+  document.querySelectorAll("[data-operation-log-filter]").forEach((button) => {
+    button.addEventListener("click", () => {
+      activeOperationLogFilter = button.dataset.operationLogFilter || "all";
+      renderOperationLogs();
+    });
+  });
+}
+
+function getFilteredOperationLogs() {
+  const filter = getOperationLogFilters().find((item) => item.key === activeOperationLogFilter) || getOperationLogFilters()[0];
+  return operationLogs.filter(filter.predicate);
+}
+
 function renderOperationLogs() {
   const list = document.getElementById("operationLogList");
   if (!list) return;
@@ -2534,7 +2573,19 @@ function renderOperationLogs() {
     return;
   }
 
-  list.innerHTML = operationLogs.map((log) => {
+  const filteredLogs = getFilteredOperationLogs();
+  if (!filteredLogs.length) {
+    list.innerHTML = `
+      ${renderOperationLogFilters()}
+      <div class="student-empty">この条件に該当する操作履歴はありません。</div>
+    `;
+    setupOperationLogFilters();
+    return;
+  }
+
+  list.innerHTML = `
+    ${renderOperationLogFilters()}
+    ${filteredLogs.map((log) => {
     const hasActor = Boolean(log.actorEmployeeId);
     const actorLabel = log.actorName || maskEmployeeId(log.actorEmployeeId);
     const targetName = log.studentName || log.studentCode || getOperationLogTableLabel(log.tableName);
@@ -2555,7 +2606,9 @@ function renderOperationLogs() {
         </div>
       </article>
     `;
-  }).join("");
+  }).join("")}
+  `;
+  setupOperationLogFilters();
 }
 
 function renderDashboard(isConnected) {
