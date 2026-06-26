@@ -807,7 +807,9 @@ function buildSupabaseSchoolAnalysis_(schools, students) {
     }
 
     const summary = map[schoolName];
-    if (student.managementStatus !== "管理対象外") summary.contacts += 1;
+    if (student.managementStatus === "管理対象外") return map;
+
+    summary.contacts += 1;
     if (student.lineStatus === "登録済") summary.lineRegistrations += 1;
     if (student.salonTourStatus === "実施済" || student.salonTourStatus === "予定") summary.salonTours += 1;
     if (student.interviewStatus === "実施済" || student.interviewStatus === "予定") summary.interviews += 1;
@@ -2279,3 +2281,4 @@ function formatDateTimeValue(value) {
   }
   return String(value || "");
 }
+
