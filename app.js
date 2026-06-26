@@ -418,7 +418,12 @@ function normalizeOperationLog(log) {
     studentCode: String(log.studentCode || ""),
     studentName: String(log.studentName || ""),
     actorEmployeeId: String(log.actorEmployeeId || ""),
+    actorEmail: String(log.actorEmail || ""),
     actorName: String(log.actorName || ""),
+    result: String(log.result || "success"),
+    reason: String(log.reason || ""),
+    targetType: String(log.targetType || ""),
+    targetId: String(log.targetId || ""),
     detail: String(log.detail || ""),
     createdAt: String(log.createdAt || "")
   };
@@ -1661,15 +1666,19 @@ function renderStudentEditControls() {
   const addButton = document.getElementById("addStudentButton");
   const editNote = document.getElementById("studentEditNote");
   const editable = isActiveCohortEditable();
+  const canEditStudents = canWriteActionFromDashboard("edit");
   const sheetName = getActiveSheetName();
 
   if (addButton) {
-    addButton.disabled = !editable;
-    addButton.textContent = editable ? "学生追加" : "全件参考は編集不可";
+    addButton.disabled = !editable || !canEditStudents;
+    addButton.textContent = !editable ? "全件参考は編集不可" : "学生追加";
+    addButton.title = !canEditStudents ? "この操作に必要なNOV Talent権限がありません" : "";
   }
 
   if (editNote) {
-    editNote.textContent = editable
+    editNote.textContent = !canEditStudents
+      ? "学生追加・更新にはNOV Talent編集権限が必要です。権限はGAS側でも確認されます。"
+      : editable
       ? `${getActiveCohortLabel()}に学生を追加・更新します。保存後はスプレッドシートにも反映されます。`
       : `${sheetName}は集約確認用です。追加・更新は27卒、28卒、サロン実習の各タブで行ってください。`;
   }
@@ -1709,10 +1718,41 @@ function canWriteFromDashboard() {
   return Boolean(getHubCurrentEmployee());
 }
 
-function getWriteDisabledAttribute(extraDisabled = false) {
+function getHubRoleKeys() {
+  const employee = getHubCurrentEmployee();
+  if (!employee || typeof employee !== "object") return [];
+  const rawRoles = []
+    .concat(Array.isArray(employee.roleKeys) ? employee.roleKeys : [])
+    .concat(Array.isArray(employee.roles) ? employee.roles : [])
+    .concat(Array.isArray(employee.role_keys) ? employee.role_keys : []);
+
+  return rawRoles.map((role) => {
+    if (typeof role === "string") return role;
+    if (role && typeof role === "object") {
+      return role.roleKey || role.role_key || role.key || role.name || "";
+    }
+    return "";
+  }).map((role) => String(role).trim()).filter(Boolean);
+}
+
+function canWriteActionFromDashboard(action = "edit") {
+  if (!canWriteFromDashboard()) return false;
+  const roleKeys = getHubRoleKeys();
+  if (!roleKeys.length) return true;
+
+  const adminRoles = ["super_admin", "talent_admin"];
+  const editorRoles = ["super_admin", "talent_admin", "talent_editor"];
+  const requiredRoles = action === "updateSettings" ? adminRoles : editorRoles;
+  return roleKeys.some((roleKey) => requiredRoles.includes(roleKey));
+}
+
+function getWriteDisabledAttribute(extraDisabled = false, action = "edit") {
   if (extraDisabled) return "disabled";
   if (!canWriteFromDashboard()) {
     return 'disabled title="NOV HUBから開き直すと保存できます"';
+  }
+  if (!canWriteActionFromDashboard(action)) {
+    return 'disabled title="この操作に必要なNOV Talent権限がありません"';
   }
   return "";
 }
@@ -1776,7 +1816,7 @@ function renderSettingsForm() {
       </div>
       <div class="student-form-actions">
         <p class="student-form-status" aria-live="polite"></p>
-        <button class="refresh-button" type="submit" ${getWriteDisabledAttribute()}>目標を保存</button>
+        <button class="refresh-button" type="submit" ${getWriteDisabledAttribute(false, "updateSettings")}>目標を保存</button>
       </div>
     </form>
   `;
@@ -3297,17 +3337,19 @@ function renderOperationLogs() {
     const targetName = log.studentName || log.studentCode || getOperationLogTableLabel(log.tableName);
     const tableLabel = getOperationLogTableLabel(log.tableName);
     const tableClass = getOperationLogTableClass(log.tableName);
-    const actionClass = getOperationLogActionClass(log.action);
+    const isDenied = log.result === "denied";
+    const actionClass = isDenied ? "is-danger" : getOperationLogActionClass(log.action);
     return `
       <article class="operation-log-card">
         <div class="operation-log-main">
-          <span class="operation-log-action ${actionClass}">${escapeHtml(log.action || "操作")}</span>
+          <span class="operation-log-action ${actionClass}">${escapeHtml(isDenied ? "拒否" : (log.action || "操作"))}</span>
           <div>
             <div class="operation-log-title-row">
               <h3>${escapeHtml(targetName)}</h3>
               <span class="operation-log-target ${tableClass}">${escapeHtml(tableLabel)}</span>
             </div>
             <p>${escapeHtml(log.detail || "詳細未記録")}</p>
+            ${isDenied && log.reason ? `<p class="operation-log-reason">理由：${escapeHtml(log.reason)}</p>` : ""}
           </div>
         </div>
         <div class="operation-log-meta">

@@ -148,9 +148,14 @@ function convertSupabaseOperationLog_(row, employeeMap) {
     studentCode: String(row.student_code || ""),
     studentName: String(row.student_name_snapshot || ""),
     actorEmployeeId: String(row.actor_employee_id || ""),
+    actorEmail: String(row.actor_email || ""),
     actorName: getEmployeeDisplayName_(employeeMap, row.actor_employee_id),
+    result: String(row.result || "success"),
+    reason: String(row.reason || ""),
+    targetType: String(row.target_type || ""),
+    targetId: String(row.target_id || ""),
     detail: String(row.detail || ""),
-    createdAt: row.created_at ? String(row.created_at) : ""
+    createdAt: row.occurred_at ? String(row.occurred_at) : (row.created_at ? String(row.created_at) : "")
   };
 }
 
@@ -359,13 +364,34 @@ function appendSupabaseOperationLog_(action, recordId, studentId, studentCode, s
     student_id: studentId || null,
     student_code: studentCode || "",
     student_name_snapshot: studentName || "",
+    result: "success",
+    target_type: "student",
+    target_id: studentCode || recordId || "",
+    occurred_at: new Date().toISOString(),
     detail: detail,
     before_data: beforeData || null,
     after_data: afterData || null
   };
   const validActorEmployeeId = normalizeUuid_(actorEmployeeId);
   if (validActorEmployeeId) payload.actor_employee_id = validActorEmployeeId;
-  requestSupabase_("post", "talent_operation_logs", "", payload);
+  try {
+    requestSupabase_("post", "talent_operation_logs", "", payload);
+  } catch (error) {
+    console.warn("操作履歴の詳細形式保存に失敗しました。旧形式で再試行します: " + error.message);
+    const fallbackPayload = {
+      action: action,
+      table_name: "talent_students",
+      record_id: recordId || null,
+      student_id: studentId || null,
+      student_code: studentCode || "",
+      student_name_snapshot: studentName || "",
+      detail: detail,
+      before_data: beforeData || null,
+      after_data: afterData || null
+    };
+    if (validActorEmployeeId) fallbackPayload.actor_employee_id = validActorEmployeeId;
+    requestSupabase_("post", "talent_operation_logs", "", fallbackPayload);
+  }
 }
 
 function normalizeUuid_(value) {
@@ -379,6 +405,187 @@ function requireDashboardOperator_(params) {
     throw new Error("保存できませんでした：HUBログイン情報からCore社員IDを特定できません。NOV HUBから開き直すか、社員マスタの氏名・メール・社員番号を確認してください。");
   }
   return operator;
+}
+
+function getTalentRequiredRoleKeys_(action) {
+  const adminOnly = ["super_admin", "talent_admin"];
+  const editor = ["super_admin", "talent_admin", "talent_editor"];
+
+  if (action === "updateSettings") return adminOnly;
+  if ([
+    "addStudent",
+    "updateStudent",
+    "addFair",
+    "updateFair",
+    "addSchool",
+    "updateSchool",
+    "addFollowup",
+    "updateFollowup"
+  ].indexOf(action) !== -1) {
+    return editor;
+  }
+
+  return adminOnly;
+}
+
+function requireTalentActionPermission_(params, action) {
+  const operator = requireDashboardOperator_(params);
+  const requiredRoles = getTalentRequiredRoleKeys_(action);
+  const roleKeys = getCoreRoleKeysByEmployeeId_(operator.employeeId);
+  const allowed = roleKeys.some(function(roleKey) {
+    return requiredRoles.indexOf(roleKey) !== -1;
+  });
+
+  if (!allowed) {
+    const reason = "必要なNOV Talent権限がありません。必要role: " + requiredRoles.join(", ");
+    appendTalentDeniedOperationLog_(action, params, operator, roleKeys, reason);
+    throw new Error("保存できませんでした：" + reason);
+  }
+
+  operator.roleKeys = roleKeys;
+  return operator;
+}
+
+function getCoreRoleKeysByEmployeeId_(employeeId) {
+  const validEmployeeId = normalizeUuid_(employeeId);
+  if (!validEmployeeId) return [];
+
+  const employeeRoleRows = getSupabaseRows_(
+    "employee_roles",
+    "employee_id=eq." + encodeURIComponent(validEmployeeId) + "&is_active=eq.true&limit=50"
+  );
+  const roleIds = employeeRoleRows
+    .map(function(row) { return normalizeUuid_(row.role_id); })
+    .filter(function(roleId, index, array) { return roleId && array.indexOf(roleId) === index; });
+
+  if (!roleIds.length) return [];
+
+  const roleRows = getSupabaseRows_(
+    "roles",
+    "id=in.(" + roleIds.map(encodeURIComponent).join(",") + ")&is_active=eq.true"
+  );
+
+  return roleRows
+    .map(function(role) { return sanitizeText(role.role_key); })
+    .filter(function(roleKey, index, array) { return roleKey && array.indexOf(roleKey) === index; });
+}
+
+function appendTalentDeniedOperationLog_(action, params, operator, roleKeys, reason) {
+  const targetInfo = getTalentActionTargetInfo_(action, params);
+  const payload = {
+    action: action,
+    table_name: targetInfo.tableName,
+    record_id: normalizeUuid_(targetInfo.recordId) || null,
+    student_id: normalizeUuid_(targetInfo.studentUuid) || null,
+    student_code: targetInfo.studentCode || "",
+    student_name_snapshot: targetInfo.studentName || "",
+    actor_employee_id: normalizeUuid_(operator.employeeId) || null,
+    actor_email: sanitizeText(params && params.actorEmail),
+    result: "denied",
+    reason: reason,
+    target_type: targetInfo.targetType,
+    target_id: targetInfo.targetId,
+    detail: "操作拒否: " + action + " / roles=" + (roleKeys && roleKeys.length ? roleKeys.join(",") : "none"),
+    before_data: null,
+    after_data: {
+      action: action,
+      roleKeys: roleKeys || [],
+      requiredRoleKeys: getTalentRequiredRoleKeys_(action)
+    },
+    occurred_at: new Date().toISOString()
+  };
+
+  try {
+    requestSupabase_("post", "talent_operation_logs", "", payload);
+  } catch (error) {
+    console.warn("操作拒否ログの詳細形式保存に失敗しました。旧形式で再試行します: " + error.message);
+    requestSupabase_("post", "talent_operation_logs", "", {
+      action: action,
+      table_name: targetInfo.tableName,
+      record_id: normalizeUuid_(targetInfo.recordId) || null,
+      student_id: normalizeUuid_(targetInfo.studentUuid) || null,
+      student_code: targetInfo.studentCode || "",
+      student_name_snapshot: targetInfo.studentName || "",
+      actor_employee_id: normalizeUuid_(operator.employeeId) || null,
+      detail: "操作拒否: " + reason,
+      before_data: null,
+      after_data: {
+        action: action,
+        result: "denied",
+        reason: reason,
+        actorEmail: sanitizeText(params && params.actorEmail),
+        targetType: targetInfo.targetType,
+        targetId: targetInfo.targetId,
+        roleKeys: roleKeys || []
+      }
+    });
+  }
+}
+
+function getTalentActionTargetInfo_(action, params) {
+  const studentCode = sanitizeText(params && params.studentId);
+  const studentName = sanitizeText(params && params.name);
+  const fairId = sanitizeText(params && params.fairId);
+  const fairName = sanitizeText((params && params.name) || (params && params.originalName));
+  const schoolId = sanitizeText(params && params.schoolId);
+  const schoolName = sanitizeText((params && params.name) || (params && params.originalName));
+  const followupId = sanitizeText(params && params.followupId);
+  const fiscalYear = sanitizeText(params && params.fiscalYear);
+
+  if (action === "updateSettings") {
+    return {
+      tableName: "talent_investment_settings",
+      targetType: "settings",
+      targetId: fiscalYear,
+      recordId: "",
+      studentUuid: "",
+      studentCode: "",
+      studentName: ""
+    };
+  }
+  if (action === "addFair" || action === "updateFair") {
+    return {
+      tableName: "talent_fairs",
+      targetType: "fair",
+      targetId: fairId || fairName,
+      recordId: fairId,
+      studentUuid: "",
+      studentCode: "",
+      studentName: ""
+    };
+  }
+  if (action === "addSchool" || action === "updateSchool") {
+    return {
+      tableName: "talent_schools",
+      targetType: "school",
+      targetId: schoolId || schoolName,
+      recordId: schoolId,
+      studentUuid: "",
+      studentCode: "",
+      studentName: ""
+    };
+  }
+  if (action === "addFollowup" || action === "updateFollowup") {
+    return {
+      tableName: "talent_student_followups",
+      targetType: "followup",
+      targetId: followupId || studentCode,
+      recordId: followupId,
+      studentUuid: "",
+      studentCode: studentCode,
+      studentName: studentName
+    };
+  }
+
+  return {
+    tableName: "talent_students",
+    targetType: "student",
+    targetId: studentCode || studentName,
+    recordId: "",
+    studentUuid: "",
+    studentCode: studentCode,
+    studentName: studentName
+  };
 }
 
 function getDashboardOperator_(params) {
@@ -768,7 +975,7 @@ function handleWriteAction(params) {
   const action = String(params.action || "");
 
   if (isSupabaseConfigured_()) {
-    requireDashboardOperator_(params);
+    requireTalentActionPermission_(params, action);
   }
 
   if (action === "addStudent") {

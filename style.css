@@ -2120,6 +2120,21 @@ td {
   color: #166534;
 }
 
+.operation-log-action.is-danger {
+  background: #fee2e2;
+  color: #b91c1c;
+}
+
+.operation-log-reason {
+  display: inline-block;
+  margin-top: 6px;
+  border-radius: 8px;
+  background: #fff1f2;
+  color: #b91c1c;
+  font-weight: 700;
+  padding: 6px 8px;
+}
+
 .operation-log-title-row {
   display: flex;
   align-items: center;
