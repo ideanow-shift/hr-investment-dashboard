@@ -1881,7 +1881,11 @@ function findDuplicateStudentId(sheet, name, school, currentStudentId) {
 }
 
 function normalizeForDuplicateCheck(value) {
-  return String(value || "").replace(/\s+/g, "").trim();
+  return String(value || "")
+    .normalize("NFKC")
+    .replace(/[\s\u3000\u200B-\u200D\uFEFF]+/g, "")
+    .toLowerCase()
+    .trim();
 }
 
 function ensureStudentAuditColumns(sheet) {

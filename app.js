@@ -1410,7 +1410,7 @@ function getSchoolFormPayload(form) {
 
 function getSchoolValidationErrors(payload, mode) {
   const errors = [];
-  const normalizedName = payload.name.replace(/\s+/g, "");
+  const normalizedName = normalizeForDuplicateCheck(payload.name);
   const duplicate = schoolData.find((school) => {
     if (mode !== "add" && getSchoolKey(school) === payload.schoolId) return false;
     if (mode !== "add" && school.name === payload.originalName) return false;
@@ -1963,16 +1963,23 @@ function getStudentFormPayload(form) {
   };
 }
 
+function normalizeForDuplicateCheck(value) {
+  return String(value || "")
+    .normalize("NFKC")
+    .replace(/[\s\u3000\u200B-\u200D\uFEFF]+/g, "")
+    .toLowerCase()
+    .trim();
+}
 function getStudentValidationErrors(payload, mode) {
   const errors = [];
   const students = getAllActiveStudentsForDuplicateCheck();
-  const normalizedName = payload.name.replace(/\s+/g, "");
-  const normalizedSchool = payload.school.replace(/\s+/g, "");
+  const normalizedName = normalizeForDuplicateCheck(payload.name);
+  const normalizedSchool = normalizeForDuplicateCheck(payload.school);
   const duplicate = students.find((student) => {
     if (mode !== "add" && student.studentId === payload.studentId) return false;
     if (student.managementStatus === "管理対象外") return false;
-    return student.name.replace(/\s+/g, "") === normalizedName
-      && student.school.replace(/\s+/g, "") === normalizedSchool;
+    return normalizeForDuplicateCheck(student.name) === normalizedName
+      && normalizeForDuplicateCheck(student.school) === normalizedSchool;
   });
 
   if (!payload.name) errors.push("氏名を入力してください。");
@@ -2605,7 +2612,7 @@ function getStudentQualityIssues() {
   const students = getActiveStudents();
   const duplicateMap = students.reduce((map, student) => {
     if (student.managementStatus === "管理対象外") return map;
-    const key = `${String(student.name || "").replace(/\s+/g, "")}__${String(student.school || "").replace(/\s+/g, "")}`;
+    const key = `${normalizeForDuplicateCheck(student.name)}__${normalizeForDuplicateCheck(student.school)}`;
     if (!student.name || !student.school) return map;
     map.set(key, [...(map.get(key) || []), student]);
     return map;
@@ -2632,7 +2639,7 @@ function getStudentQualityIssues() {
     if (!student.gender || student.gender === "未回答") addIssue("確認", "性別未回答", "性別が未回答です。", "必要に応じて男性・女性・その他を選択してください。");
     if (!student.owner) addIssue("確認", "担当者未入力", "担当者が未入力です。", "担当者を入力してください。");
 
-    const duplicateKey = `${String(student.name || "").replace(/\s+/g, "")}__${String(student.school || "").replace(/\s+/g, "")}`;
+    const duplicateKey = `${normalizeForDuplicateCheck(student.name)}__${normalizeForDuplicateCheck(student.school)}`;
     const duplicates = duplicateMap.get(duplicateKey) || [];
     if (!isInactive && duplicates.length > 1) {
       addIssue(
@@ -3181,7 +3188,7 @@ function setupOperationLogFilters() {
 }
 
 function normalizeOperationLogSearchText(value) {
-  return String(value || "").toLowerCase().replace(/\s+/g, "");
+  return String(value || "").normalize("NFKC").toLowerCase().replace(/[\s\u3000\u200B-\u200D\uFEFF]+/g, "");
 }
 
 function getOperationLogSearchText(log) {
