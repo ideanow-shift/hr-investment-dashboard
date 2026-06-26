@@ -1992,6 +1992,8 @@ function parseDateOrText(value) {
 
 function buildStudentSummary(students) {
   return students.reduce((summary, student) => {
+    if (student.managementStatus === "管理対象外") return summary;
+
     if (student.nextAction && !student.nextActionDate) summary.needsFollowUp += 1;
     if (student.salonTourStatus === "予定") summary.salonTourScheduled += 1;
     if (student.interviewStatus === "予定") summary.interviewScheduled += 1;

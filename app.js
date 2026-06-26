@@ -1,4 +1,4 @@
-﻿const GAS_API_URL = "https://script.google.com/macros/s/AKfycbx0X9DvO6zydd8txe_Mgme1COTfltp7ZxueJyrIPQsJSwWCvbVrM2otmlgarPTDmU5iWg/exec";
+const GAS_API_URL = "https://script.google.com/macros/s/AKfycbx0X9DvO6zydd8txe_Mgme1COTfltp7ZxueJyrIPQsJSwWCvbVrM2otmlgarPTDmU5iWg/exec";
 
 const HUB_CONTEXT_KEY = "novHub.currentEmployee";
 const HUB_CONTEXT_MAX_AGE_MS = 12 * 60 * 60 * 1000;
@@ -686,6 +686,8 @@ function getPrimaryStudentAction(student) {
 
 function buildStudentSummary(students) {
   return students.reduce((summary, student) => {
+    if (student.managementStatus === "管理対象外") return summary;
+
     if ((student.nextAction && !student.nextActionDate) || hasOpenFollowup(student)) summary.needsFollowUp += 1;
     if (student.salonTourStatus === "予定") summary.salonTourScheduled += 1;
     if (student.interviewStatus === "予定") summary.interviewScheduled += 1;
