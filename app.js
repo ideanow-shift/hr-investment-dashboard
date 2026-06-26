@@ -2659,12 +2659,13 @@ function renderDataQuality() {
   }
 
   list.innerHTML = issues.map((issue) => `
-    <article class="quality-card ${getQualitySeverityClass(issue.severity)}">
+    <article class="quality-card ${getQualitySeverityClass(issue.severity)}" data-quality-student-id="${escapeHtml(issue.studentId)}">
       <div>
         <span class="priority-pill ${issue.severity === "要修正" ? "priority-high" : issue.severity === "注意" ? "priority-middle" : "priority-low"}">${escapeHtml(issue.severity)}</span>
         <h3>${escapeHtml(issue.type)}</h3>
         <p>${escapeHtml(issue.detail)}</p>
         <small>${escapeHtml(issue.action)}</small>
+        <small class="quality-edit-hint">クリックして学生詳細を編集</small>
       </div>
       <div class="quality-card-meta">
         <span>${escapeHtml(issue.studentId || "ID未取得")}</span>
@@ -2674,6 +2675,13 @@ function renderDataQuality() {
       </div>
     </article>
   `).join("");
+
+  list.querySelectorAll("[data-quality-student-id]").forEach((card) => {
+    card.addEventListener("click", () => {
+      const selectedStudent = getActiveStudents().find((student) => student.studentId === card.dataset.qualityStudentId);
+      openStudentModal(selectedStudent);
+    });
+  });
 }
 
 function downloadDataQualityCsv() {

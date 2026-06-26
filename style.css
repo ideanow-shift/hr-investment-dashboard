@@ -1255,7 +1255,14 @@ td {
   border-left: 4px solid var(--line);
   border-radius: 8px;
   background: #ffffff;
+  cursor: pointer;
   padding: 14px;
+  transition: border-color .15s ease, background .15s ease;
+}
+
+.quality-card:hover {
+  border-color: var(--accent);
+  background: var(--accent-soft);
 }
 
 .quality-danger {
@@ -1299,6 +1306,12 @@ td {
 
 .quality-card-meta strong {
   font-size: 15px;
+}
+
+.quality-edit-hint {
+  margin-top: 6px;
+  color: var(--blue) !important;
+  font-weight: 500;
 }
 
 .app-footer {
