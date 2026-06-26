@@ -34,7 +34,7 @@
       <button class="dashboard-tab active" type="button" data-view="overview">全体サマリー</button>
       <button class="dashboard-tab" type="button" data-view="fair">フェア分析</button>
       <button class="dashboard-tab" type="button" data-view="school">学校分析</button>
-      <button class="dashboard-tab" type="button" data-view="student">学生フォロー</button>
+      <button class="dashboard-tab" type="button" data-view="student">学生フォロー<span id="studentUrgentTabBadge" class="tab-count-badge" hidden>0</span></button>
       <button class="dashboard-tab" type="button" data-view="quality">データ品質<span id="dataQualityTabBadge" class="tab-count-badge" hidden>0</span></button>
       <button class="dashboard-tab" type="button" data-view="logs">操作履歴</button>
       <button class="dashboard-tab" type="button" data-view="guide">使い方</button>
@@ -370,6 +370,6 @@
     </section>
   </div>
 
-  <script src="app.js?v=20260626-quality-tab-badge"></script>
+  <script src="app.js?v=20260626-student-urgent-tab-badge"></script>
 </body>
 </html>

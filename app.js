@@ -1580,6 +1580,7 @@ function generateActionCards() {
 
 function renderStudentSummary() {
   studentSummary = buildStudentSummary(getManagedStudents());
+  updateStudentUrgentTabBadge(studentSummary);
   const summaryItems = [
     { label: "要フォロー", value: studentSummary.needsFollowUp || 0, unit: "名", sub: "未対応・対応中フォローがある学生", filterKey: "needsFollowUp", dueKey: "all" },
     { label: "未完了フォロー", value: studentSummary.openFollowups || 0, unit: "件", sub: "完了・不要を除く履歴", filterKey: "needsFollowUp", dueKey: "all" },
@@ -1615,6 +1616,15 @@ function renderStudentSummary() {
   });
 }
 
+function updateStudentUrgentTabBadge(summary) {
+  const badge = document.getElementById("studentUrgentTabBadge");
+  if (!badge) return;
+  const count = (summary.overdueFollowups || 0) + (summary.todayFollowups || 0);
+  badge.hidden = count === 0;
+  badge.textContent = formatNumber.format(count);
+  badge.setAttribute("aria-label", `期限超過・今日対応 ${count}件`);
+}
+
 function renderStudentCohortTabs() {
   const tabs = document.getElementById("studentCohortTabs");
   if (!tabs) return;
@@ -1638,6 +1648,7 @@ function renderStudentCohortTabs() {
       renderStudentSummary();
       renderStudentActions();
       renderStudentList();
+      renderDataQuality();
       renderStudentCohortTabs();
       renderStudentEditControls();
     });
