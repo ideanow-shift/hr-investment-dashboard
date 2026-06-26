@@ -864,6 +864,7 @@ function findFairByKey(fairs, key) {
 
 function renderFairTable() {
   const rankedFairs = getRankedFairs();
+  setupFairCsvExport(rankedFairs.length);
 
   document.getElementById("fairTableBody").innerHTML = rankedFairs.map((fair) => `
     <tr>
@@ -888,6 +889,56 @@ function renderFairTable() {
   });
 
   renderFairDetail(rankedFairs[0]);
+}
+
+function downloadFairCsv() {
+  const fairs = getRankedFairs();
+  if (!fairs.length) return;
+
+  downloadCsvFile(
+    `nov-talent-fairs-${new Date().toISOString().slice(0, 10)}.csv`,
+    [
+      "評価",
+      "評価内容",
+      "フェア名",
+      "開催日",
+      "費用",
+      "接触数",
+      "LINE登録数",
+      "LINE登録率",
+      "見学取得数",
+      "見学率",
+      "接触単価",
+      "見学取得単価",
+      "関連学生数",
+      "メモ"
+    ],
+    fairs.map((fair) => [
+      fair.rank.rank,
+      fair.rank.label,
+      fair.name,
+      fair.date,
+      fair.cost,
+      fair.contacts,
+      fair.lineRegistrations,
+      percent(fair.lineRate),
+      fair.salonTours,
+      percent(fair.tourRate),
+      Math.round(fair.contactCost || 0),
+      fair.salonTours ? Math.round(fair.tourCost || 0) : "未取得",
+      getActiveStudents().filter((student) => student.source === fair.name).length,
+      fair.memo || ""
+    ])
+  );
+}
+
+function setupFairCsvExport(count) {
+  const button = document.getElementById("fairCsvExportButton");
+  if (!button) return;
+  button.disabled = count === 0;
+  const countLabel = button.querySelector("span");
+  if (countLabel) countLabel.textContent = formatNumber.format(count);
+  button.onclick = downloadFairCsv;
 }
 
 function renderFairDetail(fair) {
@@ -1114,7 +1165,10 @@ function findSchoolByKey(key) {
 }
 
 function renderSchools() {
-  document.getElementById("schoolGrid").innerHTML = schoolData.map((school) => {
+  const rankedSchools = getRankedSchools();
+  setupSchoolCsvExport(rankedSchools.length);
+
+  document.getElementById("schoolGrid").innerHTML = rankedSchools.map((school) => {
     const promise = getSchoolPromise(school);
 
     return `
@@ -1144,7 +1198,76 @@ function renderSchools() {
     });
   });
 
-  renderSchoolDetail([...schoolData].sort((a, b) => getSchoolPromise(b).score - getSchoolPromise(a).score)[0]);
+  renderSchoolDetail(rankedSchools[0]);
+}
+
+function getRankedSchools() {
+  return [...schoolData].sort((a, b) => {
+    const scoreCompare = getSchoolPromise(b).score - getSchoolPromise(a).score;
+    if (scoreCompare !== 0) return scoreCompare;
+    if (b.offers !== a.offers) return b.offers - a.offers;
+    if (b.interviews !== a.interviews) return b.interviews - a.interviews;
+    return b.contacts - a.contacts;
+  });
+}
+
+function downloadSchoolCsv() {
+  const schools = getRankedSchools();
+  if (!schools.length) return;
+
+  downloadCsvFile(
+    `nov-talent-schools-${new Date().toISOString().slice(0, 10)}.csv`,
+    [
+      "有望度",
+      "有望度スコア",
+      "学校名",
+      "表示名",
+      "エリア",
+      "接触人数",
+      "LINE登録数",
+      "LINE登録率",
+      "見学数",
+      "見学率",
+      "面接数",
+      "面接率",
+      "合格数",
+      "内定数",
+      "内定率",
+      "関連学生数",
+      "メモ"
+    ],
+    schools.map((school) => {
+      const promise = getSchoolPromise(school);
+      return [
+        promise.label,
+        promise.score,
+        school.name,
+        school.displayName || school.name,
+        school.area || "",
+        school.contacts,
+        school.lineRegistrations,
+        percent(safeDivide(school.lineRegistrations, school.contacts)),
+        school.salonTours,
+        percent(safeDivide(school.salonTours, school.contacts)),
+        school.interviews,
+        percent(safeDivide(school.interviews, school.contacts)),
+        school.passed,
+        school.offers,
+        percent(safeDivide(school.offers, school.contacts)),
+        getActiveStudents().filter((student) => student.school === school.name).length,
+        school.memo || ""
+      ];
+    })
+  );
+}
+
+function setupSchoolCsvExport(count) {
+  const button = document.getElementById("schoolCsvExportButton");
+  if (!button) return;
+  button.disabled = count === 0;
+  const countLabel = button.querySelector("span");
+  if (countLabel) countLabel.textContent = formatNumber.format(count);
+  button.onclick = downloadSchoolCsv;
 }
 
 function renderSchoolDetail(school) {
@@ -2736,6 +2859,23 @@ function setupOperationLogSearch() {
 function escapeCsvCell(value) {
   const text = String(value ?? "");
   return `"${text.replace(/"/g, "\"\"")}"`;
+}
+
+function downloadCsvFile(filename, headers, rows) {
+  const csvRows = [
+    headers.map(escapeCsvCell).join(","),
+    ...rows.map((row) => row.map(escapeCsvCell).join(","))
+  ];
+
+  const blob = new Blob([`\ufeff${csvRows.join("\r\n")}`], { type: "text/csv;charset=utf-8" });
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement("a");
+  link.href = url;
+  link.download = filename;
+  document.body.appendChild(link);
+  link.click();
+  link.remove();
+  URL.revokeObjectURL(url);
 }
 
 function downloadOperationLogCsv() {

@@ -941,6 +941,7 @@ td {
   padding: 3px 8px;
 }
 
+.csv-export-button,
 .student-csv-export {
   display: inline-flex;
   align-items: center;
@@ -955,6 +956,7 @@ td {
   white-space: nowrap;
 }
 
+.csv-export-button span,
 .student-csv-export span {
   display: inline-flex;
   align-items: center;
@@ -966,11 +968,13 @@ td {
   font-size: 12px;
 }
 
+.csv-export-button:hover,
 .student-csv-export:hover {
   border-color: var(--accent);
   background: var(--accent-soft);
 }
 
+.csv-export-button:disabled,
 .student-csv-export:disabled {
   cursor: not-allowed;
   opacity: 0.55;

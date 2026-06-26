@@ -80,6 +80,7 @@
         </div>
         <div class="section-actions">
           <p class="section-note">見学率と接触単価から、次年度のフェア別投資判断につなげます。</p>
+          <button id="fairCsvExportButton" class="csv-export-button" type="button">CSV出力<span>0</span></button>
           <button id="addFairButton" class="refresh-button" type="button">フェア追加</button>
         </div>
       </div>
@@ -113,6 +114,7 @@
         </div>
         <div class="section-actions">
           <p class="section-note">学校ごとの接点から、将来の活躍人材につながる可能性を見ます。</p>
+          <button id="schoolCsvExportButton" class="csv-export-button" type="button">CSV出力<span>0</span></button>
           <button id="addSchoolButton" class="refresh-button" type="button">学校追加</button>
         </div>
       </div>
@@ -233,6 +235,7 @@
             <li>全体サマリーで採用目標、接触人数目標、面接成約目標の進捗を確認する。</li>
             <li>フェア分析で高ROIフェアと見直し候補を確認する。</li>
             <li>学校分析で重点訪問候補を確認する。</li>
+            <li>フェア分析・学校分析のCSVを出力し、投資判断資料として保存する。</li>
             <li>操作履歴の検索・HUB社員IDフィルターで、誰がどの更新をしたか確認する。</li>
             <li>操作履歴CSVを出力し、月次確認や監査用の控えとして保存する。</li>
             <li>管理対象外フィルターでデータ品質を確認する。</li>
@@ -252,6 +255,7 @@
             <li>総務人事部にはダッシュボードURLを共有する。</li>
             <li>運用開始時は、この「使い方」タブを一緒に確認する。</li>
             <li>学生一覧CSVと操作履歴CSVは、表示中の絞り込み条件だけが出力される。</li>
+            <li>フェアCSV・学校CSVは、画面で計算した評価や率を含めて出力される。</li>
             <li>スプレッドシートやSupabaseを直接編集する運用にはしない。</li>
             <li>入力に迷った時は、この「使い方」タブを確認する。</li>
           </ul>
@@ -346,6 +350,6 @@
     </section>
   </div>
 
-  <script src="app.js?v=20260626-guide-csv-logs"></script>
+  <script src="app.js?v=20260626-investment-csv"></script>
 </body>
 </html>
