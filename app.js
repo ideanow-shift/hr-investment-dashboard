@@ -3057,6 +3057,7 @@ function renderOperationLogSummary() {
 
   const linkedCount = operationLogs.filter((log) => log.actorEmployeeId).length;
   const missingCount = operationLogs.length - linkedCount;
+  updateOperationLogTabBadge(missingCount);
   const latestLog = operationLogs[0];
   summary.innerHTML = `
     <div class="operation-log-summary-card">
@@ -3080,6 +3081,14 @@ function renderOperationLogSummary() {
       <small>${escapeHtml(latestLog ? formatOperationLogDate(latestLog.createdAt) : "履歴未取得")}</small>
     </div>
   `;
+}
+
+function updateOperationLogTabBadge(missingCount) {
+  const badge = document.getElementById("operationLogTabBadge");
+  if (!badge) return;
+  badge.hidden = missingCount === 0;
+  badge.textContent = formatNumber.format(missingCount);
+  badge.setAttribute("aria-label", `HUB社員IDなし ${missingCount}件`);
 }
 
 function getOperationLogFilters() {

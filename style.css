@@ -222,6 +222,11 @@ h3 {
   padding: 4px 7px;
 }
 
+.tab-count-badge-warning {
+  background: var(--yellow-soft);
+  color: #9a5b00;
+}
+
 .dashboard-view.view-hidden {
   display: none;
 }
