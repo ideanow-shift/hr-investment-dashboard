@@ -218,6 +218,7 @@ let activeStudentFilter = "all";
 let activeStudentDueFilter = "all";
 let studentSearchQuery = "";
 let studentSummary = buildStudentSummary(studentData);
+let activeDataQualityFilter = "all";
 let operationLogs = [];
 let activeOperationLogFilter = "all";
 let operationLogSearchQuery = "";
@@ -2606,20 +2607,60 @@ function getQualitySeverityClass(severity) {
   return "quality-check";
 }
 
-function renderDataQuality() {
-  const issues = getStudentQualityIssues();
-  const summary = issues.reduce((acc, issue) => {
+function getDataQualitySummary(issues) {
+  return issues.reduce((acc, issue) => {
     acc[issue.severity] = (acc[issue.severity] || 0) + 1;
     return acc;
   }, {});
+}
+
+function getDataQualityFilters(summary, totalCount) {
+  return [
+    { key: "all", label: "すべて", count: totalCount },
+    { key: "要修正", label: "要修正", count: summary["要修正"] || 0 },
+    { key: "注意", label: "注意", count: summary["注意"] || 0 },
+    { key: "確認", label: "確認", count: summary["確認"] || 0 }
+  ];
+}
+
+function getFilteredDataQualityIssues(issues) {
+  if (activeDataQualityFilter === "all") return issues;
+  return issues.filter((issue) => issue.severity === activeDataQualityFilter);
+}
+
+function renderDataQualityFilters(summary, totalCount) {
+  return `
+    <div class="quality-filters" aria-label="データ品質絞り込み">
+      ${getDataQualityFilters(summary, totalCount).map((filter) => `
+        <button class="student-filter ${activeDataQualityFilter === filter.key ? "active" : ""}" type="button" data-quality-filter="${escapeHtml(filter.key)}">
+          ${escapeHtml(filter.label)}<span>${formatNumber.format(filter.count)}</span>
+        </button>
+      `).join("")}
+    </div>
+  `;
+}
+
+function setupDataQualityFilters() {
+  document.querySelectorAll("[data-quality-filter]").forEach((button) => {
+    button.addEventListener("click", () => {
+      activeDataQualityFilter = button.dataset.qualityFilter || "all";
+      renderDataQuality();
+    });
+  });
+}
+
+function renderDataQuality() {
+  const issues = getStudentQualityIssues();
+  const summary = getDataQualitySummary(issues);
+  const filteredIssues = getFilteredDataQualityIssues(issues);
   const summaryContainer = document.getElementById("dataQualitySummary");
   const list = document.getElementById("dataQualityList");
   const exportButton = document.getElementById("dataQualityCsvButton");
 
   if (exportButton) {
-    exportButton.disabled = issues.length === 0;
+    exportButton.disabled = filteredIssues.length === 0;
     const countLabel = exportButton.querySelector("span");
-    if (countLabel) countLabel.textContent = formatNumber.format(issues.length);
+    if (countLabel) countLabel.textContent = formatNumber.format(filteredIssues.length);
     exportButton.onclick = downloadDataQualityCsv;
   }
 
@@ -2658,7 +2699,9 @@ function renderDataQuality() {
     return;
   }
 
-  list.innerHTML = issues.map((issue) => `
+  list.innerHTML = `
+    ${renderDataQualityFilters(summary, issues.length)}
+    ${filteredIssues.length ? filteredIssues.map((issue) => `
     <article class="quality-card ${getQualitySeverityClass(issue.severity)}" data-quality-student-id="${escapeHtml(issue.studentId)}">
       <div>
         <span class="priority-pill ${issue.severity === "要修正" ? "priority-high" : issue.severity === "注意" ? "priority-middle" : "priority-low"}">${escapeHtml(issue.severity)}</span>
@@ -2674,7 +2717,12 @@ function renderDataQuality() {
         <small>${escapeHtml(issue.managementStatus)}</small>
       </div>
     </article>
-  `).join("");
+  `).join("") : `
+    <div class="student-empty">
+      選択中の重要度では、該当する品質チェック項目はありません。
+    </div>
+  `}
+  `;
 
   list.querySelectorAll("[data-quality-student-id]").forEach((card) => {
     card.addEventListener("click", () => {
@@ -2682,13 +2730,15 @@ function renderDataQuality() {
       openStudentModal(selectedStudent);
     });
   });
+  setupDataQualityFilters();
 }
 
 function downloadDataQualityCsv() {
-  const issues = getStudentQualityIssues();
+  const issues = getFilteredDataQualityIssues(getStudentQualityIssues());
   if (!issues.length) return;
+  const filterLabel = activeDataQualityFilter === "all" ? "all" : activeDataQualityFilter;
   downloadCsvFile(
-    `nov-talent-data-quality-${getActiveCohortLabel()}-${new Date().toISOString().slice(0, 10)}.csv`,
+    `nov-talent-data-quality-${getActiveCohortLabel()}-${filterLabel}-${new Date().toISOString().slice(0, 10)}.csv`,
     ["重要度", "種類", "学生ID", "氏名", "学校名", "区分", "管理状態", "内容", "対応"],
     issues.map((issue) => [
       issue.severity,

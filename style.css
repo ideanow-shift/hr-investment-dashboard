@@ -1247,6 +1247,13 @@ td {
   margin-top: 14px;
 }
 
+.quality-filters {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-bottom: 4px;
+}
+
 .quality-card {
   display: grid;
   grid-template-columns: minmax(0, 1fr) minmax(220px, 0.38fr);
