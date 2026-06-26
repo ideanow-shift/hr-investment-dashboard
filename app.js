@@ -2649,6 +2649,15 @@ function setupDataQualityFilters() {
   });
 }
 
+function updateDataQualityTabBadge(summary) {
+  const badge = document.getElementById("dataQualityTabBadge");
+  if (!badge) return;
+  const count = summary["要修正"] || 0;
+  badge.hidden = count === 0;
+  badge.textContent = formatNumber.format(count);
+  badge.setAttribute("aria-label", `要修正 ${count}件`);
+}
+
 function renderDataQuality() {
   const issues = getStudentQualityIssues();
   const summary = getDataQualitySummary(issues);
@@ -2656,6 +2665,8 @@ function renderDataQuality() {
   const summaryContainer = document.getElementById("dataQualitySummary");
   const list = document.getElementById("dataQualityList");
   const exportButton = document.getElementById("dataQualityCsvButton");
+
+  updateDataQualityTabBadge(summary);
 
   if (exportButton) {
     exportButton.disabled = filteredIssues.length === 0;
