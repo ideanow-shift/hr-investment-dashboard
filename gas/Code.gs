@@ -328,16 +328,15 @@ function validateSupabaseStudentPayload_(params, currentStudentId, cohort) {
   const duplicateId = findDuplicateSupabaseStudentId_(
     sanitizeText(params.name),
     sanitizeText(params.school),
-    currentStudentId,
-    cohort
+    currentStudentId
   );
   if (duplicateId) {
     throw new Error(`同じ氏名・学校名の学生が既にいます: ${duplicateId}`);
   }
 }
 
-function findDuplicateSupabaseStudentId_(name, school, currentStudentId, cohort) {
-  const rows = getSupabaseRows_("talent_students", `cohort=eq.${encodeURIComponent(cohort)}&management_status=eq.${encodeURIComponent("有効")}`);
+function findDuplicateSupabaseStudentId_(name, school, currentStudentId) {
+  const rows = getSupabaseRows_("talent_students", `management_status=eq.${encodeURIComponent("有効")}`);
   const normalizedName = normalizeForDuplicateCheck(name);
   const normalizedSchool = normalizeForDuplicateCheck(school);
 
@@ -349,7 +348,7 @@ function findDuplicateSupabaseStudentId_(name, school, currentStudentId, cohort)
     const rowName = normalizeForDuplicateCheck(row.full_name);
     const rowSchool = normalizeForDuplicateCheck(row.school_name_snapshot);
     if (rowName === normalizedName && rowSchool === normalizedSchool) {
-      return studentId;
+      return studentId + (row.cohort ? `（${row.cohort}）` : "");
     }
   }
 

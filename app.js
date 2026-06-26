@@ -1963,11 +1963,12 @@ function getStudentFormPayload(form) {
 
 function getStudentValidationErrors(payload, mode) {
   const errors = [];
-  const students = getActiveStudents();
+  const students = getAllActiveStudentsForDuplicateCheck();
   const normalizedName = payload.name.replace(/\s+/g, "");
   const normalizedSchool = payload.school.replace(/\s+/g, "");
   const duplicate = students.find((student) => {
     if (mode !== "add" && student.studentId === payload.studentId) return false;
+    if (student.managementStatus === "管理対象外") return false;
     return student.name.replace(/\s+/g, "") === normalizedName
       && student.school.replace(/\s+/g, "") === normalizedSchool;
   });
@@ -1991,6 +1992,19 @@ function getStudentValidationErrors(payload, mode) {
   }
 
   return errors;
+}
+
+function getAllActiveStudentsForDuplicateCheck() {
+  const byId = new Map();
+  const allCohortStudents = studentCohorts.flatMap((cohort) => cohort.students || []);
+  const source = allCohortStudents.length ? allCohortStudents : studentData;
+
+  source.forEach((student) => {
+    const key = student.studentId || `${student.name}__${student.school}__${student.cohort || ""}`;
+    if (!byId.has(key)) byId.set(key, student);
+  });
+
+  return Array.from(byId.values()).filter((student) => student.managementStatus !== "管理対象外");
 }
 
 function renderStudentFollowupSection(student) {

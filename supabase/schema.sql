@@ -165,11 +165,11 @@ create table if not exists public.talent_students (
 
 -- 有効な学生について、同一卒業区分・学校・氏名の重複を抑止する
 -- school_idが未設定の移行初期は school_name_snapshot で判定する
-create unique index if not exists talent_students_unique_active_name_school_cohort
+-- 同一学生の複数リスト登録を防ぐため、cohortをまたいで有効学生を一意にする
+create unique index if not exists talent_students_unique_active_name_school
   on public.talent_students (
     regexp_replace(full_name, '\s+', '', 'g'),
-    coalesce(school_id::text, regexp_replace(coalesce(school_name_snapshot, ''), '\s+', '', 'g')),
-    cohort
+    coalesce(school_id::text, regexp_replace(coalesce(school_name_snapshot, ''), '\s+', '', 'g'))
   )
   where management_status = '有効';
 
