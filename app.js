@@ -1270,6 +1270,79 @@ function setupSchoolCsvExport(count) {
   button.onclick = downloadSchoolCsv;
 }
 
+function downloadMonthlyReportCsv() {
+  const metrics = buildMetrics();
+  const rankedFairs = getRankedFairs();
+  const rankedSchools = getRankedSchools();
+  const managedStudents = getManagedStudents();
+  const summary = buildStudentSummary(managedStudents);
+  const actions = getRecommendedActions();
+  const reportDate = new Date().toISOString().slice(0, 10);
+  const rows = [
+    ["基本情報", "アプリ名", dashboardConfig.appName, "月次確認用レポート"],
+    ["基本情報", "年度", dashboardConfig.fiscalYear || "", "年度設定"],
+    ["基本情報", "出力日", reportDate, ""],
+    ["KPI", "採用目標人数", metrics.targetHires, "名"],
+    ["KPI", "現在の内定数", metrics.currentOffers, "名"],
+    ["KPI", "採用目標達成率", percent(metrics.achievementRate), "現在内定数 / 採用目標人数"],
+    ["KPI", "接触人数目標", metrics.targetContacts, "名"],
+    ["KPI", "接触学生数", metrics.contacts, "名"],
+    ["KPI", "接触達成率", percent(metrics.contactAchievementRate), "接触学生数 / 接触人数目標"],
+    ["KPI", "面接成約目標", metrics.targetInterviews, "件"],
+    ["KPI", "面接数", metrics.interviews, "件"],
+    ["KPI", "面接成約達成率", percent(metrics.interviewAchievementRate), "面接数 / 面接成約目標"],
+    ["KPI", "採用予算", metrics.hiringBudget, "円"],
+    ["KPI", "使用済み予算", metrics.spentBudget, "円"],
+    ["KPI", "予算消化率", percent(safeDivide(metrics.spentBudget, metrics.hiringBudget)), "使用済み予算 / 採用予算"],
+    ["KPI", "1人あたり採用投資額", Math.round(metrics.costPerOffer || 0), "円"],
+    ["学生フォロー", "管理対象学生", managedStudents.length, "名"],
+    ["学生フォロー", "要フォロー", summary.needsFollowUp, "名"],
+    ["学生フォロー", "未完了フォロー", summary.openFollowups, "件"],
+    ["学生フォロー", "期限超過", summary.overdueFollowups, "件"],
+    ["学生フォロー", "今日対応", summary.todayFollowups, "件"],
+    ["学生フォロー", "近日対応", summary.soonFollowups, "件"],
+    ["学生フォロー", "見学予定者", summary.salonTourScheduled, "名"],
+    ["学生フォロー", "面接予定者", summary.interviewScheduled, "名"],
+    ["学生フォロー", "内定者", summary.offered, "名"],
+    ["学生フォロー", "入社予定者", summary.expectedJoiners, "名"]
+  ];
+
+  rankedFairs.slice(0, 8).forEach((fair, index) => {
+    rows.push([
+      "フェア投資判断",
+      `${index + 1}. ${fair.name}`,
+      `${fair.rank.rank} / ${fair.rank.label}`,
+      `見学率 ${percent(fair.tourRate)}・接触単価 ${Math.round(fair.contactCost || 0)}円`
+    ]);
+  });
+
+  rankedSchools.slice(0, 10).forEach((school, index) => {
+    const promise = getSchoolPromise(school);
+    rows.push([
+      "学校別投資効果",
+      `${index + 1}. ${school.displayName || school.name}`,
+      `${promise.label} / ${promise.score}`,
+      `接触 ${school.contacts}名・見学 ${school.salonTours}名・内定 ${school.offers}名`
+    ]);
+  });
+
+  actions.forEach((action, index) => {
+    rows.push(["次に取るべき行動", `${index + 1}. ${action.title}`, action.body, "ルールベース提案"]);
+  });
+
+  downloadCsvFile(
+    `nov-talent-monthly-report-${reportDate}.csv`,
+    ["区分", "項目", "値", "補足"],
+    rows
+  );
+}
+
+function setupMonthlyReportExport() {
+  const button = document.getElementById("monthlyReportCsvButton");
+  if (!button) return;
+  button.addEventListener("click", downloadMonthlyReportCsv);
+}
+
 function renderSchoolDetail(school) {
   const detail = document.getElementById("schoolDetail");
 
@@ -1461,7 +1534,7 @@ function setupSchoolModal() {
   }
 }
 
-function generateActionCards() {
+function getRecommendedActions() {
   const fairInsights = fairData.map((fair) => {
     const tourRate = safeDivide(fair.salonTours, fair.contacts);
     const lineRate = safeDivide(fair.lineRegistrations, fair.contacts);
@@ -1473,7 +1546,7 @@ function generateActionCards() {
   const costlyLowResult = [...fairInsights].sort((a, b) => b.cost - a.cost).find((fair) => fair.salonTours === 0 || fair.rank.rank === "C" || fair.rank.rank === "D");
   const topSchool = [...schoolData].sort((a, b) => getSchoolPromise(b).score - getSchoolPromise(a).score)[0];
 
-  const actions = [
+  return [
     highLineLowTour && {
       title: "見学誘導メッセージを改善",
       body: `${highLineLowTour.name}はLINE登録率が${percent(highLineLowTour.lineRate)}と高い一方、見学率が${percent(highLineLowTour.tourRate)}です。登録直後のサロン見学案内を強化してください。`
@@ -1491,6 +1564,10 @@ function generateActionCards() {
       body: `${costlyLowResult.name}は費用が${formatCurrency.format(costlyLowResult.cost)}で、見学取得が伸びていません。出展内容、声かけ導線、次回参加可否を見直してください。`
     }
   ].filter(Boolean);
+}
+
+function generateActionCards() {
+  const actions = getRecommendedActions();
 
   document.getElementById("actionCards").innerHTML = actions.map((action, index) => `
     <article class="action-card">
@@ -3233,6 +3310,7 @@ async function initDashboard() {
   setupSettingsModal();
   setupFairModal();
   setupSchoolModal();
+  setupMonthlyReportExport();
   setupDataRefresh();
   await refreshDashboardData();
 }
