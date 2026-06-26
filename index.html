@@ -35,6 +35,7 @@
       <button class="dashboard-tab" type="button" data-view="fair">フェア分析</button>
       <button class="dashboard-tab" type="button" data-view="school">学校分析</button>
       <button class="dashboard-tab" type="button" data-view="student">学生フォロー</button>
+      <button class="dashboard-tab" type="button" data-view="quality">データ品質</button>
       <button class="dashboard-tab" type="button" data-view="logs">操作履歴</button>
       <button class="dashboard-tab" type="button" data-view="guide">使い方</button>
     </nav>
@@ -163,6 +164,21 @@
       </div>
     </section>
 
+    <section class="section-block dashboard-view view-hidden" data-view="quality" aria-labelledby="dataQualityTitle">
+      <div class="section-heading">
+        <div>
+          <p class="section-kicker">Data Quality Check</p>
+          <h2 id="dataQualityTitle">データ品質チェック</h2>
+        </div>
+        <div class="section-actions">
+          <p class="section-note">重複・未入力・ステータス矛盾を確認し、月次前のデータ整備に使います。</p>
+          <button id="dataQualityCsvButton" class="csv-export-button" type="button">CSV出力<span>0</span></button>
+        </div>
+      </div>
+      <div id="dataQualitySummary" class="operation-log-summary"></div>
+      <div id="dataQualityList" class="quality-list"></div>
+    </section>
+
     <section class="section-block dashboard-view view-hidden" data-view="logs" aria-labelledby="operationLogTitle">
       <div class="section-heading">
         <div>
@@ -192,6 +208,7 @@
             <li>学生の追加・更新は「学生フォロー」画面から行う。</li>
             <li>学生管理のステータスはフォームのプルダウンから選ぶ。</li>
             <li>ダッシュボード保存時に、重複とステータス矛盾を自動チェックする。</li>
+            <li>月次前に「データ品質」で未入力・矛盾・重複を確認する。</li>
             <li>学生データは削除せず、対象外にする場合は管理状態を「管理対象外」にする。</li>
             <li>保存はNOV HUBから開いた状態で行う。直開きでは保存できない。</li>
             <li>保存後はSupabaseに反映され、操作履歴にも自動記録される。</li>
@@ -203,6 +220,7 @@
           <h3>毎週見るところ</h3>
           <ul>
             <li>学生フォローの「要フォロー」を確認する。</li>
+            <li>データ品質で「要修正」が残っていないか確認する。</li>
             <li>期限フィルタで「期限超過」「今日対応」「近日対応」を優先確認する。</li>
             <li>必要に応じて、表示中の学生一覧をCSV出力して確認用に共有する。</li>
             <li>見学予定、面接予定、内定者の次アクション日を更新する。</li>
@@ -352,6 +370,6 @@
     </section>
   </div>
 
-  <script src="app.js?v=20260626-monthly-report"></script>
+  <script src="app.js?v=20260626-data-quality"></script>
 </body>
 </html>

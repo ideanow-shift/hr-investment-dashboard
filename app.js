@@ -2533,6 +2533,169 @@ function setupStudentCsvExport(count) {
   button.onclick = downloadStudentCsv;
 }
 
+function getStudentQualityIssues() {
+  const students = getActiveStudents();
+  const duplicateMap = students.reduce((map, student) => {
+    if (student.managementStatus === "管理対象外") return map;
+    const key = `${String(student.name || "").replace(/\s+/g, "")}__${String(student.school || "").replace(/\s+/g, "")}`;
+    if (!student.name || !student.school) return map;
+    map.set(key, [...(map.get(key) || []), student]);
+    return map;
+  }, new Map());
+
+  const issues = [];
+  students.forEach((student) => {
+    const isInactive = student.managementStatus === "管理対象外";
+    const base = {
+      studentId: student.studentId || "",
+      name: student.name || "氏名未入力",
+      school: student.school || "学校未入力",
+      cohort: student.cohort || getActiveCohortLabel(),
+      managementStatus: student.managementStatus || "有効"
+    };
+    const addIssue = (severity, type, detail, action) => {
+      issues.push({ ...base, severity, type, detail, action });
+    };
+
+    if (!student.name) addIssue("要修正", "必須項目未入力", "氏名が未入力です。", "学生詳細を開き、氏名を入力してください。");
+    if (!student.school) addIssue("要修正", "必須項目未入力", "学校名が未入力です。", "学校名を正式名称で入力してください。");
+    if (!student.source) addIssue("確認", "流入元未入力", "流入元が未入力です。", "フェア・学校訪問・紹介など、最初の接点を入力してください。");
+    if (!student.contactDate) addIssue("確認", "接触日未入力", "接触日が未入力です。", "初回接触日を入力してください。");
+    if (!student.gender || student.gender === "未回答") addIssue("確認", "性別未回答", "性別が未回答です。", "必要に応じて男性・女性・その他を選択してください。");
+    if (!student.owner) addIssue("確認", "担当者未入力", "担当者が未入力です。", "担当者を入力してください。");
+
+    const duplicateKey = `${String(student.name || "").replace(/\s+/g, "")}__${String(student.school || "").replace(/\s+/g, "")}`;
+    const duplicates = duplicateMap.get(duplicateKey) || [];
+    if (!isInactive && duplicates.length > 1) {
+      addIssue(
+        "要修正",
+        "重複候補",
+        `同じ氏名・学校名の学生が${duplicates.length}件あります。`,
+        `対象ID：${duplicates.map((item) => item.studentId).filter(Boolean).join(" / ")}`
+      );
+    }
+
+    if ((student.offerStatus === "内定" || student.offerStatus === "承諾") && student.interviewStatus !== "実施済") {
+      addIssue("要修正", "ステータス矛盾", "内定・承諾なのに面接が実施済ではありません。", "面接ステータスを確認してください。");
+    }
+    if ((student.expectedJoinStatus === "入社予定" || student.expectedJoinStatus === "入社済") && !["内定", "承諾"].includes(student.offerStatus)) {
+      addIssue("要修正", "ステータス矛盾", "入社予定・入社済なのに内定ステータスが未確定です。", "内定ステータスを確認してください。");
+    }
+    if (student.resultStatus === "不合格" && ["内定", "承諾"].includes(student.offerStatus)) {
+      addIssue("要修正", "ステータス矛盾", "不合格なのに内定・承諾になっています。", "選考結果か内定ステータスを修正してください。");
+    }
+    if ((student.salonTourStatus === "予定" || student.interviewStatus === "予定") && !student.nextActionDate) {
+      addIssue("要修正", "次アクション日未設定", "見学予定・面接予定なのに次アクション日が未設定です。", "次アクション日を入力してください。");
+    }
+    if (isInactive && hasOpenFollowup(student)) {
+      addIssue("注意", "管理対象外フォロー", "管理対象外ですが未完了フォローがあります。", "フォローを完了・不要にするか、管理状態を確認してください。");
+    }
+  });
+
+  return issues.sort((a, b) => {
+    const severityWeight = { "要修正": 0, "注意": 1, "確認": 2 };
+    return (severityWeight[a.severity] ?? 9) - (severityWeight[b.severity] ?? 9)
+      || a.type.localeCompare(b.type, "ja")
+      || a.name.localeCompare(b.name, "ja");
+  });
+}
+
+function getQualitySeverityClass(severity) {
+  if (severity === "要修正") return "quality-danger";
+  if (severity === "注意") return "quality-warning";
+  return "quality-check";
+}
+
+function renderDataQuality() {
+  const issues = getStudentQualityIssues();
+  const summary = issues.reduce((acc, issue) => {
+    acc[issue.severity] = (acc[issue.severity] || 0) + 1;
+    return acc;
+  }, {});
+  const summaryContainer = document.getElementById("dataQualitySummary");
+  const list = document.getElementById("dataQualityList");
+  const exportButton = document.getElementById("dataQualityCsvButton");
+
+  if (exportButton) {
+    exportButton.disabled = issues.length === 0;
+    const countLabel = exportButton.querySelector("span");
+    if (countLabel) countLabel.textContent = formatNumber.format(issues.length);
+    exportButton.onclick = downloadDataQualityCsv;
+  }
+
+  if (summaryContainer) {
+    summaryContainer.innerHTML = `
+      <div class="operation-log-summary-card ${issues.length ? "is-warning" : "is-linked"}">
+        <span>品質チェック件数</span>
+        <strong>${formatNumber.format(issues.length)}</strong>
+        <small>${escapeHtml(getActiveCohortLabel())} の確認対象</small>
+      </div>
+      <div class="operation-log-summary-card ${summary["要修正"] ? "is-warning" : "is-linked"}">
+        <span>要修正</span>
+        <strong>${formatNumber.format(summary["要修正"] || 0)}</strong>
+        <small>保存前に直したい項目</small>
+      </div>
+      <div class="operation-log-summary-card">
+        <span>注意</span>
+        <strong>${formatNumber.format(summary["注意"] || 0)}</strong>
+        <small>運用確認が必要</small>
+      </div>
+      <div class="operation-log-summary-card">
+        <span>確認</span>
+        <strong>${formatNumber.format(summary["確認"] || 0)}</strong>
+        <small>精度向上の補足項目</small>
+      </div>
+    `;
+  }
+
+  if (!list) return;
+  if (!issues.length) {
+    list.innerHTML = `
+      <div class="student-empty">
+        現在の学生区分では、重複・未入力・ステータス矛盾は見つかっていません。
+      </div>
+    `;
+    return;
+  }
+
+  list.innerHTML = issues.map((issue) => `
+    <article class="quality-card ${getQualitySeverityClass(issue.severity)}">
+      <div>
+        <span class="priority-pill ${issue.severity === "要修正" ? "priority-high" : issue.severity === "注意" ? "priority-middle" : "priority-low"}">${escapeHtml(issue.severity)}</span>
+        <h3>${escapeHtml(issue.type)}</h3>
+        <p>${escapeHtml(issue.detail)}</p>
+        <small>${escapeHtml(issue.action)}</small>
+      </div>
+      <div class="quality-card-meta">
+        <span>${escapeHtml(issue.studentId || "ID未取得")}</span>
+        <strong>${escapeHtml(issue.name)}</strong>
+        <small>${escapeHtml(issue.school)}</small>
+        <small>${escapeHtml(issue.managementStatus)}</small>
+      </div>
+    </article>
+  `).join("");
+}
+
+function downloadDataQualityCsv() {
+  const issues = getStudentQualityIssues();
+  if (!issues.length) return;
+  downloadCsvFile(
+    `nov-talent-data-quality-${getActiveCohortLabel()}-${new Date().toISOString().slice(0, 10)}.csv`,
+    ["重要度", "種類", "学生ID", "氏名", "学校名", "区分", "管理状態", "内容", "対応"],
+    issues.map((issue) => [
+      issue.severity,
+      issue.type,
+      issue.studentId,
+      issue.name,
+      issue.school,
+      issue.cohort,
+      issue.managementStatus,
+      issue.detail,
+      issue.action
+    ])
+  );
+}
+
 function renderStudentConditionChips(activeFilter, activeDueFilter) {
   const chips = [
     `区分：${getActiveCohortLabel()}`,
@@ -3092,6 +3255,7 @@ function renderDashboard(isConnected) {
   renderStudentSummary();
   renderStudentActions();
   renderStudentList();
+  renderDataQuality();
   renderOperationLogs();
 }
 
