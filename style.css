@@ -1387,6 +1387,36 @@ td {
 .quality-related-student small {
   color: var(--muted);
 }
+.quality-related-student.is-keep-candidate {
+  background: var(--green-soft);
+}
+
+.quality-related-student.is-remove-candidate {
+  background: #fff7ed;
+}
+
+.quality-related-student.is-review {
+  background: var(--surface-soft);
+}
+
+.quality-related-student.is-inactive {
+  opacity: 0.72;
+}
+
+.quality-related-audit-label {
+  justify-self: start;
+  border-radius: 999px;
+  background: #fff;
+  color: var(--text);
+  font-size: 12px;
+  font-weight: 700;
+  padding: 2px 8px;
+}
+
+.quality-related-note {
+  margin-top: 4px;
+  color: var(--muted);
+}
 
 .quality-edit-hint {
   margin-top: 6px;

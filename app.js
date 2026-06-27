@@ -2684,18 +2684,45 @@ function getStudentQualityIssues() {
   });
 }
 
+function getDuplicateStudentAuditScore(student) {
+  let score = 0;
+  if (["内定", "承諾"].includes(student.offerStatus)) score += 40;
+  if (["入社予定", "入社済"].includes(student.expectedJoinStatus)) score += 30;
+  if (student.managementStatus === "有効") score += 10;
+  if (student.cohort && !student.cohort.includes("サロン実習")) score += 5;
+  return score;
+}
+
+function getDuplicateStudentAuditLabel(student, bestScore) {
+  const score = getDuplicateStudentAuditScore(student);
+  if (student.managementStatus === "管理対象外") return { label: "対象外済", className: "is-inactive" };
+  if (score === bestScore && bestScore > 0) return { label: "残す候補", className: "is-keep-candidate" };
+  if (student.cohort && student.cohort.includes("サロン実習")) return { label: "対象外候補", className: "is-remove-candidate" };
+  return { label: "確認", className: "is-review" };
+}
+
 function renderQualityIssueExtra(issue) {
   if (!Array.isArray(issue.relatedStudents) || !issue.relatedStudents.length) return "";
+  const sortedStudents = [...issue.relatedStudents].sort((a, b) => {
+    return getDuplicateStudentAuditScore(b) - getDuplicateStudentAuditScore(a)
+      || String(a.studentId || "").localeCompare(String(b.studentId || ""), "ja");
+  });
+  const bestScore = sortedStudents.reduce((max, student) => Math.max(max, getDuplicateStudentAuditScore(student)), 0);
   return `
     <div class="quality-related-list" aria-label="関連する学生ID">
       <strong>関連する学生</strong>
-      ${issue.relatedStudents.map((student) => `
-        <button class="quality-related-student" type="button" data-quality-related-student-id="${escapeHtml(student.studentId)}">
+      ${sortedStudents.map((student) => {
+        const audit = getDuplicateStudentAuditLabel(student, bestScore);
+        return `
+        <button class="quality-related-student ${audit.className}" type="button" data-quality-related-student-id="${escapeHtml(student.studentId)}">
           <b>${escapeHtml(student.studentId)}</b>
           <em>${escapeHtml(student.cohort)}</em>
+          <span class="quality-related-audit-label">${escapeHtml(audit.label)}</span>
           <small>内定:${escapeHtml(student.offerStatus)} / 入社:${escapeHtml(student.expectedJoinStatus)} / ${escapeHtml(student.managementStatus)}</small>
         </button>
-      `).join("")}
+      `;
+      }).join("")}
+      <small class="quality-related-note">目安：内定・入社予定がある行を残し、サロン実習などの重複元を管理対象外にします。</small>
     </div>
   `;
 }
