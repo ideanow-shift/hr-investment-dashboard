@@ -2818,7 +2818,10 @@ function getQualitySeverityClass(severity) {
 
 function getDataQualitySummary(issues) {
   return issues.reduce((acc, issue) => {
+    const removeCandidateCount = getDataQualityRemoveCandidateRows([issue]).length;
     acc[issue.severity] = (acc[issue.severity] || 0) + 1;
+    if (issue.type === "重複候補") acc.duplicate = (acc.duplicate || 0) + 1;
+    if (removeCandidateCount) acc.removeCandidate = (acc.removeCandidate || 0) + removeCandidateCount;
     return acc;
   }, {});
 }
@@ -2828,12 +2831,16 @@ function getDataQualityFilters(summary, totalCount) {
     { key: "all", label: "すべて", count: totalCount },
     { key: "要修正", label: "要修正", count: summary["要修正"] || 0 },
     { key: "注意", label: "注意", count: summary["注意"] || 0 },
-    { key: "確認", label: "確認", count: summary["確認"] || 0 }
+    { key: "確認", label: "確認", count: summary["確認"] || 0 },
+    { key: "duplicate", label: "重複候補", count: summary.duplicate || 0 },
+    { key: "removeCandidate", label: "対象外候補あり", count: summary.removeCandidate || 0 }
   ];
 }
 
 function getFilteredDataQualityIssues(issues) {
   if (activeDataQualityFilter === "all") return issues;
+  if (activeDataQualityFilter === "duplicate") return issues.filter((issue) => issue.type === "重複候補");
+  if (activeDataQualityFilter === "removeCandidate") return issues.filter((issue) => getDataQualityRemoveCandidateRows([issue]).length > 0);
   return issues.filter((issue) => issue.severity === activeDataQualityFilter);
 }
 
