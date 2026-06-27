@@ -1970,6 +1970,17 @@ function normalizeForDuplicateCheck(value) {
     .toLowerCase()
     .trim();
 }
+
+function formatDuplicateStudentSummary(student) {
+  return [
+    student.studentId || "ID未取得",
+    student.name || "氏名未入力",
+    student.school || "学校未入力",
+    student.cohort || "区分未設定",
+    student.managementStatus || "管理状態未設定"
+  ].join(" / ");
+}
+
 function getStudentValidationErrors(payload, mode) {
   const errors = [];
   const students = getAllActiveStudentsForDuplicateCheck();
@@ -1984,8 +1995,8 @@ function getStudentValidationErrors(payload, mode) {
 
   if (!payload.name) errors.push("氏名を入力してください。");
   if (!payload.school) errors.push("学校名を入力してください。");
-  if (mode === "add" && duplicate) {
-    errors.push(`同じ氏名・学校名の学生が既にいます：${duplicate.studentId}`);
+  if (duplicate) {
+    errors.push(`同じ氏名・学校名の学生が既にいます：${formatDuplicateStudentSummary(duplicate)}`);
   }
   if ((payload.offerStatus === "内定" || payload.offerStatus === "承諾") && payload.interviewStatus !== "実施済") {
     errors.push("内定・承諾にする場合は、面接ステータスを「実施済」にしてください。");
