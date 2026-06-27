@@ -2948,9 +2948,23 @@ function downloadDataQualityCsv() {
   const issues = getFilteredDataQualityIssues(getStudentQualityIssues());
   if (!issues.length) return;
   const filterLabel = activeDataQualityFilter === "all" ? "all" : activeDataQualityFilter;
+  const formatRelatedStudentAudit = (issue) => {
+    if (!Array.isArray(issue.relatedStudents) || !issue.relatedStudents.length) return "";
+    const bestScore = issue.relatedStudents.reduce((max, student) => Math.max(max, getDuplicateStudentAuditScore(student)), 0);
+    return issue.relatedStudents.map((student) => {
+      const audit = getDuplicateStudentAuditLabel(student, bestScore);
+      const status = [
+        student.cohort || "区分未設定",
+        `内定:${student.offerStatus || "未定"}`,
+        `入社:${student.expectedJoinStatus || "未定"}`,
+        student.managementStatus || "管理状態未設定"
+      ].join(" / ");
+      return `${student.studentId || "ID未取得"}:${audit.label}（${status}）`;
+    }).join(" / ");
+  };
   downloadCsvFile(
     `nov-talent-data-quality-${getActiveCohortLabel()}-${filterLabel}-${new Date().toISOString().slice(0, 10)}.csv`,
-    ["重要度", "種類", "学生ID", "氏名", "学校名", "区分", "管理状態", "関連ID", "内容", "対応"],
+    ["重要度", "種類", "学生ID", "氏名", "学校名", "区分", "管理状態", "関連ID", "関連学生判断", "内容", "対応"],
     issues.map((issue) => [
       issue.severity,
       issue.type,
@@ -2960,6 +2974,7 @@ function downloadDataQualityCsv() {
       issue.cohort,
       issue.managementStatus,
       Array.isArray(issue.relatedStudents) ? issue.relatedStudents.map((student) => student.studentId).join(" / ") : "",
+      formatRelatedStudentAudit(issue),
       issue.detail,
       issue.action
     ])
