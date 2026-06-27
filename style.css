@@ -2320,6 +2320,27 @@ td {
   line-height: 1.6;
 }
 
+.operation-log-student-link {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: fit-content;
+  margin-top: 10px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: #fff;
+  color: var(--navy);
+  cursor: pointer;
+  font: inherit;
+  font-weight: 700;
+  padding: 7px 10px;
+}
+
+.operation-log-student-link:hover {
+  border-color: var(--accent);
+  background: var(--accent-soft);
+}
+
 .operation-log-meta {
   display: grid;
   gap: 5px;

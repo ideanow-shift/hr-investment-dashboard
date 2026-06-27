@@ -2027,6 +2027,34 @@ function getAllActiveStudentsForDuplicateCheck() {
   return Array.from(byId.values()).filter((student) => student.managementStatus !== "管理対象外");
 }
 
+function getAllStudentsForLookup() {
+  const byKey = new Map();
+  const allCohortStudents = studentCohorts.flatMap((cohort) => cohort.students || []);
+  const source = allCohortStudents.length ? allCohortStudents : studentData;
+
+  source.forEach((student) => {
+    const key = student.id || student.studentId || `${student.name}__${student.school}__${student.cohort || ""}`;
+    if (!byKey.has(key)) byKey.set(key, student);
+  });
+
+  return Array.from(byKey.values());
+}
+
+function findStudentByOperationLog(log) {
+  const candidates = [
+    log.studentId,
+    log.studentCode,
+    log.targetId,
+    log.recordId
+  ].filter(Boolean).map(String);
+  if (!candidates.length) return null;
+
+  return getAllStudentsForLookup().find((student) => {
+    return candidates.includes(String(student.id || ""))
+      || candidates.includes(String(student.studentId || ""));
+  }) || null;
+}
+
 function renderStudentFollowupSection(student) {
   const followups = Array.isArray(student.followups) ? student.followups : [];
   return `
@@ -3571,6 +3599,19 @@ function setupOperationLogExport() {
   button.addEventListener("click", downloadOperationLogCsv);
 }
 
+function setupOperationLogStudentLinks() {
+  document.querySelectorAll("[data-operation-log-student-id]").forEach((button) => {
+    button.addEventListener("click", (event) => {
+      event.stopPropagation();
+      const studentKey = button.dataset.operationLogStudentId;
+      const selectedStudent = getAllStudentsForLookup().find((student) => {
+        return String(student.id || "") === studentKey || String(student.studentId || "") === studentKey;
+      });
+      if (selectedStudent) openStudentModal(selectedStudent);
+    });
+  });
+}
+
 function getFilteredOperationLogs() {
   const filter = getOperationLogFilters().find((item) => item.key === activeOperationLogFilter) || getOperationLogFilters()[0];
   return operationLogs.filter(filter.predicate).filter(matchesOperationLogSearch);
@@ -3618,6 +3659,7 @@ function renderOperationLogs() {
     const tableClass = getOperationLogTableClass(log.tableName);
     const isDenied = log.result === "denied";
     const isInactiveChange = isManagementExcludedOperationLog(log);
+    const relatedStudent = findStudentByOperationLog(log);
     const actionClass = isDenied ? "is-danger" : (isInactiveChange ? "is-inactive" : getOperationLogActionClass(log.action));
     const actionLabel = isDenied ? "拒否" : (isInactiveChange ? "対象外" : (log.action || "操作"));
     return `
@@ -3633,6 +3675,7 @@ function renderOperationLogs() {
             </div>
             <p>${escapeHtml(log.detail || "詳細未記録")}</p>
             ${isDenied && log.reason ? `<p class="operation-log-reason">理由：${escapeHtml(log.reason)}</p>` : ""}
+            ${relatedStudent ? `<button class="operation-log-student-link" type="button" data-operation-log-student-id="${escapeHtml(relatedStudent.id || relatedStudent.studentId)}">学生詳細を開く</button>` : ""}
           </div>
         </div>
         <div class="operation-log-meta">
@@ -3648,6 +3691,7 @@ function renderOperationLogs() {
   setupOperationLogFilters();
   setupOperationLogSearch();
   setupOperationLogExport();
+  setupOperationLogStudentLinks();
 }
 
 function renderDashboard(isConnected) {
