@@ -1354,7 +1354,7 @@ td {
 
 .quality-related-student {
   display: grid;
-  grid-template-columns: auto auto minmax(0, 1fr);
+  grid-template-columns: minmax(0, 1fr) auto;
   gap: 8px;
   align-items: center;
   border: 0;
@@ -1369,6 +1369,41 @@ td {
 
 .quality-related-student:hover {
   background: var(--red-soft);
+}
+.quality-related-open {
+  display: grid;
+  grid-template-columns: auto auto auto minmax(0, 1fr);
+  gap: 8px;
+  align-items: center;
+  border: 0;
+  background: transparent;
+  color: inherit;
+  cursor: pointer;
+  font: inherit;
+  padding: 0;
+  text-align: left;
+}
+
+.quality-related-exclude {
+  align-self: center;
+  border: 1px solid rgba(220, 38, 38, 0.22);
+  border-radius: 999px;
+  background: #fff;
+  color: var(--danger);
+  cursor: pointer;
+  font: inherit;
+  font-size: 12px;
+  font-weight: 700;
+  padding: 5px 10px;
+}
+
+.quality-related-exclude:hover {
+  background: #fee2e2;
+}
+
+.quality-related-exclude:disabled {
+  cursor: not-allowed;
+  opacity: 0.55;
 }
 
 .quality-related-student b {
