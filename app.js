@@ -2650,6 +2650,8 @@ function getStudentQualityIssues() {
         {
           relatedStudents: duplicates.map((item) => ({
             studentId: item.studentId || "ID未取得",
+            name: item.name || "氏名未入力",
+            school: item.school || "学校未入力",
             cohort: item.cohort || getActiveCohortLabel(),
             offerStatus: item.offerStatus || "未定",
             expectedJoinStatus: item.expectedJoinStatus || "未定",
@@ -2892,6 +2894,8 @@ function renderDataQuality() {
   }
 
   if (summaryContainer) {
+    const duplicateIssueCount = issues.filter((issue) => issue.type === "重複候補").length;
+    const removeCandidateTotal = getDataQualityRemoveCandidateRows(issues).length;
     summaryContainer.innerHTML = `
       <div class="operation-log-summary-card ${issues.length ? "is-warning" : "is-linked"}">
         <span>品質チェック件数</span>
@@ -2912,6 +2916,16 @@ function renderDataQuality() {
         <span>確認</span>
         <strong>${formatNumber.format(summary["確認"] || 0)}</strong>
         <small>精度向上の補足項目</small>
+      </div>
+      <div class="operation-log-summary-card ${duplicateIssueCount ? "is-warning" : "is-linked"}">
+        <span>重複候補</span>
+        <strong>${formatNumber.format(duplicateIssueCount)}</strong>
+        <small>同姓同校の確認対象</small>
+      </div>
+      <div class="operation-log-summary-card ${removeCandidateTotal ? "is-warning" : "is-linked"}">
+        <span>対象外候補</span>
+        <strong>${formatNumber.format(removeCandidateTotal)}</strong>
+        <small>整理候補としてCSV出力可</small>
       </div>
     `;
   }
