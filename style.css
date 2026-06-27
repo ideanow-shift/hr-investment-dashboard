@@ -1899,6 +1899,49 @@ td {
   margin: 18px 0;
 }
 
+.student-operation-log-panel {
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  padding: 18px;
+  background: #fff;
+  margin: 18px 0;
+}
+
+.student-operation-log-list {
+  display: grid;
+  gap: 10px;
+  margin-top: 14px;
+}
+
+.student-operation-log-item {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: 10px;
+  align-items: start;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  background: var(--surface-soft);
+  padding: 12px;
+}
+
+.student-operation-log-item.is-denied {
+  border-left: 4px solid var(--danger);
+}
+
+.student-operation-log-item.is-inactive {
+  border-left: 4px solid var(--yellow);
+}
+
+.student-operation-log-item strong {
+  color: var(--text);
+}
+
+.student-operation-log-item p,
+.student-operation-log-item small {
+  color: var(--muted);
+  margin: 0;
+}
+
 .followup-list {
   display: grid;
   gap: 10px;

@@ -2055,6 +2055,73 @@ function findStudentByOperationLog(log) {
   }) || null;
 }
 
+function getOperationLogsForStudent(student) {
+  if (!student) return [];
+  const studentKeys = [
+    student.id,
+    student.studentId
+  ].filter(Boolean).map(String);
+
+  if (!studentKeys.length) return [];
+
+  return operationLogs
+    .filter((log) => {
+      const logKeys = [
+        log.studentId,
+        log.studentCode,
+        log.targetId,
+        log.recordId
+      ].filter(Boolean).map(String);
+      return logKeys.some((key) => studentKeys.includes(key));
+    })
+    .slice(0, 5);
+}
+
+function renderStudentOperationLogSection(student) {
+  const logs = getOperationLogsForStudent(student);
+  if (!logs.length) {
+    return `
+      <section class="student-operation-log-panel">
+        <div class="student-form-heading">
+          <div>
+            <h3>操作履歴</h3>
+            <p>この学生に紐づく操作履歴はまだ取得できていません。</p>
+          </div>
+        </div>
+      </section>
+    `;
+  }
+
+  return `
+    <section class="student-operation-log-panel">
+      <div class="student-form-heading">
+        <div>
+          <h3>操作履歴</h3>
+          <p>この学生に紐づく最近の操作を最大5件表示します。</p>
+        </div>
+      </div>
+      <div class="student-operation-log-list">
+        ${logs.map((log) => {
+          const isDenied = log.result === "denied";
+          const isInactiveChange = isManagementExcludedOperationLog(log);
+          const actionClass = isDenied ? "is-danger" : (isInactiveChange ? "is-inactive" : getOperationLogActionClass(log.action));
+          const actionLabel = isDenied ? "拒否" : (isInactiveChange ? "対象外" : (log.action || "操作"));
+          return `
+            <article class="student-operation-log-item ${isDenied ? "is-denied" : ""} ${isInactiveChange ? "is-inactive" : ""}">
+              <span class="operation-log-action ${actionClass}">${escapeHtml(actionLabel)}</span>
+              <div>
+                <strong>${escapeHtml(formatOperationLogDate(log.createdAt))}</strong>
+                <p>${escapeHtml(log.detail || "詳細未記録")}</p>
+                ${log.reason ? `<small>理由：${escapeHtml(log.reason)}</small>` : ""}
+              </div>
+            </article>
+          `;
+        }).join("")}
+      </div>
+    </section>
+  `;
+}
+
 function renderStudentFollowupSection(student) {
   const followups = Array.isArray(student.followups) ? student.followups : [];
   return `
@@ -3225,6 +3292,7 @@ function openStudentModal(student) {
       <span>メモ</span>
       <p>${escapeHtml(student.memo || "メモはまだありません。")}</p>
     </div>
+    ${renderStudentOperationLogSection(student)}
     ${renderStudentFollowupSection(student)}
     ${renderStudentForm(student, "update")}
   `;
