@@ -1,4 +1,4 @@
-﻿:root {
+:root {
   --bg: #ffffff;
   --surface: #ffffff;
   --surface-soft: #f9f9f9;
@@ -16,6 +16,7 @@
   --yellow-soft: #fff7ea;
   --red: #ff3b30;
   --red-soft: #fff1f0;
+  --danger: var(--red);
   --shadow: none;
 }
 
@@ -1336,6 +1337,46 @@ td {
 .quality-card-meta strong {
   font-size: 15px;
 }
+.quality-related-list {
+  display: grid;
+  gap: 6px;
+  margin-top: 10px;
+  border: 1px solid rgba(220, 38, 38, 0.18);
+  border-radius: 8px;
+  background: #fff;
+  padding: 10px;
+}
+
+.quality-related-list > strong {
+  color: var(--danger);
+  font-size: 13px;
+}
+
+.quality-related-list span {
+  display: grid;
+  grid-template-columns: auto auto minmax(0, 1fr);
+  gap: 8px;
+  align-items: center;
+  color: var(--text);
+  font-size: 13px;
+}
+
+.quality-related-list b {
+  font-weight: 700;
+}
+
+.quality-related-list em {
+  border-radius: 999px;
+  background: var(--accent-soft);
+  color: var(--accent);
+  font-size: 12px;
+  font-style: normal;
+  padding: 2px 8px;
+}
+
+.quality-related-list small {
+  color: var(--muted);
+}
 
 .quality-edit-hint {
   margin-top: 6px;
@@ -2278,3 +2319,4 @@ td {
 .hub-diagnostics.is-missing h3 {
   color: var(--danger);
 }
+

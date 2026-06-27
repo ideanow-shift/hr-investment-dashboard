@@ -2628,8 +2628,8 @@ function getStudentQualityIssues() {
       cohort: student.cohort || getActiveCohortLabel(),
       managementStatus: student.managementStatus || "有効"
     };
-    const addIssue = (severity, type, detail, action) => {
-      issues.push({ ...base, severity, type, detail, action });
+    const addIssue = (severity, type, detail, action, extra = {}) => {
+      issues.push({ ...base, ...extra, severity, type, detail, action });
     };
 
     if (!student.name) addIssue("要修正", "必須項目未入力", "氏名が未入力です。", "学生詳細を開き、氏名を入力してください。");
@@ -2646,7 +2646,16 @@ function getStudentQualityIssues() {
         "要修正",
         "重複候補",
         `同じ氏名・学校名の学生が${duplicates.length}件あります。`,
-        `対象ID：${duplicates.map((item) => item.studentId).filter(Boolean).join(" / ")}`
+        "残す1件を決め、他の行は学生詳細から管理状態を「管理対象外」にしてください。",
+        {
+          relatedStudents: duplicates.map((item) => ({
+            studentId: item.studentId || "ID未取得",
+            cohort: item.cohort || getActiveCohortLabel(),
+            offerStatus: item.offerStatus || "未定",
+            expectedJoinStatus: item.expectedJoinStatus || "未定",
+            managementStatus: item.managementStatus || "有効"
+          }))
+        }
       );
     }
 
@@ -2675,6 +2684,21 @@ function getStudentQualityIssues() {
   });
 }
 
+function renderQualityIssueExtra(issue) {
+  if (!Array.isArray(issue.relatedStudents) || !issue.relatedStudents.length) return "";
+  return `
+    <div class="quality-related-list" aria-label="関連する学生ID">
+      <strong>関連する学生</strong>
+      ${issue.relatedStudents.map((student) => `
+        <span>
+          <b>${escapeHtml(student.studentId)}</b>
+          <em>${escapeHtml(student.cohort)}</em>
+          <small>内定:${escapeHtml(student.offerStatus)} / 入社:${escapeHtml(student.expectedJoinStatus)} / ${escapeHtml(student.managementStatus)}</small>
+        </span>
+      `).join("")}
+    </div>
+  `;
+}
 function getQualitySeverityClass(severity) {
   if (severity === "要修正") return "quality-danger";
   if (severity === "注意") return "quality-warning";
@@ -2793,6 +2817,7 @@ function renderDataQuality() {
         <h3>${escapeHtml(issue.type)}</h3>
         <p>${escapeHtml(issue.detail)}</p>
         <small>${escapeHtml(issue.action)}</small>
+        ${renderQualityIssueExtra(issue)}
         <small class="quality-edit-hint">クリックして学生詳細を編集</small>
       </div>
       <div class="quality-card-meta">
@@ -2824,7 +2849,7 @@ function downloadDataQualityCsv() {
   const filterLabel = activeDataQualityFilter === "all" ? "all" : activeDataQualityFilter;
   downloadCsvFile(
     `nov-talent-data-quality-${getActiveCohortLabel()}-${filterLabel}-${new Date().toISOString().slice(0, 10)}.csv`,
-    ["重要度", "種類", "学生ID", "氏名", "学校名", "区分", "管理状態", "内容", "対応"],
+    ["重要度", "種類", "学生ID", "氏名", "学校名", "区分", "管理状態", "関連ID", "内容", "対応"],
     issues.map((issue) => [
       issue.severity,
       issue.type,
@@ -2833,6 +2858,7 @@ function downloadDataQualityCsv() {
       issue.school,
       issue.cohort,
       issue.managementStatus,
+      Array.isArray(issue.relatedStudents) ? issue.relatedStudents.map((student) => student.studentId).join(" / ") : "",
       issue.detail,
       issue.action
     ])
@@ -3634,3 +3660,4 @@ async function initDashboard() {
 }
 
 document.addEventListener("DOMContentLoaded", initDashboard);
+
