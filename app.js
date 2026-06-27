@@ -2690,11 +2690,11 @@ function renderQualityIssueExtra(issue) {
     <div class="quality-related-list" aria-label="関連する学生ID">
       <strong>関連する学生</strong>
       ${issue.relatedStudents.map((student) => `
-        <span>
+        <button class="quality-related-student" type="button" data-quality-related-student-id="${escapeHtml(student.studentId)}">
           <b>${escapeHtml(student.studentId)}</b>
           <em>${escapeHtml(student.cohort)}</em>
           <small>内定:${escapeHtml(student.offerStatus)} / 入社:${escapeHtml(student.expectedJoinStatus)} / ${escapeHtml(student.managementStatus)}</small>
-        </span>
+        </button>
       `).join("")}
     </div>
   `;
@@ -2838,6 +2838,13 @@ function renderDataQuality() {
     card.addEventListener("click", () => {
       const selectedStudent = getActiveStudents().find((student) => student.studentId === card.dataset.qualityStudentId);
       openStudentModal(selectedStudent);
+    });
+  });
+  list.querySelectorAll("[data-quality-related-student-id]").forEach((button) => {
+    button.addEventListener("click", (event) => {
+      event.stopPropagation();
+      const selectedStudent = getActiveStudents().find((student) => student.studentId === button.dataset.qualityRelatedStudentId);
+      if (selectedStudent) openStudentModal(selectedStudent);
     });
   });
   setupDataQualityFilters();

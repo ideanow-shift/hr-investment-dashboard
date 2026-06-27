@@ -1352,20 +1352,30 @@ td {
   font-size: 13px;
 }
 
-.quality-related-list span {
+.quality-related-student {
   display: grid;
   grid-template-columns: auto auto minmax(0, 1fr);
   gap: 8px;
   align-items: center;
+  border: 0;
+  border-radius: 6px;
+  background: transparent;
   color: var(--text);
-  font-size: 13px;
+  cursor: pointer;
+  font: inherit;
+  padding: 4px 6px;
+  text-align: left;
 }
 
-.quality-related-list b {
+.quality-related-student:hover {
+  background: var(--red-soft);
+}
+
+.quality-related-student b {
   font-weight: 700;
 }
 
-.quality-related-list em {
+.quality-related-student em {
   border-radius: 999px;
   background: var(--accent-soft);
   color: var(--accent);
@@ -1374,7 +1384,7 @@ td {
   padding: 2px 8px;
 }
 
-.quality-related-list small {
+.quality-related-student small {
   color: var(--muted);
 }
 
