@@ -3153,28 +3153,29 @@ function renderOperationLogSummary() {
 
   const linkedCount = operationLogs.filter((log) => log.actorEmployeeId).length;
   const missingCount = operationLogs.length - linkedCount;
+  const inactiveCount = operationLogs.filter(isManagementExcludedOperationLog).length;
+  const deniedCount = operationLogs.filter((log) => log.result === "denied").length;
   updateOperationLogTabBadge(missingCount);
-  const latestLog = operationLogs[0];
   summary.innerHTML = `
     <div class="operation-log-summary-card">
       <span>直近履歴</span>
       <strong>${formatNumber.format(operationLogs.length)}</strong>
       <small>最大30件を表示</small>
     </div>
-    <div class="operation-log-summary-card is-linked">
-      <span>HUB社員IDあり</span>
-      <strong>${formatNumber.format(linkedCount)}</strong>
-      <small>HUB経由の保存確認</small>
+    <div class="operation-log-summary-card ${inactiveCount ? "is-warning" : "is-linked"}">
+      <span>管理対象外化</span>
+      <strong>${formatNumber.format(inactiveCount)}</strong>
+      <small>重複整理・対象外処理</small>
+    </div>
+    <div class="operation-log-summary-card ${deniedCount ? "is-danger" : "is-linked"}">
+      <span>拒否ログ</span>
+      <strong>${formatNumber.format(deniedCount)}</strong>
+      <small>${deniedCount ? "権限・入力エラーを確認" : "拒否なし"}</small>
     </div>
     <div class="operation-log-summary-card ${missingCount ? "is-warning" : "is-linked"}">
       <span>HUB社員IDなし</span>
       <strong>${formatNumber.format(missingCount)}</strong>
       <small>${missingCount ? "直開き・検証保存の可能性" : "問題なし"}</small>
-    </div>
-    <div class="operation-log-summary-card">
-      <span>最新操作</span>
-      <strong>${escapeHtml(latestLog?.action || "なし")}</strong>
-      <small>${escapeHtml(latestLog ? formatOperationLogDate(latestLog.createdAt) : "履歴未取得")}</small>
     </div>
   `;
 }
@@ -3190,6 +3191,8 @@ function updateOperationLogTabBadge(missingCount) {
 function getOperationLogFilters() {
   return [
     { key: "all", label: "すべて", predicate: () => true },
+    { key: "inactive", label: "管理対象外化", predicate: isManagementExcludedOperationLog },
+    { key: "denied", label: "拒否", predicate: (log) => log.result === "denied" },
     { key: "linked", label: "HUB社員IDあり", predicate: (log) => Boolean(log.actorEmployeeId) },
     { key: "missing", label: "HUB社員IDなし", predicate: (log) => !log.actorEmployeeId }
   ];
@@ -3224,16 +3227,31 @@ function normalizeOperationLogSearchText(value) {
   return String(value || "").normalize("NFKC").toLowerCase().replace(/[\s\u3000\u200B-\u200D\uFEFF]+/g, "");
 }
 
+function isManagementExcludedOperationLog(log) {
+  const haystack = normalizeOperationLogSearchText([
+    log.action,
+    log.detail,
+    log.reason,
+    log.result
+  ].join(" "));
+  return haystack.includes(normalizeOperationLogSearchText("管理対象外"));
+}
+
 function getOperationLogSearchText(log) {
   return normalizeOperationLogSearchText([
     log.action,
+    log.result,
+    log.reason,
     log.tableName,
     getOperationLogTableLabel(log.tableName),
+    log.targetType,
+    log.targetId,
     log.recordId,
     log.studentId,
     log.studentCode,
     log.studentName,
     log.actorEmployeeId,
+    log.actorEmail,
     log.actorName,
     log.detail,
     log.createdAt,
@@ -3307,18 +3325,22 @@ function downloadOperationLogCsv() {
   const rows = getFilteredOperationLogs();
   if (!rows.length) return;
 
-  const headers = ["日時", "操作", "対象種別", "対象", "詳細", "操作社員名", "Core社員UUID", "学生ID"];
+  const headers = ["日時", "操作", "結果", "対象種別", "対象", "詳細", "拒否理由", "操作社員名", "操作社員メール", "Core社員UUID", "学生ID", "対象ID"];
   const csvRows = [
     headers.map(escapeCsvCell).join(","),
     ...rows.map((log) => [
       formatOperationLogDate(log.createdAt),
       log.action || "",
+      log.result || "",
       getOperationLogTableLabel(log.tableName),
       log.studentName || log.studentCode || log.recordId || "",
       log.detail || "",
+      log.reason || "",
       log.actorName || "",
+      log.actorEmail || "",
       log.actorEmployeeId || "",
-      log.studentCode || ""
+      log.studentCode || "",
+      log.targetId || log.recordId || ""
     ].map(escapeCsvCell).join(","))
   ];
 
@@ -3394,15 +3416,19 @@ function renderOperationLogs() {
     const tableLabel = getOperationLogTableLabel(log.tableName);
     const tableClass = getOperationLogTableClass(log.tableName);
     const isDenied = log.result === "denied";
-    const actionClass = isDenied ? "is-danger" : getOperationLogActionClass(log.action);
+    const isInactiveChange = isManagementExcludedOperationLog(log);
+    const actionClass = isDenied ? "is-danger" : (isInactiveChange ? "is-inactive" : getOperationLogActionClass(log.action));
+    const actionLabel = isDenied ? "拒否" : (isInactiveChange ? "対象外" : (log.action || "操作"));
     return `
-      <article class="operation-log-card">
+      <article class="operation-log-card ${isDenied ? "is-denied" : ""} ${isInactiveChange ? "is-inactive" : ""}">
         <div class="operation-log-main">
-          <span class="operation-log-action ${actionClass}">${escapeHtml(isDenied ? "拒否" : (log.action || "操作"))}</span>
+          <span class="operation-log-action ${actionClass}">${escapeHtml(actionLabel)}</span>
           <div>
             <div class="operation-log-title-row">
               <h3>${escapeHtml(targetName)}</h3>
               <span class="operation-log-target ${tableClass}">${escapeHtml(tableLabel)}</span>
+              ${isInactiveChange ? `<span class="operation-log-target is-inactive">管理対象外化</span>` : ""}
+              ${isDenied ? `<span class="operation-log-target is-denied">保存拒否</span>` : ""}
             </div>
             <p>${escapeHtml(log.detail || "詳細未記録")}</p>
             ${isDenied && log.reason ? `<p class="operation-log-reason">理由：${escapeHtml(log.reason)}</p>` : ""}

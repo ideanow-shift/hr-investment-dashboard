@@ -2125,6 +2125,11 @@ td {
   border-left: 4px solid var(--yellow);
 }
 
+.operation-log-summary-card.is-danger {
+  border-left: 4px solid var(--danger);
+}
+
+
 .operation-log-card {
   display: grid;
   grid-template-columns: 1fr minmax(220px, 280px);
@@ -2175,6 +2180,12 @@ td {
   background: #fee2e2;
   color: #b91c1c;
 }
+
+.operation-log-action.is-inactive {
+  background: #fef3c7;
+  color: #92400e;
+}
+
 
 .operation-log-reason {
   display: inline-block;
@@ -2330,3 +2341,21 @@ td {
   color: var(--danger);
 }
 
+
+.operation-log-card.is-denied {
+  border-left: 4px solid var(--danger);
+}
+
+.operation-log-card.is-inactive {
+  border-left: 4px solid var(--yellow);
+}
+
+.operation-log-target.is-inactive {
+  background: #fef3c7;
+  color: #92400e;
+}
+
+.operation-log-target.is-denied {
+  background: #fee2e2;
+  color: #b91c1c;
+}
