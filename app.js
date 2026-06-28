@@ -216,7 +216,9 @@ let studentCohorts = [
 let activeStudentCohort = "standard";
 let activeStudentFilter = "all";
 let activeStudentDueFilter = "all";
+let activeStudentSort = "priority";
 let studentSearchQuery = "";
+let studentListVisibleCount = 50;
 let studentSummary = buildStudentSummary(studentData);
 let activeDataQualityFilter = "all";
 let operationLogs = [];
@@ -1617,6 +1619,7 @@ function renderStudentSummary() {
       activeStudentFilter = button.dataset.summaryFilter || "all";
       activeStudentDueFilter = button.dataset.summaryDue || "all";
       studentSearchQuery = "";
+      studentListVisibleCount = 50;
       renderStudentList();
       document.getElementById("studentList")?.scrollIntoView({ behavior: "smooth", block: "start" });
     });
@@ -1652,6 +1655,7 @@ function renderStudentCohortTabs() {
     button.addEventListener("click", () => {
       activeStudentCohort = button.dataset.studentCohort;
       studentData = getActiveStudents();
+      studentListVisibleCount = 50;
       renderStudentSummary();
       renderStudentActions();
       renderStudentList();
@@ -2593,6 +2597,7 @@ function renderStudentDueFilters(activeKey = activeStudentDueFilter) {
   filterWrap.querySelectorAll("[data-student-due-filter]").forEach((button) => {
     button.addEventListener("click", () => {
       activeStudentDueFilter = button.dataset.studentDueFilter;
+      studentListVisibleCount = 50;
       renderStudentList();
     });
   });
@@ -2615,9 +2620,20 @@ function renderStudentFilters(activeKey = activeStudentFilter) {
   filterWrap.querySelectorAll("[data-student-filter]").forEach((button) => {
     button.addEventListener("click", () => {
       activeStudentFilter = button.dataset.studentFilter;
+      studentListVisibleCount = 50;
       renderStudentList();
     });
   });
+}
+
+function getStudentSortOptions() {
+  return [
+    { key: "priority", label: "対応優先順" },
+    { key: "updated", label: "更新が新しい順" },
+    { key: "name", label: "氏名順" },
+    { key: "school", label: "学校名順" },
+    { key: "offer", label: "内定・入社予定順" }
+  ];
 }
 
 function normalizeStudentSearchText(value) {
@@ -2657,6 +2673,7 @@ function matchesStudentSearch(student) {
 function renderStudentSearchControls() {
   const input = document.getElementById("studentSearchInput");
   const resetButton = document.getElementById("studentFilterResetButton");
+  const sortSelect = document.getElementById("studentSortSelect");
   if (!input) return;
 
   if (document.activeElement !== input) {
@@ -2665,16 +2682,30 @@ function renderStudentSearchControls() {
 
   input.oninput = () => {
     studentSearchQuery = input.value;
+    studentListVisibleCount = 50;
     renderStudentList();
   };
 
+  if (sortSelect) {
+    sortSelect.innerHTML = getStudentSortOptions().map((option) => `
+      <option value="${escapeHtml(option.key)}" ${option.key === activeStudentSort ? "selected" : ""}>${escapeHtml(option.label)}</option>
+    `).join("");
+    sortSelect.onchange = () => {
+      activeStudentSort = sortSelect.value;
+      studentListVisibleCount = 50;
+      renderStudentList();
+    };
+  }
+
   if (resetButton) {
-    const hasCondition = activeStudentFilter !== "all" || activeStudentDueFilter !== "all" || Boolean(studentSearchQuery.trim());
+    const hasCondition = activeStudentFilter !== "all" || activeStudentDueFilter !== "all" || activeStudentSort !== "priority" || Boolean(studentSearchQuery.trim());
     resetButton.disabled = !hasCondition;
     resetButton.onclick = () => {
       activeStudentFilter = "all";
       activeStudentDueFilter = "all";
+      activeStudentSort = "priority";
       studentSearchQuery = "";
+      studentListVisibleCount = 50;
       renderStudentList();
       input.focus();
     };
@@ -2701,17 +2732,10 @@ function getFilteredStudentList(activeKey = activeStudentFilter) {
   return {
     activeFilter,
     activeDueFilter,
-    students: sourceStudents
-    .filter(activeFilter.predicate)
-    .filter(matchesStudentSearch)
-    .filter(activeDueFilter.predicate)
-    .sort((a, b) => {
-      const aAction = activeStudentFilter === "completedFollowup" ? (getCompletedFollowupAction(a) || getPrimaryStudentAction(a)) : getPrimaryStudentAction(a);
-      const bAction = activeStudentFilter === "completedFollowup" ? (getCompletedFollowupAction(b) || getPrimaryStudentAction(b)) : getPrimaryStudentAction(b);
-      const urgencyCompare = getActionSortWeight(aAction?.dueDate) - getActionSortWeight(bAction?.dueDate);
-      if (urgencyCompare !== 0) return urgencyCompare;
-      return getActionSortDate(aAction?.dueDate).localeCompare(getActionSortDate(bAction?.dueDate));
-    })
+    students: sortStudentsForList(sourceStudents
+      .filter(activeFilter.predicate)
+      .filter(matchesStudentSearch)
+      .filter(activeDueFilter.predicate))
   };
 }
 
@@ -3242,15 +3266,135 @@ function downloadDataQualityRemoveCandidateCsv() {
 }
 
 function renderStudentConditionChips(activeFilter, activeDueFilter) {
+  const activeSort = getStudentSortOptions().find((option) => option.key === activeStudentSort) || getStudentSortOptions()[0];
   const chips = [
     `区分：${getActiveCohortLabel()}`,
-    `状態：${activeFilter.label}`
+    `状態：${activeFilter.label}`,
+    `並び：${activeSort.label}`
   ];
   if (activeDueFilter.key !== "all") chips.push(`期限：${activeDueFilter.label}`);
   if (studentSearchQuery.trim()) chips.push(`検索：${studentSearchQuery.trim()}`);
 
   return `
     <span class="student-condition-summary">${chips.map((chip) => `<em>${escapeHtml(chip)}</em>`).join("")}</span>
+  `;
+}
+
+function getStudentSortDateValue(student) {
+  return student.updatedAt || student.updated_at || student.contactDate || "";
+}
+
+function getStudentOfferSortWeight(student) {
+  if (student.expectedJoinStatus === "入社予定") return 0;
+  if (student.offerStatus === "内定" || student.offerStatus === "承諾") return 1;
+  if (student.interviewStatus === "予定") return 2;
+  if (student.salonTourStatus === "予定") return 3;
+  return 4;
+}
+
+function sortStudentsForList(students) {
+  return students.sort((a, b) => {
+    if (activeStudentSort === "updated") {
+      const dateCompare = getStudentSortDateValue(b).localeCompare(getStudentSortDateValue(a));
+      if (dateCompare !== 0) return dateCompare;
+      return (a.name || "").localeCompare(b.name || "", "ja");
+    }
+
+    if (activeStudentSort === "name") {
+      return (a.name || "").localeCompare(b.name || "", "ja");
+    }
+
+    if (activeStudentSort === "school") {
+      const schoolCompare = (a.school || "").localeCompare(b.school || "", "ja");
+      if (schoolCompare !== 0) return schoolCompare;
+      return (a.name || "").localeCompare(b.name || "", "ja");
+    }
+
+    if (activeStudentSort === "offer") {
+      const offerCompare = getStudentOfferSortWeight(a) - getStudentOfferSortWeight(b);
+      if (offerCompare !== 0) return offerCompare;
+      return (a.name || "").localeCompare(b.name || "", "ja");
+    }
+
+    const aAction = activeStudentFilter === "completedFollowup" ? (getCompletedFollowupAction(a) || getPrimaryStudentAction(a)) : getPrimaryStudentAction(a);
+    const bAction = activeStudentFilter === "completedFollowup" ? (getCompletedFollowupAction(b) || getPrimaryStudentAction(b)) : getPrimaryStudentAction(b);
+    const urgencyCompare = getActionSortWeight(aAction?.dueDate) - getActionSortWeight(bAction?.dueDate);
+    if (urgencyCompare !== 0) return urgencyCompare;
+    const dateCompare = getActionSortDate(aAction?.dueDate).localeCompare(getActionSortDate(bAction?.dueDate));
+    if (dateCompare !== 0) return dateCompare;
+    return (a.name || "").localeCompare(b.name || "", "ja");
+  });
+}
+
+function renderStudentTableStatus(student) {
+  return `
+    <div class="student-table-status">
+      <span>LINE ${escapeHtml(student.lineStatus || "未設定")}</span>
+      <span>見学 ${escapeHtml(student.salonTourStatus || "未設定")}</span>
+      <span>面接 ${escapeHtml(student.interviewStatus || "未設定")}</span>
+      <span>内定 ${escapeHtml(student.offerStatus || "未定")}</span>
+    </div>
+  `;
+}
+
+function renderStudentListTable(students) {
+  const visibleStudents = students.slice(0, studentListVisibleCount);
+  const hasMore = students.length > visibleStudents.length;
+
+  return `
+    <div class="student-table-wrap">
+      <table class="student-table">
+        <thead>
+          <tr>
+            <th>学生</th>
+            <th>学校・接点</th>
+            <th>進捗</th>
+            <th>次アクション</th>
+            <th>担当</th>
+            <th>管理</th>
+          </tr>
+        </thead>
+        <tbody>
+          ${visibleStudents.map((student) => {
+            const priority = getStudentPriority(student);
+            const primaryAction = activeStudentFilter === "completedFollowup" ? (getCompletedFollowupAction(student) || getPrimaryStudentAction(student)) : getPrimaryStudentAction(student);
+            return `
+              <tr class="student-table-row ${getStudentUrgencyClass(primaryAction)}" data-student-id="${escapeHtml(student.studentId)}">
+                <td>
+                  <span class="priority-pill ${priority.className}">${escapeHtml(priority.label)}</span>
+                  <strong>${escapeHtml(student.name || "氏名未設定")}</strong>
+                  <small>${escapeHtml(student.studentId || "ID未取得")} / ${escapeHtml(student.grade || "学年未設定")} / ${escapeHtml(student.gender || "性別未設定")}</small>
+                </td>
+                <td>
+                  <strong>${escapeHtml(student.school || "学校未設定")}</strong>
+                  <small>${escapeHtml(student.source || "接点未設定")}</small>
+                </td>
+                <td>${renderStudentTableStatus(student)}</td>
+                <td>
+                  <span>${escapeHtml(primaryAction?.dueDate || "日程未設定")}</span>
+                  ${primaryAction ? renderActionBadge(primaryAction) : ""}
+                  <strong>${escapeHtml(primaryAction?.title || "次アクション未設定")}</strong>
+                  <small>${escapeHtml(primaryAction?.sourceLabel || "学生管理")}</small>
+                  ${primaryAction ? renderFollowupCompleteButton(primaryAction) : ""}
+                </td>
+                <td>${escapeHtml(student.owner || "未設定")}</td>
+                <td>${escapeHtml(student.managementStatus || "有効")}</td>
+              </tr>
+            `;
+          }).join("")}
+        </tbody>
+      </table>
+    </div>
+    ${hasMore ? `
+      <div class="student-list-more">
+        <span>${formatNumber.format(visibleStudents.length)} / ${formatNumber.format(students.length)}名を表示中</span>
+        <button class="detail-button compact" type="button" id="studentShowMoreButton">さらに50件表示</button>
+      </div>
+    ` : `
+      <div class="student-list-more">
+        <span>${formatNumber.format(students.length)}名を表示中</span>
+      </div>
+    `}
   `;
 }
 
@@ -3274,38 +3418,17 @@ function renderStudentList(activeKey = activeStudentFilter) {
     return;
   }
 
-  document.getElementById("studentList").innerHTML = students.map((student) => {
-    const priority = getStudentPriority(student);
-    const primaryAction = activeStudentFilter === "completedFollowup" ? (getCompletedFollowupAction(student) || getPrimaryStudentAction(student)) : getPrimaryStudentAction(student);
-
-    return `
-      <article class="student-card ${getStudentUrgencyClass(primaryAction)}" data-student-id="${escapeHtml(student.studentId)}">
-        <div class="student-card-main">
-          <div>
-            <span class="priority-pill ${priority.className}">${escapeHtml(priority.label)}</span>
-            <h3>${escapeHtml(student.name || "氏名未設定")}</h3>
-            <p>${escapeHtml(student.school || "学校未設定")} / ${escapeHtml(student.grade || "学年未設定")} / ${escapeHtml(student.gender || "性別未設定")}</p>
-          </div>
-          <div class="student-card-status">
-            <span>LINE：${escapeHtml(student.lineStatus || "未設定")}</span>
-            <span>見学：${escapeHtml(student.salonTourStatus || "未設定")}</span>
-            <span>面接：${escapeHtml(student.interviewStatus || "未設定")}</span>
-            <span>内定：${escapeHtml(student.offerStatus || "未定")}</span>
-            <span>管理：${escapeHtml(student.managementStatus || "有効")}</span>
-          </div>
-        </div>
-        <div class="student-next-action">
-          <span>${escapeHtml(primaryAction?.dueDate || "日付未設定")}</span>
-          ${primaryAction ? renderActionBadge(primaryAction) : ""}
-          <strong>${escapeHtml(primaryAction?.title || "次アクション未設定")}</strong>
-          <small>${escapeHtml(primaryAction?.sourceLabel || student.source || "接点未設定")} / 担当：${escapeHtml(student.owner || "未設定")}</small>
-          ${primaryAction ? renderFollowupCompleteButton(primaryAction) : ""}
-        </div>
-      </article>
-    `;
-  }).join("");
+  document.getElementById("studentList").innerHTML = renderStudentListTable(students);
 
   setupFollowupCompleteButtons(document.getElementById("studentList"));
+
+  const showMoreButton = document.getElementById("studentShowMoreButton");
+  if (showMoreButton) {
+    showMoreButton.addEventListener("click", () => {
+      studentListVisibleCount += 50;
+      renderStudentList();
+    });
+  }
 
   document.querySelectorAll("[data-student-id]").forEach((card) => {
     card.addEventListener("click", () => {
