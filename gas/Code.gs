@@ -93,7 +93,8 @@ function getSpreadsheetDashboardData() {
     students: students,
     studentCohorts: studentCohorts,
     operationLogs: [],
-    studentSummary: buildStudentSummary(students)
+    studentSummary: buildStudentSummary(students),
+    lstepSummary: getDefaultLstepSummary_("spreadsheet")
   };
 }
 
@@ -104,6 +105,7 @@ function getSupabaseDashboardData() {
   const students = getSupabaseRows_("talent_students", "order=cohort.asc,student_code.asc");
   const followups = getSupabaseRows_("talent_student_followups", "order=due_date.asc,created_at.desc");
   const operationLogs = getSupabaseOperationLogRows_();
+  const lstepSummary = getSupabaseLstepSummary_();
   const employeeMap = getSupabaseEmployeeMap_(collectSupabaseEmployeeIds_(students, followups, operationLogs));
 
   const convertedStudents = attachSupabaseFollowups_(
@@ -121,8 +123,72 @@ function getSupabaseDashboardData() {
     studentCohorts: studentCohorts,
     operationLogs: operationLogs.map((log) => convertSupabaseOperationLog_(log, employeeMap)),
     studentSummary: buildStudentSummary(convertedStudents),
+    lstepSummary: lstepSummary,
     dataSource: "supabase"
   };
+}
+
+function getDefaultLstepSummary_(source) {
+  return {
+    configured: false,
+    source: source || "",
+    linkedAccounts: 0,
+    activeAccounts: 0,
+    friendAccounts: 0,
+    blockedAccounts: 0,
+    unlinkedEvents: 0,
+    unprocessedEvents: 0,
+    recentMessages: 0,
+    lastSyncedAt: "",
+    status: "not_ready",
+    note: "LSTEP連携テーブルは未確認です。"
+  };
+}
+
+function getSupabaseLstepSummary_() {
+  try {
+    const accounts = getSupabaseRows_("talent_line_accounts", "order=updated_at.desc&limit=5000");
+    const events = getSupabaseRows_("talent_line_events", "order=occurred_at.desc&limit=2000");
+    const messages = getSupabaseRows_("talent_line_messages", "order=created_at.desc&limit=200");
+    const activeAccounts = accounts.filter(function(account) {
+      return account.is_active !== false;
+    });
+    const lastSyncedAt = activeAccounts.reduce(function(latest, account) {
+      const candidate = String(account.last_synced_at || account.updated_at || account.created_at || "");
+      if (!candidate) return latest;
+      if (!latest) return candidate;
+      return Date.parse(candidate) > Date.parse(latest) ? candidate : latest;
+    }, "");
+
+    return {
+      configured: true,
+      source: "supabase",
+      linkedAccounts: accounts.length,
+      activeAccounts: activeAccounts.length,
+      friendAccounts: activeAccounts.filter(function(account) {
+        return String(account.friend_status || "") === "friend";
+      }).length,
+      blockedAccounts: activeAccounts.filter(function(account) {
+        return String(account.friend_status || "") === "blocked";
+      }).length,
+      unlinkedEvents: events.filter(function(event) {
+        return !event.student_id && !event.line_account_id;
+      }).length,
+      unprocessedEvents: events.filter(function(event) {
+        return ["received", "failed"].indexOf(String(event.result || "")) !== -1;
+      }).length,
+      recentMessages: messages.length,
+      lastSyncedAt: lastSyncedAt,
+      status: activeAccounts.length ? "linked" : "ready",
+      note: activeAccounts.length
+        ? "LSTEP/LINEアカウントの紐付けデータがあります。"
+        : "LSTEP連携テーブルは作成済みです。次にCSV/API同期で紐付けを開始できます。"
+    };
+  } catch (error) {
+    const summary = getDefaultLstepSummary_("supabase");
+    summary.note = "LSTEP連携テーブルを確認できませんでした: " + error.message;
+    return summary;
+  }
 }
 
 function getSupabaseOperationLogs_() {

@@ -224,6 +224,7 @@ let activeDataQualityFilter = "all";
 let operationLogs = [];
 let activeOperationLogFilter = "all";
 let operationLogSearchQuery = "";
+let lstepSummary = buildDefaultLstepSummary();
 
 async function fetchDashboardData() {
   if (!GAS_API_URL) {
@@ -365,7 +366,46 @@ function applyDashboardData(data) {
     operationLogs = data.operationLogs.map(normalizeOperationLog);
   }
 
+  lstepSummary = normalizeLstepSummary(data.lstepSummary);
+
   studentSummary = buildStudentSummary(getActiveStudents());
+}
+
+function buildDefaultLstepSummary() {
+  return {
+    configured: false,
+    linkedAccounts: 0,
+    activeAccounts: 0,
+    friendAccounts: 0,
+    blockedAccounts: 0,
+    unlinkedEvents: 0,
+    unprocessedEvents: 0,
+    recentMessages: 0,
+    lastSyncedAt: "",
+    status: "not_ready",
+    note: "LSTEP連携は準備中です。"
+  };
+}
+
+function normalizeLstepSummary(summary) {
+  if (!summary || typeof summary !== "object") {
+    return buildDefaultLstepSummary();
+  }
+
+  return {
+    configured: Boolean(summary.configured),
+    source: String(summary.source || ""),
+    linkedAccounts: Number(summary.linkedAccounts) || 0,
+    activeAccounts: Number(summary.activeAccounts) || 0,
+    friendAccounts: Number(summary.friendAccounts) || 0,
+    blockedAccounts: Number(summary.blockedAccounts) || 0,
+    unlinkedEvents: Number(summary.unlinkedEvents) || 0,
+    unprocessedEvents: Number(summary.unprocessedEvents) || 0,
+    recentMessages: Number(summary.recentMessages) || 0,
+    lastSyncedAt: String(summary.lastSyncedAt || ""),
+    status: String(summary.status || "not_ready"),
+    note: String(summary.note || "")
+  };
 }
 
 function normalizeStudent(student) {
@@ -1624,6 +1664,50 @@ function renderStudentSummary() {
       document.getElementById("studentList")?.scrollIntoView({ behavior: "smooth", block: "start" });
     });
   });
+}
+
+function renderLstepIntegrationStatus() {
+  const container = document.getElementById("lstepIntegrationStatus");
+  if (!container) return;
+
+  const isReady = Boolean(lstepSummary.configured);
+  const statusClass = lstepSummary.status === "linked"
+    ? "is-linked"
+    : (isReady ? "is-ready" : "is-pending");
+  const statusLabel = lstepSummary.status === "linked"
+    ? "LSTEP紐付けあり"
+    : (isReady ? "LSTEP受け皿あり" : "LSTEP未確認");
+  const lastSyncedText = lstepSummary.lastSyncedAt
+    ? formatDate(lstepSummary.lastSyncedAt)
+    : "未同期";
+
+  const metrics = [
+    { label: "有効な紐付け", value: lstepSummary.activeAccounts, unit: "件" },
+    { label: "友だち", value: lstepSummary.friendAccounts, unit: "件" },
+    { label: "未紐付けイベント", value: lstepSummary.unlinkedEvents, unit: "件" },
+    { label: "未処理イベント", value: lstepSummary.unprocessedEvents, unit: "件" },
+    { label: "直近メッセージ", value: lstepSummary.recentMessages, unit: "件" },
+    { label: "最終同期", value: lastSyncedText, unit: "" }
+  ];
+
+  container.innerHTML = `
+    <div class="lstep-status-header">
+      <div>
+        <p class="section-kicker">LSTEP Integration</p>
+        <h3>LSTEP連携状況</h3>
+        <p>${escapeHtml(lstepSummary.note || "LSTEP連携の準備状況を確認します。")}</p>
+      </div>
+      <span class="lstep-status-pill ${statusClass}">${escapeHtml(statusLabel)}</span>
+    </div>
+    <div class="lstep-status-grid">
+      ${metrics.map((item) => `
+        <article class="lstep-status-card">
+          <span>${escapeHtml(item.label)}</span>
+          <strong>${typeof item.value === "number" ? formatNumber.format(item.value) : escapeHtml(item.value)}${item.unit ? `<small>${escapeHtml(item.unit)}</small>` : ""}</strong>
+        </article>
+      `).join("")}
+    </div>
+  `;
 }
 
 function updateStudentUrgentTabBadge(summary) {
@@ -3983,6 +4067,7 @@ function renderDashboard(isConnected) {
   renderStudentCohortTabs();
   renderStudentEditControls();
   renderStudentSummary();
+  renderLstepIntegrationStatus();
   renderStudentActions();
   renderStudentList();
   renderDataQuality();
