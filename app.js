@@ -1748,6 +1748,79 @@ function canWriteActionFromDashboard(action = "edit") {
   return roleKeys.some((roleKey) => requiredRoles.includes(roleKey));
 }
 
+function getTalentPermissionState() {
+  const employee = getHubCurrentEmployee();
+  const roleKeys = getHubRoleKeys().map((roleKey) => String(roleKey).trim()).filter(Boolean);
+
+  if (!employee) {
+    return {
+      label: "HUB未連携",
+      description: "NOV HUBから開くと保存操作と操作履歴の社員ID記録が有効になります。",
+      roleKeys,
+      canEdit: false,
+      canAdmin: false,
+      className: "is-missing"
+    };
+  }
+
+  const canAdmin = roleKeys.some((roleKey) => ["super_admin", "talent_admin"].includes(roleKey));
+  const canEdit = canAdmin || roleKeys.includes("talent_editor");
+  const isViewer = roleKeys.includes("talent_viewer");
+
+  if (canAdmin) {
+    return {
+      label: "管理者",
+      description: "年度目標・学生データの保存ができます。保存時はGAS側でもCore DB権限を確認します。",
+      roleKeys,
+      canEdit: true,
+      canAdmin: true,
+      className: "is-admin"
+    };
+  }
+
+  if (canEdit) {
+    return {
+      label: "編集者",
+      description: "学生データの追加・更新ができます。年度目標の保存は管理者権限が必要です。",
+      roleKeys,
+      canEdit: true,
+      canAdmin: false,
+      className: "is-editor"
+    };
+  }
+
+  if (isViewer) {
+    return {
+      label: "閲覧のみ",
+      description: "閲覧できます。保存操作には talent_editor 以上の権限が必要です。",
+      roleKeys,
+      canEdit: false,
+      canAdmin: false,
+      className: "is-viewer"
+    };
+  }
+
+  if (!roleKeys.length) {
+    return {
+      label: "権限未取得",
+      description: "HUBからroleKeysを受け取れていません。保存時にGAS側でCore DB権限を最終確認します。",
+      roleKeys,
+      canEdit: true,
+      canAdmin: false,
+      className: "is-pending"
+    };
+  }
+
+  return {
+    label: "権限不足",
+    description: "NOV Talentの編集権限がありません。Core DB側の employee_roles を確認してください。",
+    roleKeys,
+    canEdit: false,
+    canAdmin: false,
+    className: "is-denied"
+  };
+}
+
 function getWriteDisabledAttribute(extraDisabled = false, action = "edit") {
   if (extraDisabled) return "disabled";
   if (!canWriteFromDashboard()) {
@@ -3422,24 +3495,32 @@ function renderHubDiagnostics() {
   const operatorParams = getHubOperatorParams();
   const hasHubContext = Boolean(employee);
   const hasCoreEmployeeId = Boolean(operatorParams.operatorEmployeeId);
-  const canWrite = hasHubContext;
+  const permission = getTalentPermissionState();
   const displayName = employee?.displayName || employee?.name || employee?.fullName || employee?.employeeName || "未取得";
   const employeeNumber = operatorParams.operatorEmployeeCode || "未取得";
-  const employeeId = operatorParams.operatorEmployeeId || (canWrite ? "保存時にGASで照合" : "未取得");
+  const employeeId = operatorParams.operatorEmployeeId || (hasHubContext ? "保存時にGASで照合" : "未取得");
   const department = operatorParams.operatorDepartmentName || operatorParams.operatorPositionName || "未取得";
+  const roleKeysText = permission.roleKeys.length ? permission.roleKeys.join(", ") : "未取得";
+  const heading = !hasHubContext
+    ? "HUB未連携：保存できません"
+    : hasCoreEmployeeId
+      ? `HUB連携済み：${permission.label}`
+      : `HUB連携済み：${permission.label} / Core社員ID照合待ち`;
 
-  panel.className = `hub-diagnostics ${canWrite ? "is-connected" : "is-missing"}`;
+  panel.className = `hub-diagnostics ${permission.className}`;
   panel.innerHTML = `
     <div>
       <p class="section-kicker">HUB Context Check</p>
-      <h3>${canWrite ? (hasCoreEmployeeId ? "HUB連携済み：保存できます" : "HUB連携済み：保存時に社員IDを照合します") : "HUB未連携：保存できません"}</h3>
-      <p>${canWrite ? (hasCoreEmployeeId ? "この状態で保存すると、操作履歴にHUB社員IDが記録されます。" : "Core社員UUIDが未取得のため、GASが氏名・社員番号・メールから社員マスタを照合します。") : "NOV HUBから開き直すと保存ボタンが有効になります。"}</p>
+      <h3>${escapeHtml(heading)}</h3>
+      <p>${escapeHtml(permission.description)}</p>
     </div>
     <dl>
       <div><dt>氏名</dt><dd>${escapeHtml(displayName)}</dd></div>
       <div><dt>社員番号</dt><dd>${escapeHtml(employeeNumber)}</dd></div>
       <div><dt>所属/役職</dt><dd>${escapeHtml(department)}</dd></div>
       <div><dt>Core社員UUID</dt><dd>${escapeHtml(employeeId)}</dd></div>
+      <div><dt>NOV Talent権限</dt><dd>${escapeHtml(permission.label)}</dd></div>
+      <div><dt>Role Keys</dt><dd>${escapeHtml(roleKeysText)}</dd></div>
     </dl>
   `;
 }
@@ -3952,9 +4033,10 @@ function renderHubContextBadge() {
   const badge = document.getElementById("hubContextBadge");
   if (!badge) return;
   const employee = getHubCurrentEmployee();
+  const permission = getTalentPermissionState();
   if (!employee) {
     badge.hidden = false;
-    badge.classList.add("is-missing");
+    badge.className = "hub-context-badge is-missing";
     badge.innerHTML = `<span>HUB</span><strong>未連携</strong><small>HUBから開くと操作履歴に社員IDを記録</small>`;
     return;
   }
@@ -3962,8 +4044,8 @@ function renderHubContextBadge() {
   const displayName = employee.displayName || employee.name || employee.fullName || employee.employeeName || "ログイン中";
   const roleName = employee.roleName || employee.positionName || employee.position?.name || employee.departmentName || employee.department?.name || "HUB";
   badge.hidden = false;
-  badge.classList.remove("is-missing");
-  badge.innerHTML = `<span>HUB</span><strong>${escapeHtml(displayName)}</strong><small>${escapeHtml(roleName)}</small>`;
+  badge.className = `hub-context-badge ${permission.className}`;
+  badge.innerHTML = `<span>HUB / ${escapeHtml(permission.label)}</span><strong>${escapeHtml(displayName)}</strong><small>${escapeHtml(roleName)}</small>`;
 }
 
 function updateDataSourceStatus(isConnected) {

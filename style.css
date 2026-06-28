@@ -2087,6 +2087,44 @@ td {
   color: #9a3412;
 }
 
+.hub-context-badge.is-admin,
+.hub-context-badge.is-editor {
+  background: #ecfdf5;
+  border-color: #bbf7d0;
+}
+
+.hub-context-badge.is-admin strong,
+.hub-context-badge.is-editor strong {
+  color: #047857;
+}
+
+.hub-context-badge.is-viewer {
+  background: #eff6ff;
+  border-color: #bfdbfe;
+}
+
+.hub-context-badge.is-viewer strong {
+  color: #1d4ed8;
+}
+
+.hub-context-badge.is-pending {
+  background: #fffbeb;
+  border-color: #fde68a;
+}
+
+.hub-context-badge.is-pending strong {
+  color: #92400e;
+}
+
+.hub-context-badge.is-denied {
+  background: #fef2f2;
+  border-color: #fecaca;
+}
+
+.hub-context-badge.is-denied strong {
+  color: #b91c1c;
+}
+
 .operation-log-list {
   display: grid;
   gap: 12px;
@@ -2461,13 +2499,39 @@ td {
   border-left: 4px solid var(--green);
 }
 
+.hub-diagnostics.is-admin,
+.hub-diagnostics.is-editor {
+  border-left: 4px solid var(--green);
+  background: #f8fffb;
+}
+
+.hub-diagnostics.is-viewer {
+  border-left: 4px solid var(--accent);
+  background: #f8fbff;
+}
+
+.hub-diagnostics.is-pending {
+  border-left: 4px solid var(--yellow);
+  background: #fffbeb;
+}
+
+.hub-diagnostics.is-denied {
+  border-left: 4px solid var(--danger);
+  background: #fff1f2;
+}
+
 .hub-diagnostics.is-missing {
   border-left: 4px solid var(--danger);
   background: #fff1f2;
 }
 
-.hub-diagnostics.is-missing h3 {
+.hub-diagnostics.is-missing h3,
+.hub-diagnostics.is-denied h3 {
   color: var(--danger);
+}
+
+.hub-diagnostics.is-pending h3 {
+  color: #92400e;
 }
 
 
