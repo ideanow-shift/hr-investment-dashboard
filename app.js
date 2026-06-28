@@ -2661,6 +2661,9 @@ function getStudentFilters() {
     { key: "interview", label: "面接予定", predicate: (student) => student.interviewStatus === "予定" },
     { key: "offered", label: "内定", predicate: (student) => student.offerStatus === "内定" },
     { key: "expectedJoin", label: "入社予定", predicate: (student) => student.expectedJoinStatus === "入社予定" },
+    { key: "lstepUnlinked", label: "LSTEP未紐付け", predicate: (student) => !student.lineAccount || !student.lineAccount.id },
+    { key: "lstepFriend", label: "LSTEP友だち", predicate: (student) => student.lineAccount?.friendStatus === "friend" },
+    { key: "lstepBlocked", label: "LSTEPブロック", predicate: (student) => student.lineAccount?.friendStatus === "blocked" },
     { key: "inactive", label: "管理対象外", predicate: (student) => student.managementStatus === "管理対象外" },
     { key: "male", label: "男性", predicate: (student) => student.gender === "男性" },
     { key: "female", label: "女性", predicate: (student) => student.gender === "女性" }
@@ -2761,6 +2764,8 @@ function getStudentSearchText(student) {
     student.owner,
     student.nextAction,
     student.memo,
+    getStudentLstepStatus(student).label,
+    student.lineAccount?.displayName,
     followupText
   ].join(" "));
 }
@@ -2854,6 +2859,7 @@ function downloadStudentCsv() {
     "流入元",
     "接触日",
     "LINE登録",
+    "LSTEP状態",
     "見学",
     "面接",
     "選考結果",
@@ -2878,6 +2884,7 @@ function downloadStudentCsv() {
       student.source,
       student.contactDate,
       student.lineStatus,
+      getStudentLstepStatus(student).label,
       student.salonTourStatus,
       student.interviewStatus,
       student.resultStatus,
