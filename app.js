@@ -2910,6 +2910,42 @@ function downloadStudentCsv() {
   URL.revokeObjectURL(url);
 }
 
+function getLstepUnlinkedStudents() {
+  return getManagedStudents()
+    .filter((student) => !student.lineAccount || !student.lineAccount.id)
+    .sort((a, b) => {
+      const schoolCompare = (a.school || "").localeCompare(b.school || "", "ja");
+      if (schoolCompare !== 0) return schoolCompare;
+      return (a.name || "").localeCompare(b.name || "", "ja");
+    });
+}
+
+function downloadLstepUnlinkedStudentCsv() {
+  const students = getLstepUnlinkedStudents();
+  if (!students.length) return;
+
+  downloadCsvFile(
+    `nov-talent-lstep-unlinked-${getActiveCohortLabel()}-${new Date().toISOString().slice(0, 10)}.csv`,
+    ["学生ID", "区分", "氏名", "学校名", "学年", "性別", "流入元", "LINE登録", "内定", "入社予定", "担当者", "次アクション日", "次アクション", "メモ"],
+    students.map((student) => [
+      student.studentId,
+      student.cohort || getActiveCohortLabel(),
+      student.name,
+      student.school,
+      student.grade,
+      student.gender,
+      student.source,
+      student.lineStatus,
+      student.offerStatus,
+      student.expectedJoinStatus,
+      student.owner,
+      student.nextActionDate,
+      student.nextAction,
+      student.memo
+    ])
+  );
+}
+
 function setupStudentCsvExport(count) {
   const button = document.getElementById("studentCsvExportButton");
   if (!button) return;
@@ -2917,6 +2953,17 @@ function setupStudentCsvExport(count) {
   const countLabel = button.querySelector("span");
   if (countLabel) countLabel.textContent = formatNumber.format(count);
   button.onclick = downloadStudentCsv;
+}
+
+function setupLstepUnlinkedCsvExport() {
+  const button = document.getElementById("lstepUnlinkedCsvButton");
+  if (!button) return;
+
+  const count = getLstepUnlinkedStudents().length;
+  button.disabled = count === 0;
+  const countLabel = button.querySelector("span");
+  if (countLabel) countLabel.textContent = formatNumber.format(count);
+  button.onclick = downloadLstepUnlinkedStudentCsv;
 }
 
 function getStudentQualityIssues() {
@@ -3593,6 +3640,7 @@ function renderStudentList(activeKey = activeStudentFilter) {
     ${renderStudentConditionChips(activeFilter, activeDueFilter)}
   `;
   setupStudentCsvExport(students.length);
+  setupLstepUnlinkedCsvExport();
 
   if (students.length === 0) {
     document.getElementById("studentList").innerHTML = `
