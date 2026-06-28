@@ -3257,6 +3257,7 @@ function renderDataQuality() {
   const summaryContainer = document.getElementById("dataQualitySummary");
   const list = document.getElementById("dataQualityList");
   const exportButton = document.getElementById("dataQualityCsvButton");
+  const duplicateExportButton = document.getElementById("dataQualityDuplicateCsvButton");
   const removeCandidateExportButton = document.getElementById("dataQualityRemoveCandidateCsvButton");
 
   updateDataQualityTabBadge(summary);
@@ -3266,6 +3267,14 @@ function renderDataQuality() {
     const countLabel = exportButton.querySelector("span");
     if (countLabel) countLabel.textContent = formatNumber.format(filteredIssues.length);
     exportButton.onclick = downloadDataQualityCsv;
+  }
+
+  const duplicateRows = getDataQualityDuplicateCandidateRows(filteredIssues);
+  if (duplicateExportButton) {
+    duplicateExportButton.disabled = duplicateRows.length === 0;
+    const countLabel = duplicateExportButton.querySelector("span");
+    if (countLabel) countLabel.textContent = formatNumber.format(duplicateRows.length);
+    duplicateExportButton.onclick = downloadDataQualityDuplicateCandidateCsv;
   }
 
   if (removeCandidateExportButton) {
@@ -3358,8 +3367,37 @@ function renderDataQuality() {
   setupDataQualityFilters();
 }
 
+function getUniqueDuplicateGroups(issues) {
+  const groups = new Map();
+  issues
+    .filter((issue) => issue.type === "重複候補" && Array.isArray(issue.relatedStudents) && issue.relatedStudents.length > 1)
+    .forEach((issue) => {
+      const groupKey = issue.relatedStudents
+        .map((student) => student.studentId || `${student.name}-${student.school}-${student.cohort}`)
+        .sort()
+        .join("__");
+      if (!groups.has(groupKey)) groups.set(groupKey, issue);
+    });
+  return [...groups.values()];
+}
+
+function getDataQualityDuplicateCandidateRows(issues) {
+  return getUniqueDuplicateGroups(issues).flatMap((issue, groupIndex) => {
+    const sortedStudents = getSortedDuplicateRelatedStudents(issue);
+    const bestScore = getDuplicateIssueBestScore(issue);
+    const keepCandidates = sortedStudents
+      .filter((student) => getDuplicateStudentAuditLabel(student, bestScore).className === "is-keep-candidate")
+      .map((student) => student.studentId || "ID未取得");
+
+    return sortedStudents.map((student) => {
+      const audit = getDuplicateStudentAuditLabel(student, bestScore);
+      return { issue, student, audit, keepCandidates, groupNo: groupIndex + 1 };
+    });
+  });
+}
+
 function getDataQualityRemoveCandidateRows(issues) {
-  return issues.flatMap((issue) => {
+  return getUniqueDuplicateGroups(issues).flatMap((issue) => {
     const sortedStudents = getSortedDuplicateRelatedStudents(issue);
     if (!sortedStudents.length) return [];
     const bestScore = getDuplicateIssueBestScore(issue);
@@ -3410,6 +3448,31 @@ function downloadDataQualityCsv() {
       formatRelatedStudentAudit(issue),
       issue.detail,
       issue.action
+    ])
+  );
+}
+
+function downloadDataQualityDuplicateCandidateCsv() {
+  const issues = getFilteredDataQualityIssues(getStudentQualityIssues());
+  const rows = getDataQualityDuplicateCandidateRows(issues);
+  if (!rows.length) return;
+  const filterLabel = activeDataQualityFilter === "all" ? "all" : activeDataQualityFilter;
+  downloadCsvFile(
+    `nov-talent-duplicate-candidates-${getActiveCohortLabel()}-${filterLabel}-${new Date().toISOString().slice(0, 10)}.csv`,
+    ["重複グループ", "学生ID", "氏名", "学校名", "区分", "内定", "入社予定", "管理状態", "推奨判定", "残す候補ID", "内容", "推奨対応"],
+    rows.map(({ issue, student, audit, keepCandidates, groupNo }) => [
+      groupNo,
+      student.studentId || "",
+      student.name || "",
+      student.school || "",
+      student.cohort || "",
+      student.offerStatus || "",
+      student.expectedJoinStatus || "",
+      student.managementStatus || "",
+      audit.label,
+      keepCandidates.join(" / "),
+      issue.detail,
+      audit.className === "is-remove-candidate" ? "管理対象外候補。画面で内容確認後に対象外化" : "残す候補または確認対象"
     ])
   );
 }

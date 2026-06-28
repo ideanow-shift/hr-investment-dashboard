@@ -4,7 +4,7 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>NOV Talent</title>
-  <link rel="stylesheet" href="style.css?v=20260629-quality-type-filter">
+  <link rel="stylesheet" href="style.css?v=20260629-duplicate-csv">
 </head>
 <body>
   <header class="app-header">
@@ -177,6 +177,7 @@
         <div class="section-actions">
           <p class="section-note">重複・未入力・ステータス矛盾を確認し、月次前のデータ整備に使います。</p>
           <button id="dataQualityCsvButton" class="csv-export-button" type="button">CSV出力<span>0</span></button>
+          <button id="dataQualityDuplicateCsvButton" class="csv-export-button" type="button">重複候補CSV<span>0</span></button>
           <button id="dataQualityRemoveCandidateCsvButton" class="csv-export-button" type="button">対象外候補CSV<span>0</span></button>
         </div>
       </div>
@@ -394,7 +395,7 @@
     </section>
   </div>
 
-  <script src="app.js?v=20260629-quality-type-filter"></script>
+  <script src="app.js?v=20260629-duplicate-csv"></script>
 </body>
 </html>
 
