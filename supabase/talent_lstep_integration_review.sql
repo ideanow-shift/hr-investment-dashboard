@@ -53,6 +53,13 @@ create unique index if not exists talent_line_accounts_active_line_user_unique
   on public.talent_line_accounts (line_user_id)
   where is_active = true;
 
+alter table public.talent_line_accounts
+  drop constraint if exists talent_line_accounts_id_student_unique;
+
+alter table public.talent_line_accounts
+  add constraint talent_line_accounts_id_student_unique
+  unique (id, student_id);
+
 create index if not exists talent_line_accounts_lstep_user_id_idx
   on public.talent_line_accounts (lstep_user_id);
 
@@ -75,6 +82,11 @@ create table if not exists public.talent_line_events (
   line_account_id uuid references public.talent_line_accounts(id) on delete restrict,
   student_id uuid references public.talent_students(id) on delete restrict,
 
+  -- 未紐付けイベントを保存するための外部ID。
+  -- 学生と紐付いた後の正本は talent_line_accounts。
+  external_line_user_id text,
+  lstep_user_id text,
+
   event_source text not null default 'lstep',
   event_type text not null,
   event_payload jsonb not null default '{}'::jsonb,
@@ -88,11 +100,38 @@ create table if not exists public.talent_line_events (
   created_at timestamptz not null default now()
 );
 
+alter table public.talent_line_events
+  drop constraint if exists talent_line_events_account_student_match;
+
+alter table public.talent_line_events
+  add constraint talent_line_events_account_student_match
+  foreign key (line_account_id, student_id)
+  references public.talent_line_accounts(id, student_id)
+  on delete restrict;
+
+alter table public.talent_line_events
+  drop constraint if exists talent_line_events_target_required;
+
+alter table public.talent_line_events
+  add constraint talent_line_events_target_required
+  check (
+    line_account_id is not null
+    or student_id is not null
+    or external_line_user_id is not null
+    or lstep_user_id is not null
+  );
+
 create index if not exists talent_line_events_student_id_idx
   on public.talent_line_events (student_id);
 
 create index if not exists talent_line_events_account_id_idx
   on public.talent_line_events (line_account_id);
+
+create index if not exists talent_line_events_external_line_user_id_idx
+  on public.talent_line_events (external_line_user_id);
+
+create index if not exists talent_line_events_lstep_user_id_idx
+  on public.talent_line_events (lstep_user_id);
 
 create index if not exists talent_line_events_occurred_at_idx
   on public.talent_line_events (occurred_at desc);
@@ -109,6 +148,11 @@ create table if not exists public.talent_line_messages (
   line_account_id uuid references public.talent_line_accounts(id) on delete restrict,
   student_id uuid references public.talent_students(id) on delete restrict,
 
+  -- 未紐付けメッセージを保存するための外部ID。
+  -- 学生と紐付いた後の正本は talent_line_accounts。
+  external_line_user_id text,
+  lstep_user_id text,
+
   direction text not null check (direction in ('inbound', 'outbound')),
   message_type text not null default 'text',
   message_text text,
@@ -119,11 +163,38 @@ create table if not exists public.talent_line_messages (
   created_at timestamptz not null default now()
 );
 
+alter table public.talent_line_messages
+  drop constraint if exists talent_line_messages_account_student_match;
+
+alter table public.talent_line_messages
+  add constraint talent_line_messages_account_student_match
+  foreign key (line_account_id, student_id)
+  references public.talent_line_accounts(id, student_id)
+  on delete restrict;
+
+alter table public.talent_line_messages
+  drop constraint if exists talent_line_messages_target_required;
+
+alter table public.talent_line_messages
+  add constraint talent_line_messages_target_required
+  check (
+    line_account_id is not null
+    or student_id is not null
+    or external_line_user_id is not null
+    or lstep_user_id is not null
+  );
+
 create index if not exists talent_line_messages_student_id_idx
   on public.talent_line_messages (student_id);
 
 create index if not exists talent_line_messages_account_id_idx
   on public.talent_line_messages (line_account_id);
+
+create index if not exists talent_line_messages_external_line_user_id_idx
+  on public.talent_line_messages (external_line_user_id);
+
+create index if not exists talent_line_messages_lstep_user_id_idx
+  on public.talent_line_messages (lstep_user_id);
 
 create index if not exists talent_line_messages_created_at_idx
   on public.talent_line_messages (created_at desc);
