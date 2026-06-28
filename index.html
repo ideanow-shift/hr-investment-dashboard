@@ -4,7 +4,7 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>NOV Talent</title>
-  <link rel="stylesheet" href="style.css?v=20260628-lstep-unlinked-csv">
+  <link rel="stylesheet" href="style.css?v=20260628-lstep-guide">
 </head>
 <body>
   <header class="app-header">
@@ -284,6 +284,16 @@
           </ul>
         </article>
         <article class="guide-card">
+          <h3>LSTEP連携準備</h3>
+          <ul>
+            <li>学生フォロー画面で「LSTEP未紐付け」フィルターを確認する。</li>
+            <li>「LSTEP未紐付けCSV」を出力し、LSTEP側の友だち情報との照合に使う。</li>
+            <li>CSVにはLINE ID・LSTEP ID本体は出さず、氏名・学校・流入元・ステータスを確認する。</li>
+            <li>LSTEP側で紐付けが完了したら、データ更新を押して学生詳細のLSTEP状態を確認する。</li>
+            <li>ブロックや配信不可は「LSTEPブロック」フィルターで確認し、別フォロー対象として扱う。</li>
+          </ul>
+        </article>
+        <article class="guide-card">
           <h3>引き渡し資料</h3>
           <ul>
             <li>総務人事部にはダッシュボードURLを共有する。</li>
@@ -384,7 +394,7 @@
     </section>
   </div>
 
-  <script src="app.js?v=20260628-lstep-unlinked-csv"></script>
+  <script src="app.js?v=20260628-lstep-guide"></script>
 </body>
 </html>
 
