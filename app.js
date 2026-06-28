@@ -432,7 +432,24 @@ function normalizeStudent(student) {
     updatedAt: String(student.updatedAt || ""),
     updatedBy: String(student.updatedBy || ""),
     managementStatus: String(student.managementStatus || "有効"),
-    followups: Array.isArray(student.followups) ? student.followups.map(normalizeFollowup) : []
+    followups: Array.isArray(student.followups) ? student.followups.map(normalizeFollowup) : [],
+    lineAccount: normalizeLineAccount(student.lineAccount)
+  };
+}
+
+function normalizeLineAccount(account) {
+  if (!account || typeof account !== "object") return null;
+
+  return {
+    id: String(account.id || ""),
+    studentRecordId: String(account.studentRecordId || ""),
+    lineUserId: String(account.lineUserId || ""),
+    lstepUserId: String(account.lstepUserId || ""),
+    displayName: String(account.displayName || ""),
+    friendStatus: String(account.friendStatus || "unknown"),
+    linkedAt: String(account.linkedAt || ""),
+    lastSyncedAt: String(account.lastSyncedAt || ""),
+    memo: String(account.memo || "")
   };
 }
 
@@ -3410,6 +3427,80 @@ function sortStudentsForList(students) {
   });
 }
 
+function getStudentLstepStatus(student) {
+  const account = student?.lineAccount;
+  if (!account || !account.id) {
+    return { label: "LSTEP 未紐付け", className: "is-pending", detail: "LINE/LSTEPアカウント未連携" };
+  }
+
+  if (account.friendStatus === "blocked") {
+    return { label: "LSTEP ブロック", className: "is-warning", detail: "ブロックまたは配信不可" };
+  }
+
+  if (account.friendStatus === "friend") {
+    return { label: "LSTEP 友だち", className: "is-linked", detail: "友だち状態で紐付け済み" };
+  }
+
+  return { label: "LSTEP 紐付け済み", className: "is-ready", detail: "アカウント紐付け済み" };
+}
+
+function renderStudentLstepStatusChip(student) {
+  const status = getStudentLstepStatus(student);
+  return `<span class="student-lstep-chip ${status.className}" title="${escapeHtml(status.detail)}">${escapeHtml(status.label)}</span>`;
+}
+
+function maskExternalId(value) {
+  const text = String(value || "");
+  if (!text) return "未取得";
+  if (text.length <= 8) return text;
+  return `${text.slice(0, 4)}...${text.slice(-4)}`;
+}
+
+function renderStudentLstepDetail(student) {
+  const account = student?.lineAccount;
+  const status = getStudentLstepStatus(student);
+
+  if (!account || !account.id) {
+    return `
+      <div class="student-lstep-detail ${status.className}">
+        <div>
+          <span>LSTEP / LINE</span>
+          <strong>${escapeHtml(status.label)}</strong>
+          <p>CSV/API同期後に、学生ごとのLINEアカウント紐付け状況をここで確認できます。</p>
+        </div>
+      </div>
+    `;
+  }
+
+  return `
+    <div class="student-lstep-detail ${status.className}">
+      <div>
+        <span>LSTEP / LINE</span>
+        <strong>${escapeHtml(status.label)}</strong>
+        <p>${escapeHtml(status.detail)}</p>
+      </div>
+      <dl class="student-lstep-detail-grid">
+        <div>
+          <dt>表示名</dt>
+          <dd>${escapeHtml(account.displayName || "未取得")}</dd>
+        </div>
+        <div>
+          <dt>LINE ID</dt>
+          <dd>${escapeHtml(maskExternalId(account.lineUserId))}</dd>
+        </div>
+        <div>
+          <dt>LSTEP ID</dt>
+          <dd>${escapeHtml(maskExternalId(account.lstepUserId))}</dd>
+        </div>
+        <div>
+          <dt>最終同期</dt>
+          <dd>${escapeHtml(account.lastSyncedAt || "未取得")}</dd>
+        </div>
+      </dl>
+    </div>
+  `;
+}
+
 function renderStudentTableStatus(student) {
   return `
     <div class="student-table-status">
@@ -3417,6 +3508,7 @@ function renderStudentTableStatus(student) {
       <span>見学 ${escapeHtml(student.salonTourStatus || "未設定")}</span>
       <span>面接 ${escapeHtml(student.interviewStatus || "未設定")}</span>
       <span>内定 ${escapeHtml(student.offerStatus || "未定")}</span>
+      ${renderStudentLstepStatusChip(student)}
     </div>
   `;
 }
@@ -3563,6 +3655,7 @@ function openStudentModal(student) {
         </div>
       `).join("")}
     </div>
+    ${renderStudentLstepDetail(student)}
     <div class="modal-next-action">
       <span>次アクション</span>
       <strong>${escapeHtml(student.nextAction || "次アクション未設定")}</strong>

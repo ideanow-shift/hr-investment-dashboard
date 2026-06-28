@@ -106,12 +106,16 @@ function getSupabaseDashboardData() {
   const followups = getSupabaseRows_("talent_student_followups", "order=due_date.asc,created_at.desc");
   const operationLogs = getSupabaseOperationLogRows_();
   const lstepSummary = getSupabaseLstepSummary_();
+  const lineAccounts = getSupabaseLineAccountRows_();
   const employeeMap = getSupabaseEmployeeMap_(collectSupabaseEmployeeIds_(students, followups, operationLogs));
 
-  const convertedStudents = attachSupabaseFollowups_(
-    students.map((student) => convertSupabaseStudent_(student, employeeMap)),
-    followups,
-    employeeMap
+  const convertedStudents = attachSupabaseLineAccounts_(
+    attachSupabaseFollowups_(
+      students.map((student) => convertSupabaseStudent_(student, employeeMap)),
+      followups,
+      employeeMap
+    ),
+    lineAccounts
   );
   const studentCohorts = buildSupabaseStudentCohorts_(convertedStudents);
 
@@ -188,6 +192,15 @@ function getSupabaseLstepSummary_() {
     const summary = getDefaultLstepSummary_("supabase");
     summary.note = "LSTEP連携テーブルを確認できませんでした: " + error.message;
     return summary;
+  }
+}
+
+function getSupabaseLineAccountRows_() {
+  try {
+    return getSupabaseRows_("talent_line_accounts", "is_active=eq.true&order=updated_at.desc&limit=5000");
+  } catch (error) {
+    console.warn("LSTEP/LINE紐付け情報の読み取りに失敗しました: " + error.message);
+    return [];
   }
 }
 
@@ -820,6 +833,20 @@ function convertSupabaseFollowup_(row, employeeMap) {
   };
 }
 
+function convertSupabaseLineAccount_(row) {
+  return {
+    id: String(row.id || ""),
+    studentRecordId: String(row.student_id || ""),
+    lineUserId: String(row.line_user_id || ""),
+    lstepUserId: String(row.lstep_user_id || ""),
+    displayName: String(row.display_name_snapshot || ""),
+    friendStatus: String(row.friend_status || "unknown"),
+    linkedAt: formatDateTimeValue(row.linked_at),
+    lastSyncedAt: formatDateTimeValue(row.last_synced_at || row.updated_at),
+    memo: String(row.memo || "")
+  };
+}
+
 function attachSupabaseFollowups_(students, followupRows, employeeMap) {
   const followupsByStudentId = followupRows.reduce((map, row) => {
     const followup = convertSupabaseFollowup_(row, employeeMap);
@@ -830,6 +857,20 @@ function attachSupabaseFollowups_(students, followupRows, employeeMap) {
 
   return students.map((student) => Object.assign({}, student, {
     followups: followupsByStudentId[student.id] || []
+  }));
+}
+
+function attachSupabaseLineAccounts_(students, lineAccountRows) {
+  const accountsByStudentId = lineAccountRows.reduce((map, row) => {
+    const account = convertSupabaseLineAccount_(row);
+    if (account.studentRecordId && !map[account.studentRecordId]) {
+      map[account.studentRecordId] = account;
+    }
+    return map;
+  }, {});
+
+  return students.map((student) => Object.assign({}, student, {
+    lineAccount: accountsByStudentId[student.id] || null
   }));
 }
 function buildSupabaseStudentCohorts_(students) {
