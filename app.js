@@ -2996,6 +2996,17 @@ function getStudentQualityIssues() {
     if (!student.contactDate) addIssue("確認", "接触日未入力", "接触日が未入力です。", "初回接触日を入力してください。");
     if (!student.gender || student.gender === "未回答") addIssue("確認", "性別未回答", "性別が未回答です。", "必要に応じて男性・女性・その他を選択してください。");
     if (!student.owner) addIssue("確認", "担当者未入力", "担当者が未入力です。", "担当者を入力してください。");
+    if (!isInactive && (!student.lineAccount || !student.lineAccount.id)) {
+      const isOfferStage = ["内定", "承諾"].includes(student.offerStatus) || ["入社予定", "入社済"].includes(student.expectedJoinStatus);
+      addIssue(
+        isOfferStage ? "注意" : "確認",
+        "LSTEP未紐付け",
+        isOfferStage
+          ? "内定・入社予定フェーズですが、LSTEP/LINEアカウントが未紐付けです。"
+          : "LSTEP/LINEアカウントが未紐付けです。",
+        "学生フォロー画面のLSTEP未紐付けCSVを出力し、LSTEP側の友だち情報と照合してください。"
+      );
+    }
 
     const duplicateKey = `${normalizeForDuplicateCheck(student.name)}__${normalizeForDuplicateCheck(student.school)}`;
     const duplicates = duplicateMap.get(duplicateKey) || [];
