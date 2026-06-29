@@ -4052,22 +4052,21 @@ function renderStudentList(activeKey = activeStudentFilter) {
   });
 }
 
-function openStudentModal(student) {
-  if (!student) return;
+function renderStudentModalTabButton(key, label, count = "") {
+  const countHtml = count ? `<span>${escapeHtml(String(count))}</span>` : "";
+  return `<button class="student-card-tab" type="button" data-student-card-tab="${escapeHtml(key)}">${escapeHtml(label)}${countHtml}</button>`;
+}
 
-  const modal = document.getElementById("studentModal");
-  const content = document.getElementById("studentModalContent");
-  const priority = getStudentPriority(student);
+function renderStudentModalTabPanel(key, content) {
+  return `
+    <section class="student-card-panel" data-student-card-panel="${escapeHtml(key)}">
+      ${content}
+    </section>
+  `;
+}
 
-  content.innerHTML = `
-    <div class="modal-header">
-      <div>
-        <p class="section-kicker">Student Detail</p>
-        <h2 id="studentModalTitle">${escapeHtml(student.name || "氏名未設定")}</h2>
-        <p>${escapeHtml(student.school || "学校未設定")} / ${escapeHtml(student.grade || "学年未設定")}</p>
-      </div>
-      <span class="priority-pill ${priority.className}">${escapeHtml(priority.label)}</span>
-    </div>
+function renderStudentOverviewPanel(student) {
+  return `
     <div class="modal-status-grid">
       <div><span>接点</span><strong>${escapeHtml(student.source || "未設定")}</strong></div>
       <div><span>接触日</span><strong>${escapeHtml(student.contactDate || "未設定")}</strong></div>
@@ -4103,15 +4102,79 @@ function openStudentModal(student) {
       <span>メモ</span>
       <p>${escapeHtml(student.memo || "メモはまだありません。")}</p>
     </div>
-    ${renderStudentStoreSection(student)}
-    ${renderStudentOperationLogSection(student)}
-    ${renderStudentFollowupSection(student)}
-    ${renderStudentForm(student, "update")}
+  `;
+}
+
+function renderStudentModalTabs(student) {
+  const followupCount = Array.isArray(student.followups) ? student.followups.length : 0;
+  const storeHistoryCount = Array.isArray(student.storeTourHistories) ? student.storeTourHistories.length : 0;
+  const operationLogCount = Array.isArray(student.operationLogs) ? student.operationLogs.length : 0;
+
+  return `
+    <div class="student-card-tabs" role="tablist" aria-label="学生カルテ内メニュー">
+      ${renderStudentModalTabButton("overview", "概要")}
+      ${renderStudentModalTabButton("edit", "基本・選考")}
+      ${renderStudentModalTabButton("followups", "フォロー", followupCount)}
+      ${renderStudentModalTabButton("stores", "店舗", storeHistoryCount)}
+      ${renderStudentModalTabButton("logs", "操作履歴", operationLogCount)}
+    </div>
+    <div class="student-card-panels">
+      ${renderStudentModalTabPanel("overview", renderStudentOverviewPanel(student))}
+      ${renderStudentModalTabPanel("edit", renderStudentForm(student, "update"))}
+      ${renderStudentModalTabPanel("followups", renderStudentFollowupSection(student))}
+      ${renderStudentModalTabPanel("stores", renderStudentStoreSection(student))}
+      ${renderStudentModalTabPanel("logs", renderStudentOperationLogSection(student))}
+    </div>
+  `;
+}
+
+function setupStudentModalTabs() {
+  const modal = document.getElementById("studentModal");
+  const tabs = Array.from(modal.querySelectorAll("[data-student-card-tab]"));
+  const panels = Array.from(modal.querySelectorAll("[data-student-card-panel]"));
+  if (!tabs.length || !panels.length) return;
+
+  const activateTab = (targetKey) => {
+    tabs.forEach((tab) => {
+      const isActive = tab.dataset.studentCardTab === targetKey;
+      tab.classList.toggle("active", isActive);
+      tab.setAttribute("aria-selected", String(isActive));
+    });
+    panels.forEach((panel) => {
+      panel.classList.toggle("is-active", panel.dataset.studentCardPanel === targetKey);
+    });
+  };
+
+  tabs.forEach((tab) => {
+    tab.addEventListener("click", () => activateTab(tab.dataset.studentCardTab));
+  });
+
+  activateTab("overview");
+}
+
+function openStudentModal(student) {
+  if (!student) return;
+
+  const modal = document.getElementById("studentModal");
+  const content = document.getElementById("studentModalContent");
+  const priority = getStudentPriority(student);
+
+  content.innerHTML = `
+    <div class="modal-header">
+      <div>
+        <p class="section-kicker">Student Detail</p>
+        <h2 id="studentModalTitle">${escapeHtml(student.name || "氏名未設定")}</h2>
+        <p>${escapeHtml(student.school || "学校未設定")} / ${escapeHtml(student.grade || "学年未設定")}</p>
+      </div>
+      <span class="priority-pill ${priority.className}">${escapeHtml(priority.label)}</span>
+    </div>
+    ${renderStudentModalTabs(student)}
   `;
 
   modal.classList.add("is-open");
   modal.setAttribute("aria-hidden", "false");
   document.body.classList.add("modal-open");
+  setupStudentModalTabs();
   setupRenderedStudentForm();
   setupRenderedStoreTourHistoryForm();
   setupRenderedFollowupForm();
