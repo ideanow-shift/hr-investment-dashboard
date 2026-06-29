@@ -1997,6 +1997,85 @@ td {
   margin-top: 12px;
 }
 
+.student-store-form-section,
+.student-store-panel {
+  border-top: 1px solid var(--line);
+  margin-top: 18px;
+  padding-top: 18px;
+}
+
+.student-store-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.student-store-card {
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--surface-soft);
+  padding: 12px;
+}
+
+.student-store-card > strong {
+  display: block;
+  margin-bottom: 10px;
+}
+
+.student-store-card p {
+  margin: 0 0 8px;
+  color: var(--text);
+}
+
+.student-store-card p span {
+  display: inline-flex;
+  min-width: 72px;
+  color: var(--muted);
+  font-size: 12px;
+}
+
+.student-store-card small {
+  display: block;
+  color: var(--muted);
+  margin: -4px 0 8px 72px;
+}
+
+.student-empty.compact {
+  color: var(--muted);
+  font-size: 13px;
+  padding: 0;
+}
+
+.store-history-item {
+  border-top: 1px solid var(--line);
+  padding: 9px 0;
+}
+
+.store-history-item:first-of-type {
+  border-top: 0;
+  padding-top: 0;
+}
+
+.store-history-item div {
+  display: flex;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.store-history-item b {
+  font-weight: 600;
+}
+
+.store-history-item span,
+.store-history-item p {
+  color: var(--muted);
+  font-size: 12px;
+}
+
+.store-history-item p {
+  margin: 6px 0 0;
+}
+
 .student-form-actions {
   display: flex;
   align-items: center;
@@ -2157,7 +2236,8 @@ td {
 
   .modal-status-grid,
   .modal-progress,
-  .student-form-grid {
+  .student-form-grid,
+  .student-store-grid {
     grid-template-columns: 1fr;
   }
 

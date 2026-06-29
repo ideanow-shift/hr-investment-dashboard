@@ -225,6 +225,7 @@ let operationLogs = [];
 let activeOperationLogFilter = "all";
 let operationLogSearchQuery = "";
 let lstepSummary = buildDefaultLstepSummary();
+let storeOptions = [];
 
 async function fetchDashboardData() {
   if (!GAS_API_URL) {
@@ -345,6 +346,12 @@ function applyDashboardData(data) {
     }));
   }
 
+  if (Array.isArray(data.stores)) {
+    storeOptions = data.stores.map(normalizeStoreOption)
+      .filter((store) => store.id && store.isActive !== false)
+      .sort((a, b) => a.name.localeCompare(b.name, "ja"));
+  }
+
   if (Array.isArray(data.studentCohorts) && data.studentCohorts.length) {
     studentCohorts = data.studentCohorts.map((cohort) => ({
       key: String(cohort.key || cohort.label || ""),
@@ -432,8 +439,45 @@ function normalizeStudent(student) {
     updatedAt: String(student.updatedAt || ""),
     updatedBy: String(student.updatedBy || ""),
     managementStatus: String(student.managementStatus || "有効"),
+    storePreferences: Array.isArray(student.storePreferences) ? student.storePreferences.map(normalizeStorePreference) : [],
+    storeTourHistories: Array.isArray(student.storeTourHistories) ? student.storeTourHistories.map(normalizeStoreTourHistory) : [],
     followups: Array.isArray(student.followups) ? student.followups.map(normalizeFollowup) : [],
     lineAccount: normalizeLineAccount(student.lineAccount)
+  };
+}
+
+function normalizeStoreOption(store) {
+  return {
+    id: String(store.id || ""),
+    name: String(store.name || store.displayName || store.storeName || store.id || ""),
+    code: String(store.code || ""),
+    isActive: store.isActive !== false
+  };
+}
+
+function normalizeStorePreference(preference) {
+  return {
+    id: String(preference.id || ""),
+    studentRecordId: String(preference.studentRecordId || ""),
+    storeId: String(preference.storeId || ""),
+    storeName: String(preference.storeName || ""),
+    preferenceRank: Number(preference.preferenceRank) || 0,
+    memo: String(preference.memo || ""),
+    updatedAt: String(preference.updatedAt || "")
+  };
+}
+
+function normalizeStoreTourHistory(history) {
+  return {
+    id: String(history.id || ""),
+    studentRecordId: String(history.studentRecordId || ""),
+    storeId: String(history.storeId || ""),
+    storeName: String(history.storeName || ""),
+    tourDate: String(history.tourDate || ""),
+    tourStatus: String(history.tourStatus || "予定"),
+    memo: String(history.memo || ""),
+    updatedAt: String(history.updatedAt || ""),
+    updatedBy: String(history.updatedBy || "")
   };
 }
 
@@ -2120,6 +2164,7 @@ function getStudentFormPayload(form) {
   const formData = new FormData(form);
   return {
     sheetName: getActiveSheetName(),
+    studentRecordId: String(formData.get("studentRecordId") || ""),
     studentId: String(formData.get("studentId") || ""),
     name: String(formData.get("name") || "").trim(),
     gender: String(formData.get("gender") || "未回答"),
@@ -2137,7 +2182,12 @@ function getStudentFormPayload(form) {
     nextAction: String(formData.get("nextAction") || "").trim(),
     nextActionDate: String(formData.get("nextActionDate") || ""),
     memo: String(formData.get("memo") || "").trim(),
-    managementStatus: String(formData.get("managementStatus") || "有効")
+    managementStatus: String(formData.get("managementStatus") || "有効"),
+    storePreferences: [1, 2, 3].map((rank) => ({
+      preferenceRank: rank,
+      storeId: String(formData.get(`preferredStore${rank}`) || ""),
+      memo: String(formData.get(`preferredStoreMemo${rank}`) || "").trim()
+    })).filter((preference) => preference.storeId)
   };
 }
 
@@ -2298,6 +2348,120 @@ function renderStudentOperationLogSection(student) {
       </div>
     </section>
   `;
+}
+
+function renderStudentStoreSection(student) {
+  const preferences = Array.isArray(student.storePreferences) ? student.storePreferences : [];
+  const histories = Array.isArray(student.storeTourHistories) ? student.storeTourHistories : [];
+  return `
+    <section class="student-store-panel">
+      <div class="student-form-heading">
+        <div>
+          <h3>店舗希望・見学履歴</h3>
+          <p>配属希望店舗と、実際に見学した店舗を分けて管理します。</p>
+        </div>
+      </div>
+      <div class="student-store-grid">
+        <div class="student-store-card">
+          <strong>配属希望店舗</strong>
+          ${preferences.length ? preferences.map((preference) => `
+            <p><span>第${escapeHtml(String(preference.preferenceRank || ""))}希望</span>${escapeHtml(preference.storeName || "店舗未設定")}</p>
+            ${preference.memo ? `<small>${escapeHtml(preference.memo)}</small>` : ""}
+          `).join("") : `<p class="student-empty compact">配属希望店舗は未設定です。</p>`}
+        </div>
+        <div class="student-store-card">
+          <strong>見学店舗履歴</strong>
+          ${histories.length ? histories.map((history) => `
+            <article class="store-history-item">
+              <div>
+                <b>${escapeHtml(history.storeName || "店舗未設定")}</b>
+                <span>${escapeHtml(history.tourDate || "日付未設定")} / ${escapeHtml(history.tourStatus || "予定")}</span>
+              </div>
+              ${history.memo ? `<p>${escapeHtml(history.memo)}</p>` : ""}
+            </article>
+          `).join("") : `<p class="student-empty compact">見学店舗履歴はまだありません。</p>`}
+        </div>
+      </div>
+      ${renderStoreTourHistoryForm(student)}
+    </section>
+  `;
+}
+
+function renderStoreTourHistoryForm(student) {
+  const disabled = isActiveCohortEditable() ? "" : "disabled";
+  return `
+    <form class="student-edit-form compact-form" data-store-tour-history-form>
+      <input type="hidden" name="studentId" value="${escapeHtml(student.studentId || "")}">
+      <input type="hidden" name="studentRecordId" value="${escapeHtml(student.id || "")}">
+      <div class="student-form-grid">
+        ${renderStoreSelectField("storeId", "見学店舗", "", disabled)}
+        <label>
+          <span>見学日</span>
+          <input name="tourDate" type="date" ${disabled}>
+        </label>
+        ${renderSelectField("tourStatus", "見学状態", ["予定", "実施済", "キャンセル"], "実施済", disabled)}
+      </div>
+      <label class="student-form-full">
+        <span>見学メモ</span>
+        <textarea name="memo" rows="2" placeholder="見学時の反応、希望、店舗側のメモなど" ${disabled}></textarea>
+      </label>
+      <div class="student-form-actions">
+        <p class="student-form-status" aria-live="polite"></p>
+        <button class="refresh-button" type="submit" ${getWriteDisabledAttribute(!isActiveCohortEditable() || !storeOptions.length)}>見学履歴を追加</button>
+      </div>
+    </form>
+  `;
+}
+
+function getStoreTourHistoryPayload(form) {
+  const formData = new FormData(form);
+  return {
+    studentId: String(formData.get("studentId") || ""),
+    studentRecordId: String(formData.get("studentRecordId") || ""),
+    storeId: String(formData.get("storeId") || ""),
+    tourDate: String(formData.get("tourDate") || ""),
+    tourStatus: String(formData.get("tourStatus") || "予定"),
+    memo: String(formData.get("memo") || "").trim()
+  };
+}
+
+function setupRenderedStoreTourHistoryForm() {
+  const form = document.querySelector("[data-store-tour-history-form]");
+  if (!form) return;
+
+  form.addEventListener("submit", async (event) => {
+    event.preventDefault();
+    const submitButton = form.querySelector("button[type='submit']");
+    const status = form.querySelector(".student-form-status");
+    const payload = getStoreTourHistoryPayload(form);
+
+    if (!isActiveCohortEditable()) {
+      status.textContent = "全件参考シートは編集できません。";
+      return;
+    }
+    if (!payload.storeId) {
+      status.classList.add("is-error");
+      status.textContent = "見学店舗を選択してください。";
+      return;
+    }
+
+    try {
+      submitButton.disabled = true;
+      status.classList.remove("is-error");
+      status.textContent = "保存中...";
+      const result = await callGasAction("addStudentStoreTourHistory", payload);
+      if (!result || result.ok === false || result.error) {
+        throw new Error(result?.error || "保存に失敗しました");
+      }
+      status.textContent = "保存しました。データを再取得しています...";
+      closeStudentModal();
+      await refreshDashboardData();
+    } catch (error) {
+      status.classList.add("is-error");
+      status.textContent = `保存できませんでした：${error.message}`;
+      submitButton.disabled = false;
+    }
+  });
 }
 
 function renderStudentFollowupSection(student) {
@@ -2492,6 +2656,68 @@ function setupFollowupCompleteButtons(scope = document) {
   });
 }
 
+function getStorePreferenceByRank(student, rank) {
+  return (student.storePreferences || []).find((preference) => Number(preference.preferenceRank) === rank) || {};
+}
+
+function renderStoreSelectField(name, label, selectedStoreId, disabled = "") {
+  const options = storeOptions.length
+    ? storeOptions.map((store) => `<option value="${escapeHtml(store.id)}" ${store.id === selectedStoreId ? "selected" : ""}>${escapeHtml(store.name || store.id)}</option>`).join("")
+    : "";
+  return `
+    <label>
+      <span>${escapeHtml(label)}</span>
+      <select name="${escapeHtml(name)}" ${disabled} ${storeOptions.length ? "" : "disabled"}>
+        <option value="">未設定</option>
+        ${options}
+      </select>
+      ${storeOptions.length ? "" : "<small>店舗マスタを取得できていません。</small>"}
+    </label>
+  `;
+}
+
+function renderStorePreferenceFields(student, disabled = "") {
+  return `
+    <section class="student-store-form-section">
+      <div class="student-form-heading">
+        <div>
+          <h3>配属希望店舗</h3>
+          <p>第1希望から第3希望まで登録できます。店舗名の正本はCore DBの店舗マスタです。</p>
+        </div>
+      </div>
+      <div class="student-form-grid">
+        ${[1, 2, 3].map((rank) => {
+          const preference = getStorePreferenceByRank(student, rank);
+          return `
+            ${renderStoreSelectField(`preferredStore${rank}`, `第${rank}希望店舗`, preference.storeId || "", disabled)}
+            <label>
+              <span>第${rank}希望メモ</span>
+              <input name="preferredStoreMemo${rank}" value="${escapeHtml(preference.memo || "")}" placeholder="例：本人希望・通勤面など" ${disabled}>
+            </label>
+          `;
+        }).join("")}
+      </div>
+    </section>
+  `;
+}
+
+function buildStorePreferenceSavePayload(payload, studentIdOverride = "") {
+  return {
+    studentId: studentIdOverride || payload.studentId || "",
+    studentRecordId: payload.studentRecordId || "",
+    storePreferences: JSON.stringify(payload.storePreferences || [])
+  };
+}
+
+async function saveStudentStorePreferences(payload, studentIdOverride = "") {
+  if (!storeOptions.length) return null;
+  const result = await callGasAction("updateStudentStorePreferences", buildStorePreferenceSavePayload(payload, studentIdOverride));
+  if (!result || result.ok === false || result.error) {
+    throw new Error(result?.error || "配属希望店舗の保存に失敗しました");
+  }
+  return result;
+}
+
 function renderStudentForm(student = {}, mode = "update") {
   const isAdd = mode === "add";
   const disabled = isActiveCohortEditable() ? "" : "disabled";
@@ -2499,6 +2725,7 @@ function renderStudentForm(student = {}, mode = "update") {
 
   return `
     <form class="student-edit-form" data-student-form="${mode}">
+      <input type="hidden" name="studentRecordId" value="${escapeHtml(student.id || "")}">
       <input type="hidden" name="studentId" value="${escapeHtml(student.studentId || "")}">
       <div class="student-form-heading">
         <div>
@@ -2558,6 +2785,7 @@ function renderStudentForm(student = {}, mode = "update") {
         <span>メモ</span>
         <textarea name="memo" rows="3" ${disabled}>${escapeHtml(student.memo || "")}</textarea>
       </label>
+      ${renderStorePreferenceFields(student, disabled)}
       <div class="student-form-actions">
         <p class="student-form-status" aria-live="polite"></p>
         <button class="refresh-button" type="submit" ${getWriteDisabledAttribute(!isActiveCohortEditable())}>${submitText}</button>
@@ -2602,6 +2830,10 @@ function setupRenderedStudentForm() {
       const result = await callGasAction(mode === "add" ? "addStudent" : "updateStudent", payload);
       if (!result || result.ok === false || result.error) {
         throw new Error(result?.error || "保存に失敗しました");
+      }
+      if (storeOptions.length) {
+        status.textContent = "学生情報を保存しました。配属希望店舗を保存しています...";
+        await saveStudentStorePreferences(payload, result.studentId || payload.studentId);
       }
       status.textContent = "保存しました。データを再取得しています...";
       closeStudentModal();
@@ -3859,6 +4091,7 @@ function openStudentModal(student) {
       <span>メモ</span>
       <p>${escapeHtml(student.memo || "メモはまだありません。")}</p>
     </div>
+    ${renderStudentStoreSection(student)}
     ${renderStudentOperationLogSection(student)}
     ${renderStudentFollowupSection(student)}
     ${renderStudentForm(student, "update")}
@@ -3868,6 +4101,7 @@ function openStudentModal(student) {
   modal.setAttribute("aria-hidden", "false");
   document.body.classList.add("modal-open");
   setupRenderedStudentForm();
+  setupRenderedStoreTourHistoryForm();
   setupRenderedFollowupForm();
   setupRenderedFollowupStatusForms();
 }

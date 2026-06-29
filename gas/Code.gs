@@ -104,18 +104,31 @@ function getSupabaseDashboardData() {
   const fairs = getSupabaseRows_("talent_fairs", "is_active=eq.true&order=held_date.asc");
   const students = getSupabaseRows_("talent_students", "order=cohort.asc,student_code.asc");
   const followups = getSupabaseRows_("talent_student_followups", "order=due_date.asc,created_at.desc");
+  const stores = getSupabaseStoreRows_();
+  const storePreferences = getSupabaseStudentStorePreferenceRows_();
+  const storeTourHistories = getSupabaseStudentStoreTourHistoryRows_();
   const operationLogs = getSupabaseOperationLogRows_();
   const lstepSummary = getSupabaseLstepSummary_();
   const lineAccounts = getSupabaseLineAccountRows_();
-  const employeeMap = getSupabaseEmployeeMap_(collectSupabaseEmployeeIds_(students, followups, operationLogs));
+  const employeeMap = getSupabaseEmployeeMap_(collectSupabaseEmployeeIds_(students, followups.concat(storePreferences, storeTourHistories), operationLogs));
+  const storeMap = buildSupabaseStoreMap_(stores);
 
-  const convertedStudents = attachSupabaseLineAccounts_(
-    attachSupabaseFollowups_(
-      students.map((student) => convertSupabaseStudent_(student, employeeMap)),
-      followups,
-      employeeMap
+  const convertedStudents = attachSupabaseStoreHistories_(
+    attachSupabaseStorePreferences_(
+      attachSupabaseLineAccounts_(
+        attachSupabaseFollowups_(
+          students.map((student) => convertSupabaseStudent_(student, employeeMap)),
+          followups,
+          employeeMap
+        ),
+        lineAccounts
+      ),
+      storePreferences,
+      storeMap
     ),
-    lineAccounts
+    storeTourHistories,
+    storeMap,
+    employeeMap
   );
   const studentCohorts = buildSupabaseStudentCohorts_(convertedStudents);
 
@@ -123,6 +136,7 @@ function getSupabaseDashboardData() {
     config: convertSupabaseConfig_(settings[0]),
     fairs: fairs.map(convertSupabaseFair_),
     schools: buildSupabaseSchoolAnalysis_(schools, convertedStudents),
+    stores: stores.map(convertSupabaseStore_).filter(function(store) { return store.id; }),
     students: convertedStudents.filter((student) => student.cohort === "27卒"),
     studentCohorts: studentCohorts,
     operationLogs: operationLogs.map((log) => convertSupabaseOperationLog_(log, employeeMap)),
@@ -208,6 +222,37 @@ function getSupabaseOperationLogs_() {
   return getSupabaseOperationLogRows_().map(convertSupabaseOperationLog_);
 }
 
+function getSupabaseStoreRows_() {
+  try {
+    return getSupabaseRows_("stores", "order=name.asc&limit=1000");
+  } catch (error) {
+    try {
+      return getSupabaseRows_("stores", "order=store_name.asc&limit=1000");
+    } catch (fallbackError) {
+      console.warn("店舗マスタの読み取りに失敗しました: " + fallbackError.message);
+      return [];
+    }
+  }
+}
+
+function getSupabaseStudentStorePreferenceRows_() {
+  try {
+    return getSupabaseRows_("talent_student_store_preferences", "is_active=eq.true&order=student_id.asc,preference_rank.asc&limit=5000");
+  } catch (error) {
+    console.warn("配属希望店舗の読み取りに失敗しました: " + error.message);
+    return [];
+  }
+}
+
+function getSupabaseStudentStoreTourHistoryRows_() {
+  try {
+    return getSupabaseRows_("talent_student_store_tour_histories", "is_active=eq.true&order=student_id.asc,tour_date.desc,created_at.desc&limit=5000");
+  } catch (error) {
+    console.warn("見学店舗履歴の読み取りに失敗しました: " + error.message);
+    return [];
+  }
+}
+
 function getSupabaseOperationLogRows_() {
   try {
     return getSupabaseRows_("talent_operation_logs", "order=created_at.desc&limit=30");
@@ -215,6 +260,37 @@ function getSupabaseOperationLogRows_() {
     console.warn(`操作履歴の読み取りに失敗しました: ${error.message}`);
     return [];
   }
+}
+
+function getSupabaseStoreDisplayName_(row) {
+  if (!row) return "";
+  return String(
+    row.name ||
+    row.store_name ||
+    row.display_name ||
+    row.short_name ||
+    row.store_code ||
+    row.code ||
+    row.id ||
+    ""
+  );
+}
+
+function convertSupabaseStore_(row) {
+  return {
+    id: String(row.id || ""),
+    name: getSupabaseStoreDisplayName_(row),
+    code: String(row.store_code || row.code || ""),
+    isActive: row.is_active !== false
+  };
+}
+
+function buildSupabaseStoreMap_(rows) {
+  return rows.reduce(function(map, row) {
+    const store = convertSupabaseStore_(row);
+    if (store.id) map[store.id] = store;
+    return map;
+  }, {});
 }
 
 function convertSupabaseOperationLog_(row, employeeMap) {
@@ -498,7 +574,9 @@ function getTalentRequiredRoleKeys_(action) {
     "addSchool",
     "updateSchool",
     "addFollowup",
-    "updateFollowup"
+    "updateFollowup",
+    "updateStudentStorePreferences",
+    "addStudentStoreTourHistory"
   ].indexOf(action) !== -1) {
     return editor;
   }
@@ -649,6 +727,28 @@ function getTalentActionTargetInfo_(action, params) {
       targetType: "followup",
       targetId: followupId || studentCode,
       recordId: followupId,
+      studentUuid: "",
+      studentCode: studentCode,
+      studentName: studentName
+    };
+  }
+  if (action === "updateStudentStorePreferences") {
+    return {
+      tableName: "talent_student_store_preferences",
+      targetType: "student_store_preferences",
+      targetId: studentCode || studentName,
+      recordId: "",
+      studentUuid: "",
+      studentCode: studentCode,
+      studentName: studentName
+    };
+  }
+  if (action === "addStudentStoreTourHistory") {
+    return {
+      tableName: "talent_student_store_tour_histories",
+      targetType: "student_store_tour_history",
+      targetId: studentCode || studentName,
+      recordId: "",
       studentUuid: "",
       studentCode: studentCode,
       studentName: studentName
@@ -873,6 +973,70 @@ function attachSupabaseLineAccounts_(students, lineAccountRows) {
     lineAccount: accountsByStudentId[student.id] || null
   }));
 }
+
+function convertSupabaseStorePreference_(row, storeMap) {
+  const storeId = String(row.store_id || "");
+  const store = storeMap[storeId] || {};
+  return {
+    id: String(row.id || ""),
+    studentRecordId: String(row.student_id || ""),
+    storeId: storeId,
+    storeName: String(store.name || storeId || ""),
+    preferenceRank: Number(row.preference_rank) || 0,
+    memo: String(row.memo || ""),
+    updatedAt: formatDateTimeValue(row.updated_at)
+  };
+}
+
+function attachSupabaseStorePreferences_(students, preferenceRows, storeMap) {
+  const preferencesByStudentId = preferenceRows.reduce(function(map, row) {
+    const preference = convertSupabaseStorePreference_(row, storeMap);
+    if (!map[preference.studentRecordId]) map[preference.studentRecordId] = [];
+    map[preference.studentRecordId].push(preference);
+    return map;
+  }, {});
+
+  return students.map(function(student) {
+    const preferences = (preferencesByStudentId[student.id] || []).sort(function(a, b) {
+      return a.preferenceRank - b.preferenceRank;
+    });
+    return Object.assign({}, student, {
+      storePreferences: preferences
+    });
+  });
+}
+
+function convertSupabaseStoreTourHistory_(row, storeMap, employeeMap) {
+  const storeId = String(row.store_id || "");
+  const store = storeMap[storeId] || {};
+  return {
+    id: String(row.id || ""),
+    studentRecordId: String(row.student_id || ""),
+    storeId: storeId,
+    storeName: String(store.name || storeId || ""),
+    tourDate: String(row.tour_date || ""),
+    tourStatus: String(row.tour_status || "予定"),
+    memo: String(row.memo || ""),
+    updatedAt: formatDateTimeValue(row.updated_at),
+    updatedBy: getEmployeeDisplayName_(employeeMap, row.updated_by_employee_id)
+  };
+}
+
+function attachSupabaseStoreHistories_(students, historyRows, storeMap, employeeMap) {
+  const historiesByStudentId = historyRows.reduce(function(map, row) {
+    const history = convertSupabaseStoreTourHistory_(row, storeMap, employeeMap);
+    if (!map[history.studentRecordId]) map[history.studentRecordId] = [];
+    map[history.studentRecordId].push(history);
+    return map;
+  }, {});
+
+  return students.map(function(student) {
+    return Object.assign({}, student, {
+      storeTourHistories: historiesByStudentId[student.id] || []
+    });
+  });
+}
+
 function buildSupabaseStudentCohorts_(students) {
   const definitions = [
     { key: "27", label: "27卒", sheetName: "Supabase_27卒" },
@@ -1120,6 +1284,14 @@ function handleWriteAction(params) {
 
   if (action === "updateFollowup") {
     return updateFollowupFromDashboard(params);
+  }
+
+  if (action === "updateStudentStorePreferences") {
+    return updateStudentStorePreferencesFromDashboard(params);
+  }
+
+  if (action === "addStudentStoreTourHistory") {
+    return addStudentStoreTourHistoryFromDashboard(params);
   }
 
   throw new Error(`未対応の操作です: ${action}`);
@@ -1672,6 +1844,169 @@ function updateSpreadsheetFollowupFromDashboard_(params) {
   const operator = getDashboardOperator_(params);
   appendOperationLog("更新", "フォロー履歴", followupId, followupId, operator.name, `ダッシュボードからフォロー状態を更新: ${payload.status}`);
   return { ok: true, action: "updateFollowup", followupId: followupId, status: payload.status };
+}
+
+function parseJsonArrayParam_(value) {
+  const text = sanitizeText(value);
+  if (!text) return [];
+  try {
+    const parsed = JSON.parse(text);
+    return Array.isArray(parsed) ? parsed : [];
+  } catch (error) {
+    throw new Error("配属希望店舗の形式が不正です。");
+  }
+}
+
+function getSupabaseStudentFromDashboardParams_(params) {
+  const studentRecordId = normalizeUuid_(params && params.studentRecordId);
+  const studentCode = sanitizeText(params && params.studentId);
+  const student = studentRecordId
+    ? getSupabaseRows_("talent_students", `id=eq.${encodeURIComponent(studentRecordId)}&limit=1`)[0]
+    : getSupabaseStudentByCode_(studentCode);
+  if (!student) throw new Error("対象学生が見つかりません。");
+  return student;
+}
+
+function updateStudentStorePreferencesFromDashboard(params) {
+  if (!isSupabaseConfigured_()) {
+    throw new Error("配属希望店舗はSupabase接続時のみ保存できます。");
+  }
+  return updateSupabaseStudentStorePreferencesFromDashboard_(params);
+}
+
+function updateSupabaseStudentStorePreferencesFromDashboard_(params) {
+  const student = getSupabaseStudentFromDashboardParams_(params);
+  const operator = getDashboardOperator_(params);
+  const rawPreferences = parseJsonArrayParam_(params.storePreferences);
+  const seenRanks = {};
+  const seenStores = {};
+  const preferences = rawPreferences
+    .map(function(item) {
+      return {
+        storeId: normalizeUuid_(item && item.storeId),
+        preferenceRank: Number(item && item.preferenceRank) || 0,
+        memo: sanitizeText(item && item.memo)
+      };
+    })
+    .filter(function(item) { return item.storeId; });
+
+  preferences.forEach(function(item) {
+    if (item.preferenceRank < 1 || item.preferenceRank > 3) {
+      throw new Error("配属希望店舗は第1希望〜第3希望で指定してください。");
+    }
+    if (seenRanks[item.preferenceRank]) throw new Error("同じ希望順位が重複しています。");
+    if (seenStores[item.storeId]) throw new Error("同じ店舗が複数の希望順位に入っています。");
+    seenRanks[item.preferenceRank] = true;
+    seenStores[item.storeId] = true;
+  });
+
+  const beforeRows = getSupabaseRows_(
+    "talent_student_store_preferences",
+    `student_id=eq.${encodeURIComponent(student.id)}&is_active=eq.true&order=preference_rank.asc`
+  );
+
+  if (beforeRows.length) {
+    const inactivePayload = { is_active: false };
+    if (operator.employeeId) inactivePayload.updated_by_employee_id = operator.employeeId;
+    requestSupabase_(
+      "patch",
+      "talent_student_store_preferences",
+      `student_id=eq.${encodeURIComponent(student.id)}&is_active=eq.true`,
+      inactivePayload
+    );
+  }
+
+  const insertPayload = preferences.map(function(item) {
+    const payload = {
+      student_id: student.id,
+      store_id: item.storeId,
+      preference_rank: item.preferenceRank,
+      memo: item.memo,
+      is_active: true
+    };
+    if (operator.employeeId) {
+      payload.created_by_employee_id = operator.employeeId;
+      payload.updated_by_employee_id = operator.employeeId;
+    }
+    return payload;
+  });
+  const insertedRows = insertPayload.length
+    ? requestSupabase_("post", "talent_student_store_preferences", "", insertPayload)
+    : [];
+
+  requestSupabase_("post", "talent_operation_logs", "", {
+    action: "更新",
+    table_name: "talent_student_store_preferences",
+    record_id: student.id,
+    student_id: student.id,
+    student_code: String(student.student_code || ""),
+    student_name_snapshot: String(student.full_name || ""),
+    detail: "ダッシュボードから配属希望店舗を更新",
+    before_data: beforeRows,
+    after_data: insertedRows,
+    actor_employee_id: operator.employeeId || null
+  });
+
+  return {
+    ok: true,
+    action: "updateStudentStorePreferences",
+    studentId: String(student.student_code || ""),
+    savedCount: insertedRows.length
+  };
+}
+
+function addStudentStoreTourHistoryFromDashboard(params) {
+  if (!isSupabaseConfigured_()) {
+    throw new Error("見学店舗履歴はSupabase接続時のみ保存できます。");
+  }
+  return addSupabaseStudentStoreTourHistoryFromDashboard_(params);
+}
+
+function addSupabaseStudentStoreTourHistoryFromDashboard_(params) {
+  const student = getSupabaseStudentFromDashboardParams_(params);
+  const operator = getDashboardOperator_(params);
+  const storeId = normalizeUuid_(params.storeId);
+  if (!storeId) throw new Error("見学店舗を選択してください。");
+  const tourStatus = sanitizeText(params.tourStatus) || "予定";
+  if (["予定", "実施済", "キャンセル"].indexOf(tourStatus) === -1) {
+    throw new Error("見学履歴のステータスが不正です。");
+  }
+
+  const payload = {
+    student_id: student.id,
+    store_id: storeId,
+    tour_date: normalizeSupabaseDate_(params.tourDate),
+    tour_status: tourStatus,
+    memo: sanitizeText(params.memo),
+    is_active: true
+  };
+  if (operator.employeeId) {
+    payload.created_by_employee_id = operator.employeeId;
+    payload.updated_by_employee_id = operator.employeeId;
+  }
+
+  const insertedRows = requestSupabase_("post", "talent_student_store_tour_histories", "", payload);
+  const inserted = insertedRows[0] || {};
+
+  requestSupabase_("post", "talent_operation_logs", "", {
+    action: "追加",
+    table_name: "talent_student_store_tour_histories",
+    record_id: inserted.id || null,
+    student_id: student.id,
+    student_code: String(student.student_code || ""),
+    student_name_snapshot: String(student.full_name || ""),
+    detail: "ダッシュボードから見学店舗履歴を追加",
+    before_data: null,
+    after_data: inserted,
+    actor_employee_id: operator.employeeId || null
+  });
+
+  return {
+    ok: true,
+    action: "addStudentStoreTourHistory",
+    studentId: String(student.student_code || ""),
+    tourHistoryId: inserted.id || ""
+  };
 }
 function addSpreadsheetStudentFromDashboard_(params) {
   const sheet = getWritableStudentSheet(params.sheetName);
