@@ -1962,6 +1962,16 @@ function addStudentStoreTourHistoryFromDashboard(params) {
   return addSupabaseStudentStoreTourHistoryFromDashboard_(params);
 }
 
+function buildStoreTourHistoryMatchQuery_(studentId, storeId, tourDate) {
+  const parts = [
+    `student_id=eq.${encodeURIComponent(studentId)}`,
+    `store_id=eq.${encodeURIComponent(storeId)}`,
+    tourDate ? `tour_date=eq.${encodeURIComponent(tourDate)}` : "tour_date=is.null",
+    "is_active=eq.true"
+  ];
+  return parts.join("&");
+}
+
 function addSupabaseStudentStoreTourHistoryFromDashboard_(params) {
   const student = getSupabaseStudentFromDashboardParams_(params);
   const operator = getDashboardOperator_(params);
@@ -1985,27 +1995,56 @@ function addSupabaseStudentStoreTourHistoryFromDashboard_(params) {
     payload.updated_by_employee_id = operator.employeeId;
   }
 
-  const insertedRows = requestSupabase_("post", "talent_student_store_tour_histories", "", payload);
-  const inserted = insertedRows[0] || {};
+  const matchQuery = buildStoreTourHistoryMatchQuery_(student.id, storeId, payload.tour_date);
+  const existingRows = getSupabaseRows_(
+    "talent_student_store_tour_histories",
+    `${matchQuery}&limit=1`
+  );
+  if (existingRows.length) {
+    throw new Error("同じ学生・店舗・見学日の履歴が既に登録されています。");
+  }
 
-  requestSupabase_("post", "talent_operation_logs", "", {
-    action: "追加",
-    table_name: "talent_student_store_tour_histories",
-    record_id: inserted.id || null,
-    student_id: student.id,
-    student_code: String(student.student_code || ""),
-    student_name_snapshot: String(student.full_name || ""),
-    detail: "ダッシュボードから見学店舗履歴を追加",
-    before_data: null,
-    after_data: inserted,
-    actor_employee_id: operator.employeeId || null
-  });
+  const insertedRows = requestSupabase_("post", "talent_student_store_tour_histories", "", payload);
+  let inserted = insertedRows[0] || {};
+  if (!inserted.id) {
+    const verifyRows = getSupabaseRows_(
+      "talent_student_store_tour_histories",
+      `${matchQuery}&order=created_at.desc&limit=1`
+    );
+    inserted = verifyRows[0] || inserted;
+  }
+
+  if (!inserted.id) {
+    throw new Error("見学店舗履歴の保存確認に失敗しました。もう一度データ更新後に確認してください。");
+  }
+
+  try {
+    requestSupabase_("post", "talent_operation_logs", "", {
+      action: "追加",
+      table_name: "talent_student_store_tour_histories",
+      record_id: inserted.id || null,
+      student_id: student.id,
+      student_code: String(student.student_code || ""),
+      student_name_snapshot: String(student.full_name || ""),
+      detail: "ダッシュボードから見学店舗履歴を追加",
+      before_data: null,
+      after_data: inserted,
+      actor_employee_id: operator.employeeId || null
+    });
+  } catch (logError) {
+    console.warn("見学店舗履歴の操作ログ保存に失敗しました: " + logError.message);
+  }
 
   return {
     ok: true,
     action: "addStudentStoreTourHistory",
     studentId: String(student.student_code || ""),
-    tourHistoryId: inserted.id || ""
+    studentRecordId: student.id,
+    tourHistoryId: inserted.id || "",
+    storeId: storeId,
+    tourDate: payload.tour_date || "",
+    tourStatus: tourStatus,
+    verified: true
   };
 }
 function addSpreadsheetStudentFromDashboard_(params) {

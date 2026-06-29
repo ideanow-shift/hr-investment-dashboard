@@ -2453,9 +2453,21 @@ function setupRenderedStoreTourHistoryForm() {
       if (!result || result.ok === false || result.error) {
         throw new Error(result?.error || "保存に失敗しました");
       }
+      if (!result.verified || !result.tourHistoryId) {
+        throw new Error("保存確認ができませんでした。データ更新後に再度確認してください。");
+      }
       status.textContent = "保存しました。データを再取得しています...";
-      closeStudentModal();
       await refreshDashboardData();
+      const updatedStudent = getAllStudentsForLookup().find((student) => {
+        return String(student.id || "") === String(result.studentRecordId || payload.studentRecordId || "")
+          || String(student.studentId || "") === String(result.studentId || payload.studentId || "");
+      });
+
+      if (updatedStudent) {
+        openStudentModal(updatedStudent);
+      } else {
+        closeStudentModal();
+      }
     } catch (error) {
       status.classList.add("is-error");
       status.textContent = `保存できませんでした：${error.message}`;
