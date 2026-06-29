@@ -3119,9 +3119,15 @@ function renderQualityIssueExtra(issue) {
   if (!Array.isArray(issue.relatedStudents) || !issue.relatedStudents.length) return "";
   const sortedStudents = getSortedDuplicateRelatedStudents(issue);
   const bestScore = getDuplicateIssueBestScore(issue);
-  const keepCount = sortedStudents.filter((student) => getDuplicateStudentAuditLabel(student, bestScore).className === "is-keep-candidate").length;
-  const removeCount = sortedStudents.filter((student) => getDuplicateStudentAuditLabel(student, bestScore).className === "is-remove-candidate").length;
+  const keepCandidates = sortedStudents.filter((student) => getDuplicateStudentAuditLabel(student, bestScore).className === "is-keep-candidate");
+  const removeCandidates = sortedStudents.filter((student) => getDuplicateStudentAuditLabel(student, bestScore).className === "is-remove-candidate");
+  const keepCount = keepCandidates.length;
+  const removeCount = removeCandidates.length;
   const reviewCount = sortedStudents.length - keepCount - removeCount;
+  const bulkExcludeIds = removeCandidates
+    .filter((student) => student.managementStatus !== "管理対象外")
+    .map((student) => student.studentId)
+    .filter(Boolean);
   return `
     <div class="quality-related-list" aria-label="関連する学生ID">
       <div class="quality-related-heading">
@@ -3129,6 +3135,7 @@ function renderQualityIssueExtra(issue) {
         <span>残す候補 ${formatNumber.format(keepCount)}</span>
         <span>対象外候補 ${formatNumber.format(removeCount)}</span>
         ${reviewCount ? `<span>確認 ${formatNumber.format(reviewCount)}</span>` : ""}
+        ${bulkExcludeIds.length ? `<button class="quality-related-bulk-exclude" type="button" data-quality-bulk-exclude-ids="${escapeHtml(bulkExcludeIds.join(","))}" ${getWriteDisabledAttribute(!isActiveCohortEditable())}>対象外候補をまとめて対象外にする</button>` : ""}
       </div>
       ${sortedStudents.map((student) => {
         const audit = getDuplicateStudentAuditLabel(student, bestScore);
@@ -3157,6 +3164,49 @@ function setupQualityRelatedStudentActions(list) {
       event.stopPropagation();
       const selectedStudent = getActiveStudents().find((student) => student.studentId === button.dataset.qualityRelatedStudentId);
       if (selectedStudent) openStudentModal(selectedStudent);
+    });
+  });
+
+  list.querySelectorAll("[data-quality-bulk-exclude-ids]").forEach((button) => {
+    button.addEventListener("click", async (event) => {
+      event.stopPropagation();
+      if (button.disabled) return;
+      const targetIds = String(button.dataset.qualityBulkExcludeIds || "")
+        .split(",")
+        .map((id) => id.trim())
+        .filter(Boolean);
+      const targetStudents = targetIds
+        .map((id) => getActiveStudents().find((student) => student.studentId === id))
+        .filter(Boolean);
+      if (!targetStudents.length) return;
+
+      const message = [
+        `${targetStudents.length}件の対象外候補をまとめて管理対象外にします。`,
+        "",
+        ...targetStudents.map((student) => `・${student.name || "氏名未取得"}（${student.studentId || "ID未取得"} / ${student.cohort || "区分未設定"}）`),
+        "",
+        "この操作後、サマリー・内定数・重複判定から外れます。よろしいですか？"
+      ].join("\n");
+      if (!window.confirm(message)) return;
+
+      const originalText = button.textContent;
+      try {
+        button.disabled = true;
+        button.textContent = "まとめて対象外化中...";
+        for (const student of targetStudents) {
+          const payload = buildStudentUpdatePayloadFromRecord(student, { managementStatus: "管理対象外" });
+          const result = await callGasAction("updateStudent", payload);
+          if (!result || result.ok === false || result.error) {
+            throw new Error(`${student.studentId || student.name}：${result?.error || "管理対象外にできませんでした"}`);
+          }
+        }
+        button.textContent = "対象外済";
+        await refreshDashboardData();
+      } catch (error) {
+        button.disabled = false;
+        button.textContent = originalText || "対象外候補をまとめて対象外にする";
+        alert(`まとめて対象外にできませんでした：${error.message}`);
+      }
     });
   });
 
