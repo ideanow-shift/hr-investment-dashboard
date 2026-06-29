@@ -1551,9 +1551,25 @@ td {
   padding: 10px;
 }
 
-.quality-related-list > strong {
+.quality-related-heading {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  align-items: center;
+}
+
+.quality-related-heading > strong {
   color: var(--danger);
   font-size: 13px;
+}
+
+.quality-related-heading span {
+  border-radius: 999px;
+  background: var(--surface-soft);
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 700;
+  padding: 2px 8px;
 }
 
 .quality-related-student {
@@ -1576,7 +1592,7 @@ td {
 }
 .quality-related-open {
   display: grid;
-  grid-template-columns: auto auto auto minmax(0, 1fr);
+  grid-template-columns: auto minmax(90px, 1fr) auto auto;
   gap: 8px;
   align-items: center;
   border: 0;
@@ -1614,6 +1630,13 @@ td {
   font-weight: 700;
 }
 
+.quality-related-student strong {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
 .quality-related-student em {
   border-radius: 999px;
   background: var(--accent-soft);
@@ -1624,6 +1647,7 @@ td {
 }
 
 .quality-related-student small {
+  grid-column: 1 / -1;
   color: var(--muted);
 }
 .quality-related-student.is-keep-candidate {

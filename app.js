@@ -3119,9 +3119,17 @@ function renderQualityIssueExtra(issue) {
   if (!Array.isArray(issue.relatedStudents) || !issue.relatedStudents.length) return "";
   const sortedStudents = getSortedDuplicateRelatedStudents(issue);
   const bestScore = getDuplicateIssueBestScore(issue);
+  const keepCount = sortedStudents.filter((student) => getDuplicateStudentAuditLabel(student, bestScore).className === "is-keep-candidate").length;
+  const removeCount = sortedStudents.filter((student) => getDuplicateStudentAuditLabel(student, bestScore).className === "is-remove-candidate").length;
+  const reviewCount = sortedStudents.length - keepCount - removeCount;
   return `
     <div class="quality-related-list" aria-label="関連する学生ID">
-      <strong>関連する学生</strong>
+      <div class="quality-related-heading">
+        <strong>関連する学生</strong>
+        <span>残す候補 ${formatNumber.format(keepCount)}</span>
+        <span>対象外候補 ${formatNumber.format(removeCount)}</span>
+        ${reviewCount ? `<span>確認 ${formatNumber.format(reviewCount)}</span>` : ""}
+      </div>
       ${sortedStudents.map((student) => {
         const audit = getDuplicateStudentAuditLabel(student, bestScore);
         const showExcludeButton = canQuickExcludeDuplicateStudent(student, audit);
@@ -3129,9 +3137,10 @@ function renderQualityIssueExtra(issue) {
         <div class="quality-related-student ${audit.className}">
           <button class="quality-related-open" type="button" data-quality-related-student-id="${escapeHtml(student.studentId)}">
             <b>${escapeHtml(student.studentId)}</b>
+            <strong>${escapeHtml(student.name || "氏名未取得")}</strong>
             <em>${escapeHtml(student.cohort)}</em>
             <span class="quality-related-audit-label">${escapeHtml(audit.label)}</span>
-            <small>内定:${escapeHtml(student.offerStatus)} / 入社:${escapeHtml(student.expectedJoinStatus)} / ${escapeHtml(student.managementStatus)}</small>
+            <small>${escapeHtml(student.school || "学校未取得")} / 内定:${escapeHtml(student.offerStatus)} / 入社:${escapeHtml(student.expectedJoinStatus)} / ${escapeHtml(student.managementStatus)}</small>
           </button>
           ${showExcludeButton ? `<button class="quality-related-exclude" type="button" data-quality-exclude-student-id="${escapeHtml(student.studentId)}" ${getWriteDisabledAttribute(!isActiveCohortEditable())}>対象外にする</button>` : ""}
         </div>
