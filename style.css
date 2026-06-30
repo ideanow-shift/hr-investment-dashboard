@@ -1406,11 +1406,38 @@ td {
 }
 
 .student-table-status span {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
   border-radius: 999px;
   background: var(--surface-soft);
   color: var(--muted);
   font-size: 12px;
   padding: 5px 8px;
+}
+
+.student-table-status b {
+  color: var(--text);
+  font-weight: 700;
+}
+
+.student-table-status span.is-good {
+  background: var(--green-soft);
+  color: #047857;
+}
+
+.student-table-status span.is-warning {
+  background: #fffbeb;
+  color: #92400e;
+}
+
+.student-table-status span.is-danger {
+  background: var(--red-soft);
+  color: var(--danger);
+}
+
+.student-card-open-button {
+  margin-top: 8px;
 }
 
 .student-table .urgency-badge {

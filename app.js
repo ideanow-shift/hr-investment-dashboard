@@ -4080,14 +4080,27 @@ function renderStudentLstepDetail(student) {
 }
 
 function renderStudentTableStatus(student) {
+  const statuses = [
+    ["LINE", student.lineStatus || "未設定"],
+    ["見学", student.salonTourStatus || "未設定"],
+    ["面接", student.interviewStatus || "未設定"],
+    ["内定", getOfferJoinStatusValue(student)]
+  ];
+
   return `
     <div class="student-table-status">
-      <span>LINE ${escapeHtml(student.lineStatus || "未設定")}</span>
-      <span>見学 ${escapeHtml(student.salonTourStatus || "未設定")}</span>
-      <span>面接 ${escapeHtml(student.interviewStatus || "未設定")}</span>
-      <span>内定 ${escapeHtml(student.offerStatus || "未定")}</span>
+      ${statuses.map(([label, value]) => `
+        <span class="${getStudentTableStatusTone(value)}"><b>${escapeHtml(label)}</b>${escapeHtml(value || "未設定")}</span>
+      `).join("")}
     </div>
   `;
+}
+
+function getStudentTableStatusTone(value) {
+  if (["内定", "承諾", "入社予定", "入社済", "実施済", "登録済"].includes(value)) return "is-good";
+  if (["予定", "条件付き合格", "再面接"].includes(value)) return "is-warning";
+  if (["不合格", "辞退", "キャンセル"].includes(value)) return "is-danger";
+  return "is-muted";
 }
 
 function renderStudentListTable(students) {
@@ -4131,6 +4144,7 @@ function renderStudentListTable(students) {
                   <strong>${escapeHtml(primaryAction?.title || "次アクション未設定")}</strong>
                   <small>${escapeHtml(primaryAction?.sourceLabel || "学生管理")}</small>
                   ${primaryAction ? renderFollowupCompleteButton(primaryAction) : ""}
+                  <button class="detail-button compact student-card-open-button" type="button" data-open-student-id="${escapeHtml(student.studentId)}">カルテ</button>
                 </td>
               </tr>
             `;
@@ -4177,6 +4191,14 @@ function renderStudentList(activeKey = activeStudentFilter) {
   document.getElementById("studentList").innerHTML = renderStudentListTable(students);
 
   setupFollowupCompleteButtons(document.getElementById("studentList"));
+
+  document.querySelectorAll("[data-open-student-id]").forEach((button) => {
+    button.addEventListener("click", (event) => {
+      event.stopPropagation();
+      const selectedStudent = getActiveStudents().find((student) => student.studentId === button.dataset.openStudentId);
+      openStudentModal(selectedStudent);
+    });
+  });
 
   const showMoreButton = document.getElementById("studentShowMoreButton");
   if (showMoreButton) {
