@@ -2764,9 +2764,10 @@ function renderStudentForm(student = {}, mode = "update") {
     <form class="student-edit-form" data-student-form="${mode}">
       <input type="hidden" name="studentRecordId" value="${escapeHtml(student.id || "")}">
       <input type="hidden" name="studentId" value="${escapeHtml(student.studentId || "")}">
+      <input type="hidden" name="owner" value="${escapeHtml(student.owner || "総務人事")}">
       <div class="student-form-heading">
         <div>
-          <h3>${isAdd ? "学生を追加" : "ステータスを更新"}</h3>
+          <h3>${isAdd ? "学生を追加" : "基本情報・選考を更新"}</h3>
           <p>${escapeHtml(getActiveCohortLabel())} / ${escapeHtml(getActiveSheetName())}</p>
         </div>
       </div>
@@ -2804,10 +2805,6 @@ function renderStudentForm(student = {}, mode = "update") {
         ${renderSelectField("resultStatus", "選考結果", studentSelectOptions.resultStatus, student.resultStatus || "未定", disabled)}
         ${renderSelectField("offerJoinStatus", "内定・入社ステータス", studentSelectOptions.offerJoinStatus, getOfferJoinStatusValue(student), disabled)}
         ${renderSelectField("managementStatus", "管理状態", studentSelectOptions.managementStatus, student.managementStatus || "有効", disabled)}
-        <label>
-          <span>担当者</span>
-          <input name="owner" value="${escapeHtml(student.owner || "総務人事")}" ${disabled}>
-        </label>
         <label>
           <span>次アクション日</span>
           <input name="nextActionDate" type="date" value="${escapeHtml(student.nextActionDate || "")}" ${disabled}>
@@ -4098,8 +4095,6 @@ function renderStudentOverviewPanel(student) {
       <div><span>担当</span><strong>${escapeHtml(student.owner || "未設定")}</strong></div>
       <div><span>学生ID</span><strong>${escapeHtml(student.studentId || "未設定")}</strong></div>
       <div><span>管理状態</span><strong>${escapeHtml(student.managementStatus || "有効")}</strong></div>
-      <div><span>最終更新</span><strong>${escapeHtml(student.updatedAt || "未記録")}</strong></div>
-      <div><span>更新者</span><strong>${escapeHtml(student.updatedBy || "未記録")}</strong></div>
     </div>
     <div class="modal-progress">
       ${[
