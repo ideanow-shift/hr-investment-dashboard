@@ -3949,6 +3949,10 @@ function renderStudentConditionChips(activeFilter, activeDueFilter) {
   `;
 }
 
+function getStudentListTotalCountForActiveScope() {
+  return activeStudentFilter === "inactive" ? getActiveStudents().length : getManagedStudents().length;
+}
+
 function getStudentSortDateValue(student) {
   return student.updatedAt || student.updated_at || student.contactDate || "";
 }
@@ -4154,9 +4158,10 @@ function renderStudentList(activeKey = activeStudentFilter) {
   renderStudentDueFilters(activeStudentDueFilter);
 
   const { activeFilter, activeDueFilter, students } = getFilteredStudentList(activeKey);
+  const totalCount = getStudentListTotalCountForActiveScope();
 
   document.getElementById("studentFilterCount").innerHTML = `
-    <strong>${escapeHtml(getActiveCohortLabel())}：${formatNumber.format(students.length)}名</strong>
+    <strong>表示中：${formatNumber.format(students.length)}名 <span>/ ${escapeHtml(getActiveCohortLabel())} ${formatNumber.format(totalCount)}名</span></strong>
     ${renderStudentConditionChips(activeFilter, activeDueFilter)}
   `;
   setupStudentCsvExport(students.length);
