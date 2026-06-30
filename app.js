@@ -3009,6 +3009,52 @@ function getStudentDueFilters() {
   ];
 }
 
+function getStudentQuickFilters() {
+  return [
+    { label: "今日対応", filterKey: "needsFollowUp", dueKey: "today", tone: "danger" },
+    { label: "期限超過", filterKey: "needsFollowUp", dueKey: "overdue", tone: "danger" },
+    { label: "見学予定", filterKey: "salonTour", dueKey: "all", tone: "blue" },
+    { label: "面接予定", filterKey: "interview", dueKey: "all", tone: "blue" },
+    { label: "内定者", filterKey: "offered", dueKey: "all", tone: "green" },
+    { label: "LSTEP未紐付け", filterKey: "lstepUnlinked", dueKey: "all", tone: "warning" }
+  ];
+}
+
+function getStudentFilterCount(filterKey, dueKey = "all") {
+  const statusFilter = getStudentFilters().find((filter) => filter.key === filterKey) || getStudentFilters()[0];
+  const dueFilter = getStudentDueFilters().find((filter) => filter.key === dueKey) || getStudentDueFilters()[0];
+  const sourceStudents = filterKey === "inactive" ? getActiveStudents() : getManagedStudents();
+  return sourceStudents
+    .filter(statusFilter.predicate)
+    .filter(matchesStudentSearch)
+    .filter(dueFilter.predicate).length;
+}
+
+function renderStudentQuickFilters() {
+  const wrap = document.getElementById("studentQuickFilters");
+  if (!wrap) return;
+
+  wrap.innerHTML = getStudentQuickFilters().map((filter) => {
+    const count = getStudentFilterCount(filter.filterKey, filter.dueKey);
+    const isActive = activeStudentFilter === filter.filterKey && activeStudentDueFilter === filter.dueKey;
+    return `
+      <button class="student-quick-filter ${isActive ? "active" : ""} tone-${escapeHtml(filter.tone)}" type="button" data-student-filter="${escapeHtml(filter.filterKey)}" data-student-due-filter="${escapeHtml(filter.dueKey)}">
+        <span>${escapeHtml(filter.label)}</span>
+        <strong>${formatNumber.format(count)}</strong>
+      </button>
+    `;
+  }).join("");
+
+  wrap.querySelectorAll("[data-student-filter]").forEach((button) => {
+    button.addEventListener("click", () => {
+      activeStudentFilter = button.dataset.studentFilter || "all";
+      activeStudentDueFilter = button.dataset.studentDueFilter || "all";
+      studentListVisibleCount = 50;
+      renderStudentList();
+    });
+  });
+}
+
 function renderStudentDueFilters(activeKey = activeStudentDueFilter) {
   const filters = getStudentDueFilters();
   const filterWrap = document.getElementById("studentDueFilters");
@@ -4097,6 +4143,7 @@ function renderStudentListTable(students) {
 }
 
 function renderStudentList(activeKey = activeStudentFilter) {
+  renderStudentQuickFilters();
   renderStudentFilters(activeStudentFilter);
   renderStudentSearchControls();
   renderStudentDueFilters(activeStudentDueFilter);

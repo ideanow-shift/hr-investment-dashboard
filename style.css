@@ -1151,6 +1151,61 @@ td {
   outline: 2px solid var(--accent-soft);
 }
 
+.student-quick-filters {
+  display: grid;
+  grid-template-columns: repeat(6, minmax(0, 1fr));
+  gap: 8px;
+  margin-bottom: 10px;
+}
+
+.student-quick-filter {
+  display: grid;
+  gap: 3px;
+  min-height: 62px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: #ffffff;
+  color: var(--text);
+  cursor: pointer;
+  font: inherit;
+  padding: 10px 12px;
+  text-align: left;
+}
+
+.student-quick-filter span {
+  color: var(--muted);
+  font-size: 12px;
+}
+
+.student-quick-filter strong {
+  font-size: 22px;
+  line-height: 1.1;
+}
+
+.student-quick-filter:hover,
+.student-quick-filter.active {
+  border-color: var(--accent);
+  background: var(--accent-soft);
+}
+
+.student-quick-filter.tone-danger.active,
+.student-quick-filter.tone-danger:hover {
+  border-color: rgba(220, 38, 38, 0.28);
+  background: var(--red-soft);
+}
+
+.student-quick-filter.tone-green.active,
+.student-quick-filter.tone-green:hover {
+  border-color: rgba(22, 163, 74, 0.28);
+  background: var(--green-soft);
+}
+
+.student-quick-filter.tone-warning.active,
+.student-quick-filter.tone-warning:hover {
+  border-color: rgba(217, 119, 6, 0.3);
+  background: #fffbeb;
+}
+
 .student-due-filters {
   margin-bottom: 8px;
 }
@@ -2168,6 +2223,10 @@ td {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 
+  .student-quick-filters {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+
   .lstep-status-grid {
     grid-template-columns: repeat(3, minmax(0, 1fr));
   }
@@ -2216,10 +2275,11 @@ td {
   .kpi-grid,
   .decision-grid,
   .school-grid,
-  .student-summary-grid,
-  .lstep-status-grid,
-  .detail-grid,
-  .operation-log-summary {
+    .student-summary-grid,
+  .student-quick-filters,
+    .lstep-status-grid,
+    .detail-grid,
+    .operation-log-summary {
     grid-template-columns: 1fr;
   }
 
