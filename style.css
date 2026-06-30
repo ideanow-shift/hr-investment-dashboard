@@ -1326,7 +1326,7 @@ td {
 }
 
 .student-table {
-  min-width: 1120px;
+  min-width: 860px;
   width: 100%;
 }
 
@@ -1375,7 +1375,7 @@ td {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 6px;
-  min-width: 220px;
+  min-width: 190px;
 }
 
 .student-table-status span {
@@ -1389,6 +1389,32 @@ td {
 .student-table .urgency-badge {
   width: fit-content;
   margin: 4px 0;
+}
+
+.student-table-badges {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-top: 8px;
+}
+
+.student-management-badge {
+  display: inline-flex;
+  align-items: center;
+  border-radius: 999px;
+  font-size: 11px;
+  font-weight: 600;
+  padding: 4px 8px;
+}
+
+.student-management-badge.is-active {
+  background: var(--green-soft);
+  color: #047857;
+}
+
+.student-management-badge.is-inactive {
+  background: var(--red-soft);
+  color: var(--danger);
 }
 
 .student-list-more {
@@ -2309,7 +2335,7 @@ td {
   }
 
   .student-table {
-    min-width: 940px;
+    min-width: 860px;
   }
 
   .student-list-more {

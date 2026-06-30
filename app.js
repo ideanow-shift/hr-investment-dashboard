@@ -4017,6 +4017,12 @@ function renderStudentLstepStatusChip(student) {
   return `<span class="student-lstep-chip ${status.className}" title="${escapeHtml(status.detail)}">${escapeHtml(status.label)}</span>`;
 }
 
+function renderStudentManagementBadge(student) {
+  const status = student.managementStatus || "有効";
+  const className = status === "管理対象外" ? "is-inactive" : "is-active";
+  return `<span class="student-management-badge ${className}">${escapeHtml(status)}</span>`;
+}
+
 function maskExternalId(value) {
   const text = String(value || "");
   if (!text) return "未取得";
@@ -4076,7 +4082,6 @@ function renderStudentTableStatus(student) {
       <span>見学 ${escapeHtml(student.salonTourStatus || "未設定")}</span>
       <span>面接 ${escapeHtml(student.interviewStatus || "未設定")}</span>
       <span>内定 ${escapeHtml(student.offerStatus || "未定")}</span>
-      ${renderStudentLstepStatusChip(student)}
     </div>
   `;
 }
@@ -4094,8 +4099,6 @@ function renderStudentListTable(students) {
             <th>学校・接点</th>
             <th>進捗</th>
             <th>次アクション</th>
-            <th>担当</th>
-            <th>管理</th>
           </tr>
         </thead>
         <tbody>
@@ -4108,10 +4111,14 @@ function renderStudentListTable(students) {
                   <span class="priority-pill ${priority.className}">${escapeHtml(priority.label)}</span>
                   <strong>${escapeHtml(student.name || "氏名未設定")}</strong>
                   <small>${escapeHtml(student.studentId || "ID未取得")} / ${escapeHtml(student.grade || "学年未設定")} / ${escapeHtml(student.gender || "性別未設定")}</small>
+                  <div class="student-table-badges">
+                    ${renderStudentManagementBadge(student)}
+                    ${renderStudentLstepStatusChip(student)}
+                  </div>
                 </td>
                 <td>
                   <strong>${escapeHtml(student.school || "学校未設定")}</strong>
-                  <small>${escapeHtml(student.source || "接点未設定")}</small>
+                  <small>${escapeHtml(student.source || "接点未設定")} / 担当：${escapeHtml(student.owner || "未設定")}</small>
                 </td>
                 <td>${renderStudentTableStatus(student)}</td>
                 <td>
@@ -4121,8 +4128,6 @@ function renderStudentListTable(students) {
                   <small>${escapeHtml(primaryAction?.sourceLabel || "学生管理")}</small>
                   ${primaryAction ? renderFollowupCompleteButton(primaryAction) : ""}
                 </td>
-                <td>${escapeHtml(student.owner || "未設定")}</td>
-                <td>${escapeHtml(student.managementStatus || "有効")}</td>
               </tr>
             `;
           }).join("")}
