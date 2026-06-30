@@ -2207,12 +2207,7 @@ function getStudentFormPayload(form) {
     nextAction: String(formData.get("nextAction") || "").trim(),
     nextActionDate: String(formData.get("nextActionDate") || ""),
     memo: String(formData.get("memo") || "").trim(),
-    managementStatus: String(formData.get("managementStatus") || "有効"),
-    storePreferences: [1, 2, 3].map((rank) => ({
-      preferenceRank: rank,
-      storeId: String(formData.get(`preferredStore${rank}`) || ""),
-      memo: String(formData.get(`preferredStoreMemo${rank}`) || "").trim()
-    })).filter((preference) => preference.storeId)
+    managementStatus: String(formData.get("managementStatus") || "有効")
   };
 }
 
@@ -2407,8 +2402,24 @@ function renderStudentStoreSection(student) {
           `).join("") : `<p class="student-empty compact">見学店舗履歴はまだありません。</p>`}
         </div>
       </div>
+      ${renderStorePreferenceForm(student)}
       ${renderStoreTourHistoryForm(student)}
     </section>
+  `;
+}
+
+function renderStorePreferenceForm(student) {
+  const disabled = isActiveCohortEditable() ? "" : "disabled";
+  return `
+    <form class="student-edit-form compact-form" data-store-preference-form>
+      <input type="hidden" name="studentId" value="${escapeHtml(student.studentId || "")}">
+      <input type="hidden" name="studentRecordId" value="${escapeHtml(student.id || "")}">
+      ${renderStorePreferenceFields(student, disabled)}
+      <div class="student-form-actions">
+        <p class="student-form-status" aria-live="polite"></p>
+        <button class="refresh-button" type="submit" ${getWriteDisabledAttribute(!isActiveCohortEditable() || !storeOptions.length)}>配属希望を保存</button>
+      </div>
+    </form>
   `;
 }
 
@@ -2448,6 +2459,64 @@ function getStoreTourHistoryPayload(form) {
     tourStatus: String(formData.get("tourStatus") || "予定"),
     memo: String(formData.get("memo") || "").trim()
   };
+}
+
+function getStorePreferencePayload(form) {
+  const formData = new FormData(form);
+  return {
+    studentId: String(formData.get("studentId") || ""),
+    studentRecordId: String(formData.get("studentRecordId") || ""),
+    storePreferences: [1, 2, 3].map((rank) => ({
+      preferenceRank: rank,
+      storeId: String(formData.get(`preferredStore${rank}`) || ""),
+      memo: String(formData.get(`preferredStoreMemo${rank}`) || "").trim()
+    })).filter((preference) => preference.storeId)
+  };
+}
+
+function setupRenderedStorePreferenceForm() {
+  const form = document.querySelector("[data-store-preference-form]");
+  if (!form) return;
+
+  form.addEventListener("submit", async (event) => {
+    event.preventDefault();
+    const submitButton = form.querySelector("button[type='submit']");
+    const status = form.querySelector(".student-form-status");
+    const payload = getStorePreferencePayload(form);
+
+    if (!isActiveCohortEditable()) {
+      status.textContent = "全件参考シートは編集できません。";
+      return;
+    }
+    if (!storeOptions.length) {
+      status.classList.add("is-error");
+      status.textContent = "店舗マスタを取得できていません。データ更新後に再度お試しください。";
+      return;
+    }
+
+    try {
+      submitButton.disabled = true;
+      status.classList.remove("is-error");
+      status.textContent = "保存中...";
+      await saveStudentStorePreferences(payload);
+      status.textContent = "保存しました。データを再取得しています...";
+      await refreshDashboardData();
+      const updatedStudent = getAllStudentsForLookup().find((student) => {
+        return String(student.id || "") === String(payload.studentRecordId || "")
+          || String(student.studentId || "") === String(payload.studentId || "");
+      });
+
+      if (updatedStudent) {
+        openStudentModal(updatedStudent);
+      } else {
+        closeStudentModal();
+      }
+    } catch (error) {
+      status.classList.add("is-error");
+      status.textContent = `保存できませんでした：${error.message}`;
+      submitButton.disabled = false;
+    }
+  });
 }
 
 function setupRenderedStoreTourHistoryForm() {
@@ -2818,7 +2887,6 @@ function renderStudentForm(student = {}, mode = "update") {
         <span>メモ</span>
         <textarea name="memo" rows="3" ${disabled}>${escapeHtml(student.memo || "")}</textarea>
       </label>
-      ${renderStorePreferenceFields(student, disabled)}
       <div class="student-form-actions">
         <p class="student-form-status" aria-live="polite"></p>
         <button class="refresh-button" type="submit" ${getWriteDisabledAttribute(!isActiveCohortEditable())}>${submitText}</button>
@@ -2863,10 +2931,6 @@ function setupRenderedStudentForm() {
       const result = await callGasAction(mode === "add" ? "addStudent" : "updateStudent", payload);
       if (!result || result.ok === false || result.error) {
         throw new Error(result?.error || "保存に失敗しました");
-      }
-      if (storeOptions.length) {
-        status.textContent = "学生情報を保存しました。配属希望店舗を保存しています...";
-        await saveStudentStorePreferences(payload, result.studentId || payload.studentId);
       }
       status.textContent = "保存しました。データを再取得しています...";
       closeStudentModal();
@@ -4194,6 +4258,7 @@ function openStudentModal(student) {
   document.body.classList.add("modal-open");
   setupStudentModalTabs();
   setupRenderedStudentForm();
+  setupRenderedStorePreferenceForm();
   setupRenderedStoreTourHistoryForm();
   setupRenderedFollowupForm();
   setupRenderedFollowupStatusForms();
