@@ -2709,7 +2709,7 @@ function applySheetRules(ss) {
     setDropdown(studentSheet, "H2:H1000", ["未登録", "登録済"]);
     setDropdown(studentSheet, "I2:I1000", ["未設定", "予定", "実施済", "キャンセル"]);
     setDropdown(studentSheet, "J2:J1000", ["未設定", "予定", "実施済", "キャンセル"]);
-    setDropdown(studentSheet, "K2:K1000", ["未定", "合格", "不合格", "辞退"]);
+    setDropdown(studentSheet, "K2:K1000", ["未定", "合格", "条件付き合格", "再面接", "不合格", "辞退"]);
     setDropdown(studentSheet, "L2:L1000", ["未定", "内定", "承諾", "辞退"]);
     setDropdown(studentSheet, "M2:M1000", ["未定", "入社予定", "入社済", "辞退"]);
   });
