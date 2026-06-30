@@ -1844,15 +1844,15 @@ const studentSelectOptions = {
   resultStatus: ["未定", "合格", "条件付き合格", "再面接", "不合格", "辞退"],
   offerStatus: ["未定", "内定", "承諾", "辞退"],
   expectedJoinStatus: ["未定", "入社予定", "入社済", "辞退"],
-  offerJoinStatus: ["未定", "内定", "承諾", "入社予定", "入社済", "辞退"],
+  offerJoinStatus: ["未定", "内定", "入社予定", "入社済", "辞退"],
   managementStatus: ["有効", "管理対象外"]
 };
 
 function getOfferJoinStatusValue(student = {}) {
   if (student.expectedJoinStatus === "入社済") return "入社済";
   if (student.expectedJoinStatus === "入社予定") return "入社予定";
-  if (student.offerStatus === "承諾") return "承諾";
   if (student.offerStatus === "内定") return "内定";
+  if (student.offerStatus === "承諾") return "内定";
   if (student.offerStatus === "辞退" || student.expectedJoinStatus === "辞退") return "辞退";
   return "未定";
 }
@@ -1861,8 +1861,6 @@ function splitOfferJoinStatus(value) {
   switch (value) {
     case "内定":
       return { offerStatus: "内定", expectedJoinStatus: "未定" };
-    case "承諾":
-      return { offerStatus: "承諾", expectedJoinStatus: "未定" };
     case "入社予定":
       return { offerStatus: "内定", expectedJoinStatus: "入社予定" };
     case "入社済":
