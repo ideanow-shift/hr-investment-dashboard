@@ -2876,44 +2876,75 @@ function renderStudentForm(student = {}, mode = "update") {
         </ul>
       </div>
       ${renderOperatorNotice()}
-      <div class="student-form-grid">
-        <label>
-          <span>${renderRequiredLabel("氏名")}</span>
-          <input name="name" value="${escapeHtml(student.name || "")}" placeholder="例：山田 花" ${isAdd ? "required" : ""} ${disabled}>
+      <section class="student-form-section">
+        <div class="student-form-section-title">
+          <span>1</span>
+          <div>
+            <h4>基本情報</h4>
+            <p>氏名・学校・接点の正確さが、重複判定と学校分析に効きます。</p>
+          </div>
+        </div>
+        <div class="student-form-grid">
+          <label>
+            <span>${renderRequiredLabel("氏名")}</span>
+            <input name="name" value="${escapeHtml(student.name || "")}" placeholder="例：山田 花" ${isAdd ? "required" : ""} ${disabled}>
+          </label>
+          ${renderSelectField("gender", "性別", studentSelectOptions.gender, student.gender || "未回答", disabled)}
+          <label>
+            <span>${renderRequiredLabel("学校名")}</span>
+            <input name="school" value="${escapeHtml(student.school || "")}" placeholder="例：山野美容専門学校" ${isAdd ? "required" : ""} ${disabled}>
+          </label>
+          ${renderSelectField("grade", "学年", studentSelectOptions.grade, student.grade || "2年", disabled)}
+          <label>
+            <span>流入元</span>
+            <input name="source" value="${escapeHtml(student.source || "")}" placeholder="フェア名・学校訪問など" ${disabled}>
+          </label>
+          <label>
+            <span>接触日</span>
+            <input name="contactDate" type="date" value="${escapeHtml(student.contactDate || "")}" ${disabled}>
+          </label>
+        </div>
+      </section>
+      <section class="student-form-section">
+        <div class="student-form-section-title">
+          <span>2</span>
+          <div>
+            <h4>選考状況</h4>
+            <p>LINE、見学、面接、内定・入社の進み具合を更新します。</p>
+          </div>
+        </div>
+        <div class="student-form-grid">
+          ${renderSelectField("lineStatus", "LINE登録", studentSelectOptions.lineStatus, student.lineStatus || "未登録", disabled)}
+          ${renderSelectField("salonTourStatus", "見学ステータス", studentSelectOptions.salonTourStatus, student.salonTourStatus || "未設定", disabled)}
+          ${renderSelectField("interviewStatus", "面接ステータス", studentSelectOptions.interviewStatus, student.interviewStatus || "未設定", disabled)}
+          ${renderSelectField("resultStatus", "選考結果", studentSelectOptions.resultStatus, student.resultStatus || "未定", disabled)}
+          ${renderSelectField("offerJoinStatus", "内定・入社ステータス", studentSelectOptions.offerJoinStatus, getOfferJoinStatusValue(student), disabled)}
+          ${renderSelectField("managementStatus", "管理状態", studentSelectOptions.managementStatus, student.managementStatus || "有効", disabled)}
+        </div>
+      </section>
+      <section class="student-form-section">
+        <div class="student-form-section-title">
+          <span>3</span>
+          <div>
+            <h4>次の対応</h4>
+            <p>対応漏れを防ぐため、アクションと日付をセットで残します。</p>
+          </div>
+        </div>
+        <div class="student-form-grid">
+          <label>
+            <span>次アクション日</span>
+            <input name="nextActionDate" type="date" value="${escapeHtml(student.nextActionDate || "")}" ${disabled}>
+          </label>
+          <label>
+            <span>次アクション</span>
+            <input name="nextAction" value="${escapeHtml(student.nextAction || "")}" placeholder="例：見学前リマインド" ${disabled}>
+          </label>
+        </div>
+        <label class="student-form-full">
+          <span>メモ</span>
+          <textarea name="memo" rows="3" ${disabled}>${escapeHtml(student.memo || "")}</textarea>
         </label>
-        ${renderSelectField("gender", "性別", studentSelectOptions.gender, student.gender || "未回答", disabled)}
-        <label>
-          <span>${renderRequiredLabel("学校名")}</span>
-          <input name="school" value="${escapeHtml(student.school || "")}" placeholder="例：山野美容専門学校" ${isAdd ? "required" : ""} ${disabled}>
-        </label>
-        ${renderSelectField("grade", "学年", studentSelectOptions.grade, student.grade || "2年", disabled)}
-        <label>
-          <span>流入元</span>
-          <input name="source" value="${escapeHtml(student.source || "")}" placeholder="フェア名・学校訪問など" ${disabled}>
-        </label>
-        <label>
-          <span>接触日</span>
-          <input name="contactDate" type="date" value="${escapeHtml(student.contactDate || "")}" ${disabled}>
-        </label>
-        ${renderSelectField("lineStatus", "LINE登録", studentSelectOptions.lineStatus, student.lineStatus || "未登録", disabled)}
-        ${renderSelectField("salonTourStatus", "見学ステータス", studentSelectOptions.salonTourStatus, student.salonTourStatus || "未設定", disabled)}
-        ${renderSelectField("interviewStatus", "面接ステータス", studentSelectOptions.interviewStatus, student.interviewStatus || "未設定", disabled)}
-        ${renderSelectField("resultStatus", "選考結果", studentSelectOptions.resultStatus, student.resultStatus || "未定", disabled)}
-        ${renderSelectField("offerJoinStatus", "内定・入社ステータス", studentSelectOptions.offerJoinStatus, getOfferJoinStatusValue(student), disabled)}
-        <label>
-          <span>次アクション日</span>
-          <input name="nextActionDate" type="date" value="${escapeHtml(student.nextActionDate || "")}" ${disabled}>
-        </label>
-        ${renderSelectField("managementStatus", "管理状態", studentSelectOptions.managementStatus, student.managementStatus || "有効", disabled)}
-      </div>
-      <label class="student-form-full">
-        <span>次アクション</span>
-        <input name="nextAction" value="${escapeHtml(student.nextAction || "")}" placeholder="例：見学前リマインド" ${disabled}>
-      </label>
-      <label class="student-form-full">
-        <span>メモ</span>
-        <textarea name="memo" rows="3" ${disabled}>${escapeHtml(student.memo || "")}</textarea>
-      </label>
+      </section>
       <div class="student-form-actions">
         <p class="student-form-status" aria-live="polite"></p>
         <button class="refresh-button" type="submit" ${getWriteDisabledAttribute(!isActiveCohortEditable())}>${submitText}</button>
