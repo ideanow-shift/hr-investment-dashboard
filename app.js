@@ -2033,13 +2033,31 @@ function getWriteDisabledAttribute(extraDisabled = false, action = "edit") {
 
 function buildStudentSaveConfirmMessage(payload, mode) {
   const action = mode === "add" ? "追加" : "更新";
+  const offerJoinStatus = payload.expectedJoinStatus && payload.expectedJoinStatus !== "未定"
+    ? payload.expectedJoinStatus
+    : (payload.offerStatus || "未定");
+  const nextAction = payload.nextAction
+    ? `${payload.nextAction} / ${payload.nextActionDate || "日程未設定"}`
+    : "未設定";
+
   return [
     `学生データを${action}します。`,
     "",
+    "【基本情報】",
     `氏名：${payload.name || "未入力"}`,
     `学校：${payload.school || "未入力"}`,
     `区分：${getActiveCohortLabel()}`,
     `管理状態：${payload.managementStatus}`,
+    "",
+    "【選考状況】",
+    `LINE：${payload.lineStatus || "未設定"}`,
+    `見学：${payload.salonTourStatus || "未設定"}`,
+    `面接：${payload.interviewStatus || "未設定"}`,
+    `選考結果：${payload.resultStatus || "未定"}`,
+    `内定・入社：${offerJoinStatus}`,
+    "",
+    "【次の対応】",
+    `次アクション：${nextAction}`,
     "",
     "保存後はSupabaseへ反映され、操作履歴にも記録されます。"
   ].join("\n");
