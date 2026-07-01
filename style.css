@@ -1924,6 +1924,51 @@ td {
   color: var(--muted);
 }
 
+.student-modal-header-status {
+  display: grid;
+  gap: 8px;
+  justify-items: end;
+}
+
+.student-modal-progress-summary {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  justify-content: flex-end;
+  max-width: 360px;
+}
+
+.student-modal-progress-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  border-radius: 999px;
+  background: var(--surface-soft);
+  color: var(--muted);
+  font-size: 11px;
+  padding: 4px 8px;
+}
+
+.student-modal-progress-chip b {
+  color: var(--text);
+  font-weight: 700;
+}
+
+.student-modal-progress-chip.is-good {
+  background: var(--green-soft);
+  color: #047857;
+}
+
+.student-modal-progress-chip.is-warning {
+  background: #fffbeb;
+  color: #92400e;
+}
+
+.student-modal-progress-chip.is-danger {
+  background: var(--red-soft);
+  color: var(--danger);
+}
+
 .modal-status-grid,
 .modal-progress {
   display: grid;
@@ -2474,6 +2519,15 @@ td {
   .modal-header {
     flex-direction: column;
     gap: 10px;
+  }
+
+  .student-modal-header-status {
+    justify-items: start;
+  }
+
+  .student-modal-progress-summary {
+    justify-content: flex-start;
+    max-width: none;
   }
 
   .student-overview-focus {

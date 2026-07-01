@@ -4326,6 +4326,19 @@ function setupStudentModalTabs() {
   activateTab("overview");
 }
 
+function renderStudentModalHeaderProgress(student) {
+  return [
+    ["LINE", student.lineStatus || "未設定"],
+    ["見学", student.salonTourStatus || "未設定"],
+    ["面接", student.interviewStatus || "未設定"],
+    ["内定・入社", getOfferJoinStatusValue(student)]
+  ].map(([label, value]) => `
+    <span class="student-modal-progress-chip ${getStudentTableStatusTone(value)}">
+      <b>${escapeHtml(label)}</b>${escapeHtml(value || "未設定")}
+    </span>
+  `).join("");
+}
+
 function openStudentModal(student) {
   if (!student) return;
 
@@ -4340,7 +4353,12 @@ function openStudentModal(student) {
         <h2 id="studentModalTitle">${escapeHtml(student.name || "氏名未設定")}</h2>
         <p>${escapeHtml(student.school || "学校未設定")} / ${escapeHtml(student.grade || "学年未設定")}</p>
       </div>
-      <span class="priority-pill ${priority.className}">${escapeHtml(priority.label)}</span>
+      <div class="student-modal-header-status">
+        <span class="priority-pill ${priority.className}">${escapeHtml(priority.label)}</span>
+        <div class="student-modal-progress-summary">
+          ${renderStudentModalHeaderProgress(student)}
+        </div>
+      </div>
     </div>
     ${renderStudentModalTabs(student)}
   `;
