@@ -4350,8 +4350,14 @@ function renderStudentModalTabPanel(key, content) {
 
 function renderStudentOverviewPanel(student) {
   const primaryAction = getPrimaryStudentAction(student);
+  const lstepStatus = getStudentLstepStatus(student);
 
   return `
+    <div class="student-overview-badges">
+      ${renderStudentManagementBadge(student)}
+      <span class="student-lstep-chip ${lstepStatus.className}">${escapeHtml(lstepStatus.label)}</span>
+      <span class="student-overview-badge">${escapeHtml(student.cohort || getActiveCohortLabel())}</span>
+    </div>
     <div class="student-overview-focus">
       <div>
         <span>次にやること</span>

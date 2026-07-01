@@ -2132,6 +2132,25 @@ td {
   gap: 10px;
 }
 
+.student-overview-badges {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  align-items: center;
+  margin-bottom: 10px;
+}
+
+.student-overview-badge {
+  display: inline-flex;
+  align-items: center;
+  border-radius: 999px;
+  background: var(--surface-soft);
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 700;
+  padding: 4px 9px;
+}
+
 .student-overview-focus {
   display: grid;
   grid-template-columns: minmax(0, 1fr) auto;
