@@ -3196,7 +3196,13 @@ function getStudentSortOptions() {
 }
 
 function normalizeStudentSearchText(value) {
-  return String(value || "").toLowerCase().replace(/\\s+/g, "");
+  return String(value || "")
+    .normalize("NFKC")
+    .toLowerCase()
+    .replace(/[\s\u3000\u200B-\u200D\uFEFF]+/g, "")
+    .replace(/[髙﨑]/g, (char) => ({ "髙": "高", "﨑": "崎" }[char] || char))
+    .replace(/[邉邊]/g, "辺")
+    .replace(/[齋齊]/g, "斉");
 }
 
 function getStudentSearchText(student) {
