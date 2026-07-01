@@ -4245,6 +4245,12 @@ function renderStudentListTable(students) {
   return `
     <div class="student-table-wrap">
       <table class="student-table">
+        <colgroup>
+          <col class="student-col-person">
+          <col class="student-col-school">
+          <col class="student-col-status">
+          <col class="student-col-action">
+        </colgroup>
         <thead>
           <tr>
             <th>学生</th>
@@ -4264,6 +4270,7 @@ function renderStudentListTable(students) {
                   <strong>${escapeHtml(student.name || "氏名未設定")}</strong>
                   <small>${escapeHtml(student.studentId || "ID未取得")} / ${escapeHtml(student.grade || "学年未設定")} / ${escapeHtml(student.gender || "性別未設定")}</small>
                   <div class="student-table-badges">
+                    <span class="student-cohort-badge">${escapeHtml(student.cohort || getActiveCohortLabel())}</span>
                     ${renderStudentManagementBadge(student)}
                     ${renderStudentLstepStatusChip(student)}
                   </div>
