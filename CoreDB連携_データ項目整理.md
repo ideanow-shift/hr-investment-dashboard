@@ -199,4 +199,25 @@ Core DB参照:
 - 権限マスタ
 - 社員所属履歴
 - 複数店舗所属
+## 2026-07-02 Core DB統合方針追記
 
+IDEA NOV OS / Core DB側で、Management Platformの環境整備チェックに `target_employee_id` を追加する方針が承認された。
+
+NOV Talent側でも、今後は「人に関する履歴」を最終的に Core DB の `employees.id` を軸に接続する。
+
+### NOV Talent側の設計ルール
+
+- 社員・店舗・部署・役職は独自管理せず、Core DBの既存マスタを参照する
+- 社員を記録する場合は、氏名ではなく `employees.id` を保存する
+- 店舗を記録する場合は、店舗名ではなく `stores.id` を保存する
+- 作成者・更新者・面談担当者・採用担当者など、社内社員に紐づくカラムは `employees.id` を参照する
+- 学生の正本は引き続き `talent_students.id`
+- 学生と店舗の希望・見学履歴は `stores.id` で紐づける
+- LSTEP / LINE連携でも、社内担当者は `employees.id`、学生は `talent_students.id` を軸にする
+- RLSはenable、Phase1はGAS backend + service_role経由、anon直接書き込みなし
+- service_role keyやLSTEP APIキーはフロントへ出さない
+- DDLを追加する場合は `talent_` prefixで作成し、SQL Editor投入前にOS側レビューを通す
+
+### 補足
+
+NOV Talentでは社員評価や管理者育成データを直接持たない。ただし、採用担当者・面談者・作成者・更新者など、社内社員に関わる情報は必ず Core DB の `employees.id` 参照に寄せる。
