@@ -1487,13 +1487,56 @@ td {
   color: var(--danger);
 }
 
+.student-next-action-cell {
+  display: grid;
+  gap: 6px;
+  min-width: 210px;
+}
+
+.student-next-action-cell > strong {
+  color: var(--text);
+  font-weight: 700;
+  line-height: 1.45;
+}
+
+.student-next-action-cell > small {
+  color: var(--muted);
+  font-size: 12px;
+  line-height: 1.5;
+}
+
+.student-next-action-cell.is-unscheduled {
+  border-left: 3px solid var(--yellow);
+  padding-left: 8px;
+}
+
+.student-next-action-top {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  align-items: center;
+}
+
+.student-next-action-top > span {
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.student-next-action-buttons {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  align-items: center;
+}
+
 .student-card-open-button {
-  margin-top: 8px;
+  margin-top: 0;
 }
 
 .student-table .urgency-badge {
   width: fit-content;
-  margin: 4px 0;
+  margin: 0;
 }
 
 .student-table-badges {

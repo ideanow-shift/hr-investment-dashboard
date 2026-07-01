@@ -4155,6 +4155,28 @@ function getStudentTableStatusTone(value) {
   return "is-muted";
 }
 
+function renderStudentNextActionCell(student, primaryAction) {
+  const actionTitle = primaryAction?.title || "次アクション未設定";
+  const dueDate = primaryAction?.dueDate || "";
+  const sourceLabel = primaryAction?.sourceLabel || "学生管理";
+  const isUnscheduled = !dueDate && actionTitle !== "次アクション未設定";
+
+  return `
+    <div class="student-next-action-cell ${isUnscheduled ? "is-unscheduled" : ""}">
+      <div class="student-next-action-top">
+        <span>${escapeHtml(dueDate || "日程未設定")}</span>
+        ${primaryAction ? renderActionBadge(primaryAction) : `<em class="urgency-badge urgency-unscheduled">未設定</em>`}
+      </div>
+      <strong>${escapeHtml(actionTitle)}</strong>
+      <small>${escapeHtml(sourceLabel)}${isUnscheduled ? " / 日程を入れると対応漏れを防げます" : ""}</small>
+      <div class="student-next-action-buttons">
+        ${primaryAction ? renderFollowupCompleteButton(primaryAction) : ""}
+        <button class="detail-button compact student-card-open-button" type="button" data-open-student-id="${escapeHtml(student.studentId)}">カルテ</button>
+      </div>
+    </div>
+  `;
+}
+
 function setupStudentOpenButtons(root = document) {
   root.querySelectorAll("[data-open-student-id]").forEach((button) => {
     button.addEventListener("click", (event) => {
@@ -4200,14 +4222,7 @@ function renderStudentListTable(students) {
                   <small>${escapeHtml(student.source || "接点未設定")} / 担当：${escapeHtml(student.owner || "未設定")}</small>
                 </td>
                 <td>${renderStudentTableStatus(student)}</td>
-                <td>
-                  <span>${escapeHtml(primaryAction?.dueDate || "日程未設定")}</span>
-                  ${primaryAction ? renderActionBadge(primaryAction) : ""}
-                  <strong>${escapeHtml(primaryAction?.title || "次アクション未設定")}</strong>
-                  <small>${escapeHtml(primaryAction?.sourceLabel || "学生管理")}</small>
-                  ${primaryAction ? renderFollowupCompleteButton(primaryAction) : ""}
-                  <button class="detail-button compact student-card-open-button" type="button" data-open-student-id="${escapeHtml(student.studentId)}">カルテ</button>
-                </td>
+                <td>${renderStudentNextActionCell(student, primaryAction)}</td>
               </tr>
             `;
           }).join("")}
