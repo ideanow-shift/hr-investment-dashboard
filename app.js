@@ -2974,12 +2974,16 @@ function renderStudentActions() {
         ${renderActionBadge(item)}
         <b>${escapeHtml(item.title)}</b>
         <small>${escapeHtml(item.status)}</small>
-        ${renderFollowupCompleteButton(item)}
+        <div class="student-action-buttons">
+          <button class="detail-button compact" type="button" data-open-student-id="${escapeHtml(item.student.studentId)}">カルテ</button>
+          ${renderFollowupCompleteButton(item)}
+        </div>
       </div>
     </article>
   `).join("");
 
   setupFollowupCompleteButtons(document.getElementById("studentActionList"));
+  setupStudentOpenButtons(document.getElementById("studentActionList"));
 }
 
 function getStudentFilters() {
@@ -4104,6 +4108,16 @@ function getStudentTableStatusTone(value) {
   return "is-muted";
 }
 
+function setupStudentOpenButtons(root = document) {
+  root.querySelectorAll("[data-open-student-id]").forEach((button) => {
+    button.addEventListener("click", (event) => {
+      event.stopPropagation();
+      const selectedStudent = getActiveStudents().find((student) => student.studentId === button.dataset.openStudentId);
+      openStudentModal(selectedStudent);
+    });
+  });
+}
+
 function renderStudentListTable(students) {
   const visibleStudents = students.slice(0, studentListVisibleCount);
   const hasMore = students.length > visibleStudents.length;
@@ -4192,14 +4206,7 @@ function renderStudentList(activeKey = activeStudentFilter) {
   document.getElementById("studentList").innerHTML = renderStudentListTable(students);
 
   setupFollowupCompleteButtons(document.getElementById("studentList"));
-
-  document.querySelectorAll("[data-open-student-id]").forEach((button) => {
-    button.addEventListener("click", (event) => {
-      event.stopPropagation();
-      const selectedStudent = getActiveStudents().find((student) => student.studentId === button.dataset.openStudentId);
-      openStudentModal(selectedStudent);
-    });
-  });
+  setupStudentOpenButtons(document.getElementById("studentList"));
 
   const showMoreButton = document.getElementById("studentShowMoreButton");
   if (showMoreButton) {

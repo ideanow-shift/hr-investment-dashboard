@@ -1332,6 +1332,14 @@ td {
   font-weight: 500;
 }
 
+.student-action-buttons {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  justify-content: flex-end;
+  margin-top: 8px;
+}
+
 .student-empty {
   border: 1px solid var(--line);
   border-radius: 8px;
@@ -2569,6 +2577,10 @@ td {
 
   .student-action-meta {
     text-align: left;
+  }
+
+  .student-action-buttons {
+    justify-content: flex-start;
   }
 
   .operation-log-meta {
