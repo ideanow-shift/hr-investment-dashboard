@@ -226,6 +226,7 @@ let activeOperationLogFilter = "all";
 let operationLogSearchQuery = "";
 let lstepSummary = buildDefaultLstepSummary();
 let storeOptions = [];
+let lastDataRefreshAt = null;
 
 async function fetchDashboardData() {
   if (!GAS_API_URL) {
@@ -5114,6 +5115,7 @@ async function refreshDashboardData() {
   }
 
   const isConnected = await fetchDashboardData();
+  lastDataRefreshAt = new Date();
   renderDashboard(isConnected);
 
   if (refreshButton) {
@@ -5291,9 +5293,30 @@ function renderHubContextBadge() {
   badge.innerHTML = `<span>HUB / ${escapeHtml(permission.label)}</span><strong>${escapeHtml(displayName)}</strong><small>${escapeHtml(roleName)}</small>`;
 }
 
+function formatRefreshTimestamp(date) {
+  if (!(date instanceof Date) || Number.isNaN(date.getTime())) return "未取得";
+  return new Intl.DateTimeFormat("ja-JP", {
+    month: "2-digit",
+    day: "2-digit",
+    hour: "2-digit",
+    minute: "2-digit",
+    hour12: false
+  }).format(date);
+}
+
+function updateDataRefreshMeta(isConnected) {
+  const meta = document.getElementById("dataRefreshMeta");
+  if (!meta) return;
+  const sourceLabel = isConnected ? "GAS" : "サンプル";
+  meta.textContent = `最終取得: ${formatRefreshTimestamp(lastDataRefreshAt)} / ${sourceLabel}`;
+  meta.classList.toggle("is-connected", Boolean(isConnected));
+  meta.classList.toggle("is-sample", !isConnected);
+}
+
 function updateDataSourceStatus(isConnected) {
   const badge = document.querySelector(".header-badge");
   const footerStatus = document.getElementById("footerStatus");
+  updateDataRefreshMeta(isConnected);
   const status = isConnected
     ? {
       label: "● GAS Connected",

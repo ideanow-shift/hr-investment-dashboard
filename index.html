@@ -4,7 +4,7 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>NOV Talent</title>
-  <link rel="stylesheet" href="style.css?v=20260629-store-fields">
+  <link rel="stylesheet" href="style.css?v=20260702-refresh-meta">
 </head>
 <body>
   <header class="app-header">
@@ -19,7 +19,10 @@
       <div class="header-actions">
         <button id="settingsEditButton" class="refresh-button" type="button">目標編集</button>
         <button id="monthlyReportCsvButton" class="refresh-button" type="button">月次CSV</button>
-        <button id="dataRefreshButton" class="refresh-button" type="button">データ更新</button>
+        <div class="data-refresh-control">
+          <button id="dataRefreshButton" class="refresh-button" type="button">データ更新</button>
+          <small id="dataRefreshMeta" class="data-refresh-meta">最終取得: 未取得</small>
+        </div>
         <div id="hubContextBadge" class="hub-context-badge" hidden></div>
         <div class="header-badge">
           <span>Loading Data</span>
@@ -400,7 +403,7 @@
     </section>
   </div>
 
-  <script src="app.js?v=20260629-store-fields"></script>
+  <script src="app.js?v=20260702-refresh-meta"></script>
 </body>
 </html>
 
