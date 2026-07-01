@@ -1793,6 +1793,7 @@ function renderLstepIntegrationStatus() {
     lstepSummary.unprocessedEvents
       ? `未処理イベント ${formatNumber.format(lstepSummary.unprocessedEvents)}件を同期対象として確認する`
       : "未処理イベントは現在クリア",
+    "連携テンプレートを制作会社へ渡し、出力可能な列名とID形式を確認する",
     "本接続時はLSTEP側IDと学生IDを突合し、GAS backend経由で保存する"
   ];
 
@@ -1822,6 +1823,7 @@ function renderLstepIntegrationStatus() {
         <button type="button" data-lstep-open-students>未紐付け学生を見る</button>
         <button type="button" data-lstep-open-quality>データ品質で確認</button>
         <button type="button" data-lstep-export-unlinked ${unlinkedCount ? "" : "disabled"}>未紐付けCSV</button>
+        <button type="button" data-lstep-export-template>連携テンプレート</button>
       </div>
       <ul>
         ${nextSteps.map((item) => `<li>${escapeHtml(item)}</li>`).join("")}
@@ -1845,6 +1847,7 @@ function renderLstepIntegrationStatus() {
   });
 
   container.querySelector("[data-lstep-export-unlinked]")?.addEventListener("click", downloadLstepUnlinkedStudentCsv);
+  container.querySelector("[data-lstep-export-template]")?.addEventListener("click", downloadLstepProviderTemplateCsv);
 }
 function updateStudentUrgentTabBadge(summary) {
   const badge = document.getElementById("studentUrgentTabBadge");
@@ -3485,6 +3488,39 @@ function downloadLstepUnlinkedStudentCsv() {
       student.nextAction,
       student.memo
     ])
+  );
+}
+function downloadLstepProviderTemplateCsv() {
+  downloadCsvFile(
+    `nov-talent-lstep-import-template-${new Date().toISOString().slice(0, 10)}.csv`,
+    [
+      "student_id",
+      "student_name",
+      "school_name",
+      "line_user_id",
+      "lstep_user_id",
+      "friend_status",
+      "blocked_at",
+      "last_message_at",
+      "last_reaction_at",
+      "tag_names",
+      "scenario_names",
+      "memo"
+    ],
+    [[
+      "S-0001",
+      "山田 花",
+      "学校名サンプル",
+      "Uxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx",
+      "lstep-user-id-sample",
+      "friend",
+      "",
+      "2026-07-01 10:00",
+      "2026-07-01 10:05",
+      "見学希望;27卒",
+      "サロン見学案内;内定後フォロー",
+      "制作会社確認用サンプル。実データ投入時はGAS backend経由で処理。"
+    ]]
   );
 }
 
