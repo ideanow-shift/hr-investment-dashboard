@@ -1768,6 +1768,10 @@ function renderLstepIntegrationStatus() {
   const lastSyncedText = lstepSummary.lastSyncedAt
     ? formatDate(lstepSummary.lastSyncedAt)
     : "未同期";
+  const rawNote = lstepSummary.note || "LSTEP連携の準備状況を確認します。";
+  const displayNote = /読み取り失敗|Could not find the table|PGRST205|Invalid path/i.test(rawNote)
+    ? "LSTEP連携テーブルは未作成または未同期です。学生データ側の未紐付け確認はこの画面で進められます。"
+    : rawNote;
   const unlinkedStudents = getLstepUnlinkedStudents();
   const unlinkedCount = unlinkedStudents.length;
   const unlinkedOfferCount = unlinkedStudents.filter((student) => {
@@ -1797,7 +1801,7 @@ function renderLstepIntegrationStatus() {
       <div>
         <p class="section-kicker">LSTEP Integration</p>
         <h3>LSTEP連携状況</h3>
-        <p>${escapeHtml(lstepSummary.note || "LSTEP連携の準備状況を確認します。")}</p>
+        <p>${escapeHtml(displayNote)}</p>
       </div>
       <span class="lstep-status-pill ${statusClass}">${escapeHtml(statusLabel)}</span>
     </div>
