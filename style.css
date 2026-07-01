@@ -1068,6 +1068,83 @@ td {
   font-size: 12px;
   font-weight: 400;
 }
+.lstep-status-card.is-linked {
+  border-color: rgba(34, 197, 94, 0.24);
+  background: var(--green-soft);
+}
+
+.lstep-status-card.is-warning {
+  border-color: rgba(245, 158, 11, 0.28);
+  background: var(--yellow-soft);
+}
+
+.lstep-status-card.is-danger {
+  border-color: rgba(220, 38, 38, 0.24);
+  background: var(--red-soft);
+}
+
+.lstep-action-panel {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 12px 16px;
+  align-items: start;
+  border: 1px solid rgba(47, 111, 181, 0.18);
+  border-radius: 8px;
+  background: #f8fbff;
+  padding: 14px;
+}
+
+.lstep-action-panel strong {
+  display: block;
+  margin-bottom: 4px;
+}
+
+.lstep-action-panel p {
+  margin: 0;
+  color: var(--muted);
+  font-size: 13px;
+}
+
+.lstep-action-panel ul {
+  grid-column: 1 / -1;
+  margin: 0;
+  padding-left: 18px;
+  color: var(--muted);
+  font-size: 13px;
+}
+
+.lstep-action-panel li + li {
+  margin-top: 4px;
+}
+
+.lstep-action-buttons {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  justify-content: flex-end;
+}
+
+.lstep-action-buttons button {
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: #fff;
+  color: var(--text);
+  cursor: pointer;
+  font: inherit;
+  font-weight: 700;
+  padding: 8px 12px;
+  white-space: nowrap;
+}
+
+.lstep-action-buttons button:hover:not(:disabled) {
+  border-color: var(--accent);
+  background: var(--accent-soft);
+}
+
+.lstep-action-buttons button:disabled {
+  cursor: not-allowed;
+  opacity: 0.55;
+}
 
 .student-action-wrap {
   margin-top: 18px;
@@ -2774,6 +2851,13 @@ td {
   .lstep-status-grid {
     grid-template-columns: repeat(3, minmax(0, 1fr));
   }
+  .lstep-action-panel {
+    grid-template-columns: 1fr;
+  }
+
+  .lstep-action-buttons {
+    justify-content: flex-start;
+  }
 
   .student-search-panel {
     grid-template-columns: minmax(220px, 1fr) minmax(150px, 190px);
@@ -2829,6 +2913,13 @@ td {
 
   .lstep-status-header {
     flex-direction: column;
+  }
+  .lstep-action-buttons {
+    flex-direction: column;
+  }
+
+  .lstep-action-buttons button {
+    width: 100%;
   }
 
   .student-action-item {

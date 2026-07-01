@@ -391,7 +391,7 @@ function buildDefaultLstepSummary() {
     recentMessages: 0,
     lastSyncedAt: "",
     status: "not_ready",
-    note: "LSTEP連携は準備中です。"
+    note: "LSTEP連携に向けて、未紐付け学生とLINE反応履歴の受け皿を確認できます。"
   };
 }
 
@@ -1768,14 +1768,28 @@ function renderLstepIntegrationStatus() {
   const lastSyncedText = lstepSummary.lastSyncedAt
     ? formatDate(lstepSummary.lastSyncedAt)
     : "未同期";
+  const unlinkedStudents = getLstepUnlinkedStudents();
+  const unlinkedCount = unlinkedStudents.length;
+  const unlinkedOfferCount = unlinkedStudents.filter((student) => {
+    return ["内定", "承諾"].includes(student.offerStatus) || ["入社予定", "入社済"].includes(student.expectedJoinStatus);
+  }).length;
 
   const metrics = [
     { label: "有効な紐付け", value: lstepSummary.activeAccounts, unit: "件" },
     { label: "友だち", value: lstepSummary.friendAccounts, unit: "件" },
-    { label: "未紐付けイベント", value: lstepSummary.unlinkedEvents, unit: "件" },
-    { label: "未処理イベント", value: lstepSummary.unprocessedEvents, unit: "件" },
-    { label: "直近メッセージ", value: lstepSummary.recentMessages, unit: "件" },
+    { label: "未紐付け学生", value: unlinkedCount, unit: "名", tone: unlinkedCount ? "is-warning" : "is-linked" },
+    { label: "内定後未紐付け", value: unlinkedOfferCount, unit: "名", tone: unlinkedOfferCount ? "is-danger" : "is-linked" },
+    { label: "未処理イベント", value: lstepSummary.unprocessedEvents, unit: "件", tone: lstepSummary.unprocessedEvents ? "is-warning" : "" },
     { label: "最終同期", value: lastSyncedText, unit: "" }
+  ];
+  const nextSteps = [
+    unlinkedCount
+      ? `LSTEP未紐付けの学生 ${formatNumber.format(unlinkedCount)}名をCSVで照合する`
+      : "学生とLSTEP/LINEアカウントの紐付けは現在クリア",
+    lstepSummary.unprocessedEvents
+      ? `未処理イベント ${formatNumber.format(lstepSummary.unprocessedEvents)}件を同期対象として確認する`
+      : "未処理イベントは現在クリア",
+    "本接続時はLSTEP側IDと学生IDを突合し、GAS backend経由で保存する"
   ];
 
   container.innerHTML = `
@@ -1789,15 +1803,45 @@ function renderLstepIntegrationStatus() {
     </div>
     <div class="lstep-status-grid">
       ${metrics.map((item) => `
-        <article class="lstep-status-card">
+        <article class="lstep-status-card ${item.tone || ""}">
           <span>${escapeHtml(item.label)}</span>
           <strong>${typeof item.value === "number" ? formatNumber.format(item.value) : escapeHtml(item.value)}${item.unit ? `<small>${escapeHtml(item.unit)}</small>` : ""}</strong>
         </article>
       `).join("")}
     </div>
+    <div class="lstep-action-panel">
+      <div>
+        <strong>LSTEP本接続前の確認</strong>
+        <p>未紐付け学生を先に整理しておくと、LSTEP同期時の名寄せミスを減らせます。</p>
+      </div>
+      <div class="lstep-action-buttons">
+        <button type="button" data-lstep-open-students>未紐付け学生を見る</button>
+        <button type="button" data-lstep-open-quality>データ品質で確認</button>
+        <button type="button" data-lstep-export-unlinked ${unlinkedCount ? "" : "disabled"}>未紐付けCSV</button>
+      </div>
+      <ul>
+        ${nextSteps.map((item) => `<li>${escapeHtml(item)}</li>`).join("")}
+      </ul>
+    </div>
   `;
-}
 
+  container.querySelector("[data-lstep-open-students]")?.addEventListener("click", () => {
+    activeStudentFilter = "lstepUnlinked";
+    activeStudentDueFilter = "all";
+    activeStudentSearchTerm = "";
+    activeStudentSearchScope = "all";
+    activateDashboardView("students");
+    renderStudentList();
+  });
+
+  container.querySelector("[data-lstep-open-quality]")?.addEventListener("click", () => {
+    activeDataQualityFilter = "lstepUnlinked";
+    activateDashboardView("quality");
+    renderDataQuality();
+  });
+
+  container.querySelector("[data-lstep-export-unlinked]")?.addEventListener("click", downloadLstepUnlinkedStudentCsv);
+}
 function updateStudentUrgentTabBadge(summary) {
   const badge = document.getElementById("studentUrgentTabBadge");
   if (!badge) return;
