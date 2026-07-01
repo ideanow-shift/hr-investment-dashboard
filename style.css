@@ -911,6 +911,49 @@ td {
   font-size: 12px;
 }
 
+.student-quality-notice {
+  margin: 12px 0 16px;
+}
+
+.student-quality-summary {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 14px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: #ffffff;
+  padding: 12px 14px;
+}
+
+.student-quality-summary.is-warning {
+  border-color: rgba(217, 119, 6, 0.28);
+  background: #fffbeb;
+}
+
+.student-quality-summary.is-clear {
+  border-color: rgba(22, 163, 74, 0.22);
+  background: var(--green-soft);
+}
+
+.student-quality-summary span {
+  display: block;
+  color: var(--muted);
+  font-size: 12px;
+  margin-bottom: 4px;
+}
+
+.student-quality-summary strong {
+  color: var(--text);
+  display: block;
+  font-weight: 700;
+}
+
+.student-quality-summary p {
+  color: var(--muted);
+  margin: 4px 0 0;
+}
+
 .lstep-integration-panel {
   display: grid;
   gap: 14px;
@@ -2517,6 +2560,11 @@ td {
 
   .student-list-heading {
     align-items: flex-start;
+    flex-direction: column;
+  }
+
+  .student-quality-summary {
+    align-items: stretch;
     flex-direction: column;
   }
 

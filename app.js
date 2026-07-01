@@ -1727,6 +1727,32 @@ function renderStudentSummary() {
   });
 }
 
+function renderStudentQualityNotice() {
+  const container = document.getElementById("studentQualityNotice");
+  if (!container) return;
+
+  const issues = getStudentQualityIssues();
+  const needsFix = issues.filter((issue) => issue.severity === "要修正").length;
+  const warnings = issues.filter((issue) => issue.severity === "注意").length;
+  const duplicates = issues.filter((issue) => issue.type === "重複候補").length;
+
+  const hasIssues = needsFix || warnings || duplicates;
+  container.innerHTML = `
+    <div class="student-quality-summary ${hasIssues ? "is-warning" : "is-clear"}">
+      <div>
+        <span>データ品質</span>
+        <strong>${hasIssues ? "確認が必要な項目があります" : "主要チェックは問題ありません"}</strong>
+        <p>重複候補 ${formatNumber.format(duplicates)}件 / 要修正 ${formatNumber.format(needsFix)}件 / 注意 ${formatNumber.format(warnings)}件</p>
+      </div>
+      <button class="detail-button compact" type="button" data-quality-summary-open>データ品質を見る</button>
+    </div>
+  `;
+
+  container.querySelector("[data-quality-summary-open]")?.addEventListener("click", () => {
+    activateDashboardView("quality");
+  });
+}
+
 function renderLstepIntegrationStatus() {
   const container = document.getElementById("lstepIntegrationStatus");
   if (!container) return;
@@ -4864,6 +4890,7 @@ function renderDashboard(isConnected) {
   renderStudentCohortTabs();
   renderStudentEditControls();
   renderStudentSummary();
+  renderStudentQualityNotice();
   renderLstepIntegrationStatus();
   renderStudentActions();
   renderStudentList();
@@ -4890,20 +4917,24 @@ async function refreshDashboardData() {
 
 function setupTabs() {
   const tabs = Array.from(document.querySelectorAll(".dashboard-tab"));
-  const views = Array.from(document.querySelectorAll(".dashboard-view"));
 
   tabs.forEach((tab) => {
     tab.addEventListener("click", () => {
-      const targetView = tab.dataset.view;
-
-      tabs.forEach((item) => {
-        item.classList.toggle("active", item === tab);
-      });
-
-      views.forEach((view) => {
-        view.classList.toggle("view-hidden", view.dataset.view !== targetView);
-      });
+      activateDashboardView(tab.dataset.view);
     });
+  });
+}
+
+function activateDashboardView(targetView) {
+  const tabs = Array.from(document.querySelectorAll(".dashboard-tab"));
+  const views = Array.from(document.querySelectorAll(".dashboard-view"));
+
+  tabs.forEach((item) => {
+    item.classList.toggle("active", item.dataset.view === targetView);
+  });
+
+  views.forEach((view) => {
+    view.classList.toggle("view-hidden", view.dataset.view !== targetView);
   });
 }
 
