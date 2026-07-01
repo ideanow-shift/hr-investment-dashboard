@@ -4348,6 +4348,47 @@ function renderStudentModalTabPanel(key, content) {
   `;
 }
 
+function getStudentOverviewAlerts(student) {
+  const alerts = [];
+  const primaryAction = getPrimaryStudentAction(student);
+  const urgency = getActionUrgency(primaryAction?.dueDate || student.nextActionDate || "");
+  const lstepStatus = getStudentLstepStatus(student);
+  const hasOffer = ["内定", "承諾"].includes(student.offerStatus || "");
+
+  if (student.managementStatus === "管理対象外") {
+    alerts.push({ tone: "muted", title: "管理対象外", body: "通常のKPI集計からは外れています。再開する場合は基本・選考で管理状態を有効にしてください。" });
+  }
+  if (lstepStatus.className === "is-pending") {
+    alerts.push({ tone: "warning", title: "LSTEP未紐付け", body: "LINE/LSTEP連携前のため、配信・反応履歴の確認ができません。" });
+  }
+  if (!primaryAction && student.managementStatus !== "管理対象外") {
+    alerts.push({ tone: "warning", title: "次アクション未設定", body: "次に誰が何をするかをフォロータブまたは基本・選考で設定してください。" });
+  } else if (["overdue", "today"].includes(urgency.level)) {
+    alerts.push({ tone: urgency.level === "overdue" ? "danger" : "warning", title: urgency.label, body: primaryAction?.title || student.nextAction || "対応内容を確認してください。" });
+  }
+  if (hasOffer && student.expectedJoinStatus === "未定") {
+    alerts.push({ tone: "warning", title: "内定後の入社予定が未定", body: "内定後フォローとして、入社予定・辞退・入社済のどれかへ更新してください。" });
+  }
+
+  return alerts;
+}
+
+function renderStudentOverviewAlerts(student) {
+  const alerts = getStudentOverviewAlerts(student);
+  if (!alerts.length) return "";
+
+  return `
+    <div class="student-overview-alerts">
+      ${alerts.map((alert) => `
+        <div class="student-overview-alert is-${escapeHtml(alert.tone)}">
+          <strong>${escapeHtml(alert.title)}</strong>
+          <span>${escapeHtml(alert.body)}</span>
+        </div>
+      `).join("")}
+    </div>
+  `;
+}
+
 function renderStudentOverviewPanel(student) {
   const primaryAction = getPrimaryStudentAction(student);
   const lstepStatus = getStudentLstepStatus(student);
@@ -4358,6 +4399,7 @@ function renderStudentOverviewPanel(student) {
       <span class="student-lstep-chip ${lstepStatus.className}">${escapeHtml(lstepStatus.label)}</span>
       <span class="student-overview-badge">${escapeHtml(student.cohort || getActiveCohortLabel())}</span>
     </div>
+    ${renderStudentOverviewAlerts(student)}
     <div class="student-overview-focus">
       <div>
         <span>次にやること</span>
@@ -5243,4 +5285,5 @@ async function initDashboard() {
 }
 
 document.addEventListener("DOMContentLoaded", initDashboard);
+
 
