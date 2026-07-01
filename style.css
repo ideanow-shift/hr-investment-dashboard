@@ -1930,6 +1930,45 @@ td {
   gap: 10px;
 }
 
+.student-overview-focus {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 14px;
+  align-items: center;
+  border: 1px solid rgba(47, 111, 181, 0.2);
+  border-left: 4px solid var(--accent);
+  border-radius: 8px;
+  background: var(--accent-soft);
+  margin-bottom: 14px;
+  padding: 14px;
+}
+
+.student-overview-focus span {
+  display: block;
+  color: var(--muted);
+  font-size: 12px;
+  margin-bottom: 4px;
+}
+
+.student-overview-focus strong {
+  color: var(--text);
+  display: block;
+  font-size: 16px;
+  font-weight: 700;
+}
+
+.student-overview-focus p {
+  color: var(--muted);
+  margin: 5px 0 0;
+}
+
+.student-overview-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  justify-content: flex-end;
+}
+
 .modal-status-grid {
   grid-template-columns: repeat(4, minmax(0, 1fr));
   margin-bottom: 14px;
@@ -2435,6 +2474,14 @@ td {
   .modal-header {
     flex-direction: column;
     gap: 10px;
+  }
+
+  .student-overview-focus {
+    grid-template-columns: 1fr;
+  }
+
+  .student-overview-actions {
+    justify-content: flex-start;
   }
 
   .modal-status-grid,

@@ -4230,7 +4230,21 @@ function renderStudentModalTabPanel(key, content) {
 }
 
 function renderStudentOverviewPanel(student) {
+  const primaryAction = getPrimaryStudentAction(student);
+
   return `
+    <div class="student-overview-focus">
+      <div>
+        <span>次にやること</span>
+        <strong>${escapeHtml(primaryAction?.title || student.nextAction || "次アクション未設定")}</strong>
+        <p>${escapeHtml(primaryAction?.dueDate || student.nextActionDate || "日付未設定")} / ${escapeHtml(primaryAction?.sourceLabel || "学生管理")}</p>
+      </div>
+      <div class="student-overview-actions">
+        <button class="detail-button compact" type="button" data-jump-student-tab="followups">フォロー確認</button>
+        <button class="detail-button compact" type="button" data-jump-student-tab="edit">基本編集</button>
+        <button class="detail-button compact" type="button" data-jump-student-tab="stores">店舗確認</button>
+      </div>
+    </div>
     <div class="modal-status-grid">
       <div><span>接点</span><strong>${escapeHtml(student.source || "未設定")}</strong></div>
       <div><span>接触日</span><strong>${escapeHtml(student.contactDate || "未設定")}</strong></div>
@@ -4254,11 +4268,6 @@ function renderStudentOverviewPanel(student) {
       `).join("")}
     </div>
     ${renderStudentLstepDetail(student)}
-    <div class="modal-next-action">
-      <span>次アクション</span>
-      <strong>${escapeHtml(student.nextAction || "次アクション未設定")}</strong>
-      <p>${escapeHtml(student.nextActionDate || "日付未設定")}</p>
-    </div>
     <div class="modal-memo">
       <span>メモ</span>
       <p>${escapeHtml(student.memo || "メモはまだありません。")}</p>
@@ -4308,6 +4317,10 @@ function setupStudentModalTabs() {
 
   tabs.forEach((tab) => {
     tab.addEventListener("click", () => activateTab(tab.dataset.studentCardTab));
+  });
+
+  modal.querySelectorAll("[data-jump-student-tab]").forEach((button) => {
+    button.addEventListener("click", () => activateTab(button.dataset.jumpStudentTab));
   });
 
   activateTab("overview");
