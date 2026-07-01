@@ -3696,6 +3696,14 @@ function renderDataQualityFilters(summary, totalCount) {
   `;
 }
 
+function getQualityIssueFocusLabel(issue) {
+  if (issue.type === "重複候補") return "同一学生か確認";
+  if (issue.type === "管理対象外候補") return "対象外にするか確認";
+  if (issue.type.includes("ステータス")) return "ステータスを整理";
+  if (issue.type.includes("未入力")) return "不足項目を入力";
+  return "学生カルテで確認";
+}
+
 function setupDataQualityFilters() {
   document.querySelectorAll("[data-quality-filter]").forEach((button) => {
     button.addEventListener("click", () => {
@@ -3801,12 +3809,18 @@ function renderDataQuality() {
     ${filteredIssues.length ? filteredIssues.map((issue) => `
     <article class="quality-card ${getQualitySeverityClass(issue.severity)}" data-quality-student-id="${escapeHtml(issue.studentId)}">
       <div>
-        <span class="priority-pill ${issue.severity === "要修正" ? "priority-high" : issue.severity === "注意" ? "priority-middle" : "priority-low"}">${escapeHtml(issue.severity)}</span>
+        <div class="quality-card-header">
+          <span class="priority-pill ${issue.severity === "要修正" ? "priority-high" : issue.severity === "注意" ? "priority-middle" : "priority-low"}">${escapeHtml(issue.severity)}</span>
+          <span class="quality-focus-label">${escapeHtml(getQualityIssueFocusLabel(issue))}</span>
+        </div>
         <h3>${escapeHtml(issue.type)}</h3>
         <p>${escapeHtml(issue.detail)}</p>
-        <small>${escapeHtml(issue.action)}</small>
+        <div class="quality-action-box">
+          <span>推奨対応</span>
+          <strong>${escapeHtml(issue.action)}</strong>
+        </div>
         ${renderQualityIssueExtra(issue)}
-        <small class="quality-edit-hint">クリックして学生詳細を編集</small>
+        <button class="quality-edit-button" type="button" data-quality-open-student-id="${escapeHtml(issue.studentId)}">学生カルテを開く</button>
       </div>
       <div class="quality-card-meta">
         <span>${escapeHtml(issue.studentId || "ID未取得")}</span>
@@ -3825,6 +3839,13 @@ function renderDataQuality() {
   list.querySelectorAll("[data-quality-student-id]").forEach((card) => {
     card.addEventListener("click", () => {
       const selectedStudent = getActiveStudents().find((student) => student.studentId === card.dataset.qualityStudentId);
+      openStudentModal(selectedStudent);
+    });
+  });
+  list.querySelectorAll("[data-quality-open-student-id]").forEach((button) => {
+    button.addEventListener("click", (event) => {
+      event.stopPropagation();
+      const selectedStudent = getActiveStudents().find((student) => student.studentId === button.dataset.qualityOpenStudentId);
       openStudentModal(selectedStudent);
     });
   });

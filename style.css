@@ -1685,6 +1685,22 @@ td {
   background: var(--accent-soft);
 }
 
+.quality-card-header {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  align-items: center;
+}
+
+.quality-focus-label {
+  border-radius: 999px;
+  background: #fff;
+  color: var(--text);
+  font-size: 12px;
+  font-weight: 700;
+  padding: 4px 10px;
+}
+
 .quality-danger {
   border-left-color: var(--red);
   background: #fff7f7;
@@ -1709,6 +1725,28 @@ td {
   display: block;
   margin-bottom: 0;
   color: var(--muted);
+}
+
+.quality-action-box {
+  display: grid;
+  gap: 3px;
+  margin-top: 10px;
+  border: 1px solid rgba(15, 23, 42, 0.08);
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.82);
+  padding: 10px 12px;
+}
+
+.quality-action-box span {
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.quality-action-box strong {
+  color: var(--text);
+  font-size: 13px;
+  font-weight: 700;
 }
 
 .quality-card-meta {
@@ -1893,6 +1931,23 @@ td {
   margin-top: 6px;
   color: var(--blue) !important;
   font-weight: 500;
+}
+
+.quality-edit-button {
+  margin-top: 10px;
+  border: 1px solid rgba(37, 99, 235, 0.22);
+  border-radius: 999px;
+  background: #fff;
+  color: var(--blue);
+  cursor: pointer;
+  font: inherit;
+  font-size: 12px;
+  font-weight: 800;
+  padding: 7px 12px;
+}
+
+.quality-edit-button:hover {
+  background: var(--accent-soft);
 }
 
 .app-footer {
