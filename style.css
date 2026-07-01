@@ -1093,6 +1093,62 @@ td {
   font-weight: 500;
 }
 
+.student-list-focus-summary {
+  display: grid;
+  grid-template-columns: repeat(6, minmax(0, 1fr));
+  gap: 10px;
+  margin: 12px 0 14px;
+}
+
+.student-focus-card {
+  display: grid;
+  gap: 3px;
+  min-height: 82px;
+  border: 1px solid var(--line);
+  border-left: 4px solid var(--accent);
+  border-radius: 8px;
+  background: var(--surface);
+  color: var(--text);
+  cursor: pointer;
+  padding: 11px 12px;
+  text-align: left;
+  transition: border-color .15s ease, box-shadow .15s ease, transform .15s ease;
+}
+
+.student-focus-card:hover,
+.student-focus-card.active {
+  border-color: rgba(47, 111, 181, .4);
+  box-shadow: var(--shadow);
+  transform: translateY(-1px);
+}
+
+.student-focus-card span,
+.student-focus-card small {
+  color: var(--muted);
+  font-size: 12px;
+}
+
+.student-focus-card strong {
+  color: var(--text);
+  font-size: 26px;
+  line-height: 1;
+}
+
+.student-focus-card.tone-danger {
+  border-left-color: var(--danger);
+}
+
+.student-focus-card.tone-warning {
+  border-left-color: var(--yellow);
+}
+
+.student-focus-card.tone-blue {
+  border-left-color: var(--accent);
+}
+
+.student-focus-card.tone-green {
+  border-left-color: var(--green);
+}
 .student-list-controls {
   margin-bottom: 12px;
   border: 1px solid var(--line);
@@ -2758,6 +2814,9 @@ td {
     grid-template-columns: 1fr;
   }
 
+  .student-list-focus-summary {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
   .student-search-panel {
     grid-template-columns: 1fr;
   }

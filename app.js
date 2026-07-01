@@ -3131,6 +3131,42 @@ function renderStudentQuickFilters() {
   });
 }
 
+function getStudentListFocusItems() {
+  return [
+    { label: "今日対応", caption: "本日中に見る", filterKey: "needsFollowUp", dueKey: "today", tone: "danger" },
+    { label: "期限超過", caption: "対応漏れ確認", filterKey: "needsFollowUp", dueKey: "overdue", tone: "danger" },
+    { label: "日程未設定", caption: "予定日を入れる", filterKey: "needsFollowUp", dueKey: "unscheduled", tone: "warning" },
+    { label: "見学予定", caption: "来店準備", filterKey: "salonTour", dueKey: "all", tone: "blue" },
+    { label: "面接予定", caption: "選考準備", filterKey: "interview", dueKey: "all", tone: "blue" },
+    { label: "内定者", caption: "内定後フォロー", filterKey: "offered", dueKey: "all", tone: "green" }
+  ];
+}
+
+function renderStudentListFocusSummary() {
+  const wrap = document.getElementById("studentListFocusSummary");
+  if (!wrap) return;
+
+  wrap.innerHTML = getStudentListFocusItems().map((item) => {
+    const count = getStudentFilterCount(item.filterKey, item.dueKey);
+    const isActive = activeStudentFilter === item.filterKey && activeStudentDueFilter === item.dueKey;
+    return `
+      <button class="student-focus-card ${isActive ? "active" : ""} tone-${escapeHtml(item.tone)}" type="button" data-student-filter="${escapeHtml(item.filterKey)}" data-student-due-filter="${escapeHtml(item.dueKey)}">
+        <span>${escapeHtml(item.label)}</span>
+        <strong>${formatNumber.format(count)}</strong>
+        <small>${escapeHtml(item.caption)}</small>
+      </button>
+    `;
+  }).join("");
+
+  wrap.querySelectorAll("[data-student-filter]").forEach((button) => {
+    button.addEventListener("click", () => {
+      activeStudentFilter = button.dataset.studentFilter || "all";
+      activeStudentDueFilter = button.dataset.studentDueFilter || "all";
+      studentListVisibleCount = 50;
+      renderStudentList();
+    });
+  });
+}
 function renderStudentDueFilters(activeKey = activeStudentDueFilter) {
   const filters = getStudentDueFilters();
   const filterWrap = document.getElementById("studentDueFilters");
@@ -4305,6 +4341,7 @@ function renderStudentList(activeKey = activeStudentFilter) {
   renderStudentFilters(activeStudentFilter);
   renderStudentSearchControls();
   renderStudentDueFilters(activeStudentDueFilter);
+  renderStudentListFocusSummary();
 
   const { activeFilter, activeDueFilter, students } = getFilteredStudentList(activeKey);
   const totalCount = getStudentListTotalCountForActiveScope();
