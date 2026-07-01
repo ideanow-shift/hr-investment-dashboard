@@ -2845,6 +2845,7 @@ function renderStudentForm(student = {}, mode = "update") {
         <ul>
           <li>氏名と学校名は重複チェックに使います。正式名称で入力してください。</li>
           <li>見学予定・面接予定にする場合は、次アクション日も入力してください。</li>
+          <li>内定・入社ステータスは「内定」「入社予定」「入社済」「辞退」の進行管理に使います。</li>
           <li>誤登録や対象外は削除せず、管理状態を「管理対象外」にします。</li>
         </ul>
       </div>
@@ -2873,11 +2874,11 @@ function renderStudentForm(student = {}, mode = "update") {
         ${renderSelectField("interviewStatus", "面接ステータス", studentSelectOptions.interviewStatus, student.interviewStatus || "未設定", disabled)}
         ${renderSelectField("resultStatus", "選考結果", studentSelectOptions.resultStatus, student.resultStatus || "未定", disabled)}
         ${renderSelectField("offerJoinStatus", "内定・入社ステータス", studentSelectOptions.offerJoinStatus, getOfferJoinStatusValue(student), disabled)}
-        ${renderSelectField("managementStatus", "管理状態", studentSelectOptions.managementStatus, student.managementStatus || "有効", disabled)}
         <label>
           <span>次アクション日</span>
           <input name="nextActionDate" type="date" value="${escapeHtml(student.nextActionDate || "")}" ${disabled}>
         </label>
+        ${renderSelectField("managementStatus", "管理状態", studentSelectOptions.managementStatus, student.managementStatus || "有効", disabled)}
       </div>
       <label class="student-form-full">
         <span>次アクション</span>
