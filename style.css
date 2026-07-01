@@ -1093,6 +1093,14 @@ td {
   font-weight: 500;
 }
 
+.student-list-controls {
+  margin-bottom: 12px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: linear-gradient(180deg, #ffffff 0%, var(--surface-soft) 100%);
+  padding: 12px;
+}
+
 .student-condition-summary {
   display: flex;
   justify-content: flex-end;
@@ -1156,7 +1164,7 @@ td {
   grid-template-columns: minmax(220px, 1fr) minmax(160px, 220px) auto;
   gap: 8px;
   align-items: end;
-  margin-bottom: 12px;
+  margin-bottom: 10px;
 }
 
 .student-search-panel > label:first-child {
@@ -1289,7 +1297,7 @@ td {
 .student-filters {
   display: flex;
   gap: 8px;
-  margin-bottom: 12px;
+  margin-bottom: 0;
   overflow-x: auto;
   padding-bottom: 2px;
 }

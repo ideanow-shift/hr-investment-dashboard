@@ -156,16 +156,18 @@
             <button id="lstepUnlinkedCsvButton" class="student-csv-export" type="button">LSTEP未紐付けCSV<span>0</span></button>
           </div>
         </div>
-        <div class="student-search-panel" aria-label="学生フォロー検索">
-          <label for="studentSearchInput">学生検索</label>
-          <input id="studentSearchInput" type="search" placeholder="氏名・学校名・流入元・次アクションで検索">
-          <label class="student-sort-label" for="studentSortSelect">並び順</label>
-          <select id="studentSortSelect" class="student-sort-select"></select>
-          <button id="studentFilterResetButton" class="detail-button compact" type="button">絞り込み解除</button>
+        <div class="student-list-controls">
+          <div class="student-search-panel" aria-label="学生フォロー検索">
+            <label for="studentSearchInput">学生検索</label>
+            <input id="studentSearchInput" type="search" placeholder="氏名・学校名・流入元・次アクションで検索">
+            <label class="student-sort-label" for="studentSortSelect">並び順</label>
+            <select id="studentSortSelect" class="student-sort-select"></select>
+            <button id="studentFilterResetButton" class="detail-button compact" type="button">絞り込み解除</button>
+          </div>
+          <div id="studentQuickFilters" class="student-quick-filters" aria-label="よく使う絞り込み"></div>
+          <div id="studentDueFilters" class="student-filters student-due-filters" aria-label="期限別絞り込み"></div>
+          <div id="studentFilters" class="student-filters" aria-label="学生フォロー絞り込み"></div>
         </div>
-        <div id="studentQuickFilters" class="student-quick-filters" aria-label="よく使う絞り込み"></div>
-        <div id="studentDueFilters" class="student-filters student-due-filters" aria-label="期限別絞り込み"></div>
-        <div id="studentFilters" class="student-filters" aria-label="学生フォロー絞り込み"></div>
         <div id="studentList" class="student-list"></div>
       </div>
     </section>
