@@ -4876,6 +4876,33 @@ function setupOperationLogStudentLinks() {
   });
 }
 
+function renderLatestOperationLogCard() {
+  const latest = operationLogs[0];
+  if (!latest) return "";
+
+  const isDenied = latest.result === "denied";
+  const isInactiveChange = isManagementExcludedOperationLog(latest);
+  const actorLabel = latest.actorName || latest.actorEmail || maskEmployeeId(latest.actorEmployeeId);
+  const targetName = latest.studentName || latest.studentCode || getOperationLogTableLabel(latest.tableName);
+  const actionLabel = isDenied ? "保存拒否" : (isInactiveChange ? "管理対象外化" : (latest.action || "操作"));
+
+  return `
+    <section class="operation-log-latest ${isDenied ? "is-denied" : ""}">
+      <div>
+        <p class="section-kicker">Latest Operation</p>
+        <h3>${escapeHtml(actionLabel)} / ${escapeHtml(targetName)}</h3>
+        <p>${escapeHtml(latest.detail || "詳細未記録")}</p>
+        ${isDenied && latest.reason ? `<strong>理由：${escapeHtml(latest.reason)}</strong>` : ""}
+      </div>
+      <dl>
+        <div><dt>日時</dt><dd>${escapeHtml(formatOperationLogDate(latest.createdAt))}</dd></div>
+        <div><dt>操作社員</dt><dd>${escapeHtml(actorLabel)}</dd></div>
+        <div><dt>HUB社員ID</dt><dd>${escapeHtml(maskEmployeeId(latest.actorEmployeeId))}</dd></div>
+      </dl>
+    </section>
+  `;
+}
+
 function getFilteredOperationLogs() {
   const filter = getOperationLogFilters().find((item) => item.key === activeOperationLogFilter) || getOperationLogFilters()[0];
   return operationLogs.filter(filter.predicate).filter(matchesOperationLogSearch);
@@ -4910,6 +4937,7 @@ function renderOperationLogs() {
   }
 
   list.innerHTML = `
+    ${renderLatestOperationLogCard()}
     ${renderOperationLogFilters()}
     <div class="operation-log-tools">
       ${renderOperationLogSearch()}

@@ -3139,6 +3139,66 @@ td {
   opacity: 0.55;
 }
 
+.operation-log-latest {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(260px, 0.55fr);
+  gap: 14px;
+  align-items: start;
+  border: 1px solid #bfdbfe;
+  border-left: 4px solid var(--accent);
+  border-radius: 10px;
+  background: #f8fbff;
+  padding: 14px;
+}
+
+.operation-log-latest h3 {
+  margin: 2px 0 6px;
+}
+
+.operation-log-latest p {
+  margin: 0;
+  color: var(--muted);
+}
+
+.operation-log-latest strong {
+  display: inline-block;
+  margin-top: 8px;
+  border-radius: 8px;
+  background: #fff1f2;
+  color: var(--danger);
+  padding: 6px 8px;
+}
+
+.operation-log-latest dl {
+  display: grid;
+  gap: 8px;
+  margin: 0;
+}
+
+.operation-log-latest div:has(dt) {
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: #fff;
+  padding: 9px 10px;
+}
+
+.operation-log-latest dt {
+  color: var(--muted);
+  font-size: 12px;
+}
+
+.operation-log-latest dd {
+  margin: 3px 0 0;
+  color: var(--text);
+  font-weight: 700;
+}
+
+.operation-log-latest.is-denied {
+  border-color: #fecaca;
+  border-left-color: var(--danger);
+  background: #fff7f7;
+}
+
 .operation-log-summary {
   display: grid;
   grid-template-columns: repeat(4, minmax(0, 1fr));
