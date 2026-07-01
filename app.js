@@ -2256,11 +2256,7 @@ function getStudentFormPayload(form) {
 }
 
 function normalizeForDuplicateCheck(value) {
-  return String(value || "")
-    .normalize("NFKC")
-    .replace(/[\s\u3000\u200B-\u200D\uFEFF]+/g, "")
-    .toLowerCase()
-    .trim();
+  return normalizeStudentSearchText(value);
 }
 
 function formatDuplicateStudentSummary(student) {

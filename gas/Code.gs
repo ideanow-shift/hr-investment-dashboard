@@ -2364,9 +2364,11 @@ function findDuplicateStudentId(sheet, name, school, currentStudentId) {
 function normalizeForDuplicateCheck(value) {
   return String(value || "")
     .normalize("NFKC")
-    .replace(/[\s\u3000\u200B-\u200D\uFEFF]+/g, "")
     .toLowerCase()
-    .trim();
+    .replace(/[\s\u3000\u200B-\u200D\uFEFF]+/g, "")
+    .replace(/[髙﨑]/g, function(char) { return { "髙": "高", "﨑": "崎" }[char] || char; })
+    .replace(/[邉邊]/g, "辺")
+    .replace(/[齋齊]/g, "斉");
 }
 
 function ensureStudentAuditColumns(sheet) {
