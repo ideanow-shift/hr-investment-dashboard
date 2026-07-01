@@ -220,9 +220,13 @@ CoreDB連携_データ項目整理.md
 Supabase移行設計書.md
 supabase/schema.sql
 supabase/migration_plan.md
+supabase/talent_lstep_integration_review.sql
+LSTEP連携設計.md
 ```
 
 注意: Supabase移行は `idea-nov-core` のCore DB参照前提で進めます。社員・店舗・法人・部署・役職・権限の専用マスタは作らず、Core DBの既存テーブルを参照します。
+
+LSTEP連携は、学生側の未紐付け確認・CSV出力・画面表示までは実装済みです。Supabase側に `talent_line_accounts` などのLSTEP系テーブルを投入すると、GAS経由で受け皿作成済みとして確認できます。
 
 ## 今後追加予定の機能
 
