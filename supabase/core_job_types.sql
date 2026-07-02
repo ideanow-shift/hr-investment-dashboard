@@ -1,4 +1,4 @@
--- Core DB / employee attribute master
+﻿-- Core DB / employee attribute master
 -- 職種マスタ追加DDL
 --
 -- 方針:
@@ -13,8 +13,8 @@
 create table if not exists public.job_types (
   id uuid primary key default gen_random_uuid(),
   job_type_key text not null unique,
-  name text not null,
-  display_order integer not null default 0,
+  job_type_name text not null,
+  sort_order integer not null default 0,
   memo text,
   is_active boolean not null default true,
   created_at timestamptz not null default now(),
@@ -23,7 +23,7 @@ create table if not exists public.job_types (
 
 comment on table public.job_types is 'Core DB共通: 社員の職種マスタ。雇用形態とは分離して管理する。';
 comment on column public.job_types.job_type_key is '内部キー。例: stylist, reception, colorist, head_office, other';
-comment on column public.job_types.name is '表示名。例: 美容師、レセプション、カラーリスト';
+comment on column public.job_types.job_type_name is '表示名。例: 美容師、レセプション、カラーリスト';
 comment on column public.job_types.is_active is 'falseの場合は新規選択肢として非表示。履歴参照のため物理削除しない。';
 
 alter table public.employees
@@ -31,8 +31,8 @@ alter table public.employees
 
 comment on column public.employees.job_type_id is 'Core DB共通: 社員の職種。未設定はNULL。雇用形態 employment_type とは分離する。';
 
-create index if not exists job_types_is_active_display_order_idx
-  on public.job_types (is_active, display_order, name);
+create index if not exists job_types_is_active_sort_order_idx
+  on public.job_types (is_active, sort_order, job_type_name);
 
 create index if not exists employees_job_type_id_idx
   on public.employees (job_type_id);
@@ -48,7 +48,7 @@ alter table public.job_types enable row level security;
 grant select, insert, update on public.job_types to service_role;
 grant select, update on public.employees to service_role;
 
-insert into public.job_types (job_type_key, name, display_order, is_active)
+insert into public.job_types (job_type_key, job_type_name, sort_order, is_active)
 values
   ('stylist', '美容師', 10, true),
   ('reception', 'レセプション', 20, true),
@@ -57,8 +57,8 @@ values
   ('other', 'その他', 90, true)
 on conflict (job_type_key) do update
 set
-  name = excluded.name,
-  display_order = excluded.display_order,
+  job_type_name = excluded.job_type_name,
+  sort_order = excluded.sort_order,
   is_active = excluded.is_active,
   updated_at = now();
 
@@ -67,3 +67,5 @@ set
 -- 対象: public.job_types 追加、public.employees.job_type_id 追加
 -- 理由: 社員属性を「部署・役職・職種・雇用形態・就労ステータス・休職種別・権限」に分離するため
 -- 影響: Shift / NOV Talent / Management Platform / LSTEP連携で職種をCore DB参照に寄せる
+
+

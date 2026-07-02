@@ -1,14 +1,14 @@
--- Core DB / job_types post deploy check
+﻿-- Core DB / job_types post deploy check
 -- SQL Editor投入後、この確認SQLを実行する。
 
 -- 1. job_types が作成され、初期職種が入っていること
 select
   job_type_key,
-  name,
-  display_order,
+  job_type_name,
+  sort_order,
   is_active
 from public.job_types
-order by display_order, name;
+order by sort_order, job_type_name;
 
 -- 2. employees.job_type_id が追加されていること
 select
@@ -67,3 +67,5 @@ where table_schema = 'public'
   and table_name in ('job_types', 'employees')
   and grantee = 'service_role'
 order by table_name, privilege_type;
+
+
