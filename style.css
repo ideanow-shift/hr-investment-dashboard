@@ -1146,6 +1146,55 @@ td {
   opacity: 0.55;
 }
 
+.lstep-readiness-list {
+  display: grid;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  gap: 10px;
+  margin-top: 12px;
+}
+
+.lstep-readiness-list article {
+  display: flex;
+  gap: 10px;
+  align-items: flex-start;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: #fff;
+  padding: 12px;
+}
+
+.lstep-readiness-list article > span {
+  flex: 0 0 auto;
+  border-radius: 999px;
+  font-size: 11px;
+  font-weight: 700;
+  line-height: 1;
+  padding: 6px 8px;
+}
+
+.lstep-readiness-list article.is-done > span {
+  background: var(--green-soft);
+  color: #047857;
+}
+
+.lstep-readiness-list article.is-waiting > span {
+  background: var(--yellow-soft);
+  color: #92400e;
+}
+
+.lstep-readiness-list strong {
+  display: block;
+  margin-bottom: 4px;
+  font-size: 13px;
+}
+
+.lstep-readiness-list p {
+  margin: 0;
+  color: var(--muted);
+  font-size: 12px;
+  line-height: 1.6;
+}
+
 .student-action-wrap {
   margin-top: 18px;
 }
@@ -2851,6 +2900,11 @@ td {
   .lstep-status-grid {
     grid-template-columns: repeat(3, minmax(0, 1fr));
   }
+
+  .lstep-readiness-list {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
   .lstep-action-panel {
     grid-template-columns: 1fr;
   }
@@ -2903,11 +2957,12 @@ td {
   .kpi-grid,
   .decision-grid,
   .school-grid,
-    .student-summary-grid,
+  .student-summary-grid,
   .student-quick-filters,
-    .lstep-status-grid,
-    .detail-grid,
-    .operation-log-summary {
+  .lstep-status-grid,
+  .lstep-readiness-list,
+  .detail-grid,
+  .operation-log-summary {
     grid-template-columns: 1fr;
   }
 

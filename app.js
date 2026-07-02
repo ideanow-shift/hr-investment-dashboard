@@ -1796,6 +1796,33 @@ function renderLstepIntegrationStatus() {
     "連携テンプレートを制作会社へ渡し、出力可能な列名とID形式を確認する",
     "本接続時はLSTEP側IDと学生IDを突合し、GAS backend経由で保存する"
   ];
+  const readinessItems = [
+    {
+      label: "学生正本",
+      detail: "Supabase talent_students で管理中",
+      done: true
+    },
+    {
+      label: "未紐付け確認",
+      detail: "学生一覧・データ品質・CSVで確認可能",
+      done: true
+    },
+    {
+      label: "制作会社向けテンプレート",
+      detail: "必要な列名とID形式をCSVで共有可能",
+      done: true
+    },
+    {
+      label: "LSTEP受け皿SQL",
+      detail: isReady ? "GASからLSTEP系テーブルを確認済み" : "supabase/talent_lstep_integration_review.sql の投入待ち",
+      done: isReady
+    },
+    {
+      label: "本同期方式",
+      detail: "LSTEP側のAPI/Webhook/CSV仕様回答待ち",
+      done: lstepSummary.status === "linked"
+    }
+  ];
 
   container.innerHTML = `
     <div class="lstep-status-header">
@@ -1828,6 +1855,17 @@ function renderLstepIntegrationStatus() {
       <ul>
         ${nextSteps.map((item) => `<li>${escapeHtml(item)}</li>`).join("")}
       </ul>
+    </div>
+    <div class="lstep-readiness-list" aria-label="LSTEP準備チェックリスト">
+      ${readinessItems.map((item) => `
+        <article class="${item.done ? "is-done" : "is-waiting"}">
+          <span>${item.done ? "完了" : "待ち"}</span>
+          <div>
+            <strong>${escapeHtml(item.label)}</strong>
+            <p>${escapeHtml(item.detail)}</p>
+          </div>
+        </article>
+      `).join("")}
     </div>
   `;
 
