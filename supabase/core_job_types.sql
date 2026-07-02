@@ -22,7 +22,7 @@ create table if not exists public.job_types (
 );
 
 comment on table public.job_types is 'Core DB共通: 社員の職種マスタ。雇用形態とは分離して管理する。';
-comment on column public.job_types.job_type_key is '内部キー。例: stylist, reception, colorist, head_office, other';
+comment on column public.job_types.job_type_key is '内部キー。例: hairstylist, reception, colorist, head_office, other';
 comment on column public.job_types.job_type_name is '表示名。例: 美容師、レセプション、カラーリスト';
 comment on column public.job_types.is_active is 'falseの場合は新規選択肢として非表示。履歴参照のため物理削除しない。';
 
@@ -50,7 +50,7 @@ grant select, update on public.employees to service_role;
 
 insert into public.job_types (job_type_key, job_type_name, sort_order, is_active)
 values
-  ('stylist', '美容師', 10, true),
+  ('hairstylist', '美容師', 10, true),
   ('reception', 'レセプション', 20, true),
   ('colorist', 'カラーリスト', 30, true),
   ('head_office', '本部スタッフ', 40, true),
@@ -67,5 +67,6 @@ set
 -- 対象: public.job_types 追加、public.employees.job_type_id 追加
 -- 理由: 社員属性を「部署・役職・職種・雇用形態・就労ステータス・休職種別・権限」に分離するため
 -- 影響: Shift / NOV Talent / Management Platform / LSTEP連携で職種をCore DB参照に寄せる
+
 
 
