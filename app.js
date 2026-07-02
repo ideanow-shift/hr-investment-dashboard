@@ -1823,6 +1823,32 @@ function renderLstepIntegrationStatus() {
       done: lstepSummary.status === "linked"
     }
   ];
+  const vendorQuestions = [
+    {
+      label: "ユーザー識別子",
+      detail: "LINEユーザーID、LSTEPユーザーIDのどちらをCSV/APIで取得できるか"
+    },
+    {
+      label: "友だち状態",
+      detail: "友だち、ブロック、配信不可、未登録を判別できる項目名"
+    },
+    {
+      label: "最終接点",
+      detail: "最終メッセージ日時、最終反応日時、フォーム回答日時の取得可否"
+    },
+    {
+      label: "タグ・シナリオ",
+      detail: "タグ名、シナリオ名、ステップ名を一覧で出力できるか"
+    },
+    {
+      label: "同期方法",
+      detail: "CSV手動、API定期取得、Webhook受信のどれに対応できるか"
+    },
+    {
+      label: "制限事項",
+      detail: "出力件数、API回数、個人情報項目、契約上の制限"
+    }
+  ];
 
   container.innerHTML = `
     <div class="lstep-status-header">
@@ -1866,6 +1892,20 @@ function renderLstepIntegrationStatus() {
           </div>
         </article>
       `).join("")}
+    </div>
+    <div class="lstep-vendor-questions">
+      <div>
+        <strong>制作会社へ確認する項目</strong>
+        <p>返答が来たら、この6項目を埋めると同期方式をすぐ決められます。</p>
+      </div>
+      <div class="lstep-vendor-question-grid">
+        ${vendorQuestions.map((item) => `
+          <article>
+            <strong>${escapeHtml(item.label)}</strong>
+            <p>${escapeHtml(item.detail)}</p>
+          </article>
+        `).join("")}
+      </div>
     </div>
   `;
 
