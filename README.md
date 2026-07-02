@@ -244,3 +244,13 @@ LSTEP系テーブルを投入した後は、`supabase/talent_lstep_integration_v
 ## 拡張メモ
 
 現在のサンプルデータは `app.js` の `fairData` と `schoolData` にあります。GAS接続時も同じデータ構造を使うため、UIと計算ロジックを活かしたままスプレッドシート運用へ移行できます。
+
+## Core DB 職種マスタ関連SQL
+
+Core DB側で承認済みの職種マスタ追加に関するSQLです。NOV Talent側では独自職種マスタを作らず、Core DBの job_types.id を参照します。
+
+```text
+supabase/core_job_types.sql
+supabase/core_job_types_post_deploy_check.sql
+supabase/talent_student_job_type_fields.sql
+```
