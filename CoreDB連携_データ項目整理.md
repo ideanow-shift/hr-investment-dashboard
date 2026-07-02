@@ -18,6 +18,10 @@
 | 法人 | `corporations` | `corporations.id` | 法人別採用投資、法人別目標管理 |
 | 部署 | `departments` | `departments.id` | 総務人事部などの所属確認、権限判断 |
 | 役職 | `positions` | `positions.id` | 店長候補分析、面談者属性、権限判断 |
+| 職種 | `job_types` | `job_types.id` | 職種別の採用分析、教育対象分類、LSTEP配信対象の将来利用 |
+| 雇用形態 | `employees` | `employment_type` | 表示・分析用。NOV Talent専用マスタは作らない |
+| 就労ステータス | `employees` | `employment_status` | 表示・分析用。NOV Talent専用マスタは作らない |
+| 休職種別 | `employees` | `leave_type` | 表示・分析用。NOV Talent専用マスタは作らない |
 | 権限 | `roles` / `employee_roles` | role ID | 閲覧・編集・管理者権限 |
 | 異動・昇格・退職履歴 | `employee_assignment_histories` | `employees.id` | 入社後定着率、店長候補輩出分析で将来利用 |
 | 複数店舗所属 | `employee_store_assignments` | `employees.id`, `stores.id` | 店舗別採用効果・配属後分析で将来利用 |
@@ -196,7 +200,11 @@ Core DB参照:
 - 法人マスタ
 - 部署マスタ
 - 役職マスタ
+- 職種マスタ
 - 権限マスタ
+- 雇用形態マスタ
+- 就労ステータスマスタ
+- 休職種別マスタ
 - 社員所属履歴
 - 複数店舗所属
 ## 2026-07-02 Core DB統合方針追記
@@ -208,6 +216,8 @@ NOV Talent側でも、今後は「人に関する履歴」を最終的に Core D
 ### NOV Talent側の設計ルール
 
 - 社員・店舗・部署・役職は独自管理せず、Core DBの既存マスタを参照する
+- 職種はCore DB側で `job_types` が追加された後、`job_types.id` を参照する
+- 雇用形態、就労ステータス、休職種別はCore DBの社員属性として扱い、NOV Talent専用マスタは作らない
 - 社員を記録する場合は、氏名ではなく `employees.id` を保存する
 - 店舗を記録する場合は、店舗名ではなく `stores.id` を保存する
 - 作成者・更新者・面談担当者・採用担当者など、社内社員に紐づくカラムは `employees.id` を参照する
@@ -221,3 +231,30 @@ NOV Talent側でも、今後は「人に関する履歴」を最終的に Core D
 ### 補足
 
 NOV Talentでは社員評価や管理者育成データを直接持たない。ただし、採用担当者・面談者・作成者・更新者など、社内社員に関わる情報は必ず Core DB の `employees.id` 参照に寄せる。
+
+## 2026-07-02 社員属性分離方針
+
+各アプリ共通指示として、社員属性は以下のように分離する。
+
+| 属性 | 正本 |
+| --- | --- |
+| 部署 | `departments` |
+| 役職 | `positions` |
+| 職種 | `job_types` |
+| 雇用形態 | `employment_type` |
+| 就労ステータス | `employment_status` |
+| 休職種別 | `leave_type` |
+| 権限 | `roles` / `employee_roles` |
+
+NOV Talentでは、これらの社員属性を独自マスタ化しない。
+
+保存・参照時は以下を使う。
+
+- 社員: `employees.id`
+- 店舗: `stores.id`
+- 部署: `departments.id`
+- 役職: `positions.id`
+- 職種: `job_types.id`（Core DB側で新設後）
+- 権限: `roles` / `employee_roles`
+
+表示名はCore DBから参照する。`レセプションパート` のような混合値は、将来的に `employment_type = パート・アルバイト` + `job_type = レセプション` のように分離する。

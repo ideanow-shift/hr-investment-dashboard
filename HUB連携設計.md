@@ -21,6 +21,7 @@
 - `storeId` / `storeName`
 - `departmentId` / `departmentName`
 - `positionId` / `positionName`
+- `jobTypeId` / `jobTypeName`（Core DB側で `job_types` 新設後）
 - `roleKeys`
 - `roles`
 - `permissions`
@@ -73,6 +74,7 @@ https://ideanow-shift.github.io/idea-nov-hub/human-capital-investment/?hub_conte
 - `hub_context` を受け取り、保存前にHUB社員情報を保持する
 - 操作履歴には `actor_employee_id` を優先して記録する
 - 表示用に氏名・役職・所属を出してもよいが、正本はCore DBのIDとする
+- 職種を表示・判定に使う場合も、正本はCore DBの `job_types.id` とする
 - HUB未連携時は保存系操作を制限する
 - 保存系操作はbackend側でも `employee_roles` / `roles` を確認する
 - role新設・権限追加・Core DB参照変更はOS/Core DB側レビュー後に進める
@@ -80,3 +82,16 @@ https://ideanow-shift.github.io/idea-nov-hub/human-capital-investment/?hub_conte
 ## 注意
 
 service_role key、LSTEP APIキー、その他Secretはフロント・GitHub Pages・Obsidian本文・config.jsに出さない。
+
+## 社員属性の扱い
+
+NOV Talentでは社員属性を独自マスタ化しない。
+
+| 属性 | 正本 |
+| --- | --- |
+| 部署 | `departments.id` |
+| 役職 | `positions.id` |
+| 職種 | `job_types.id` |
+| 権限 | `roles` / `employee_roles` |
+
+雇用形態、就労ステータス、休職種別はCore DBの社員属性として参照する。`レセプションパート` のような混合値はNOV Talent側で新たに作らず、Core DB側の方針に合わせて職種と雇用形態を分離する。
