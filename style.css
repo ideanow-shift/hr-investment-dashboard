@@ -2749,6 +2749,76 @@ td {
   margin-top: 0;
 }
 
+.interview-management-list {
+  display: grid;
+  gap: 14px;
+  margin-top: 18px;
+}
+
+.interview-student-card {
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: #fff;
+  overflow: hidden;
+}
+
+.interview-student-card summary {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 18px;
+  cursor: pointer;
+  list-style: none;
+}
+
+.interview-student-card summary::-webkit-details-marker {
+  display: none;
+}
+
+.interview-student-card summary h3 {
+  margin: 2px 0 6px;
+  font-size: 18px;
+}
+
+.interview-student-card summary p {
+  margin: 0;
+  color: var(--muted);
+}
+
+.interview-card-meta {
+  display: grid;
+  justify-items: end;
+  gap: 6px;
+  min-width: 180px;
+  text-align: right;
+}
+
+.interview-card-meta span,
+.interview-card-meta strong,
+.interview-card-meta small {
+  display: block;
+}
+
+.interview-card-meta span {
+  color: var(--muted);
+  font-size: 13px;
+}
+
+.interview-card-meta strong {
+  font-size: 16px;
+}
+
+.interview-card-meta small {
+  color: var(--muted);
+  max-width: 240px;
+}
+
+.interview-student-card .student-interview-panel {
+  border-top: 1px solid var(--line);
+  padding: 18px;
+}
+
 .interview-panel-heading {
   display: flex;
   align-items: flex-start;
@@ -3190,6 +3260,16 @@ td {
   .detail-grid,
   .operation-log-summary {
     grid-template-columns: 1fr;
+  }
+
+  .interview-student-card summary {
+    display: grid;
+  }
+
+  .interview-card-meta {
+    justify-items: start;
+    min-width: 0;
+    text-align: left;
   }
 
   .lstep-status-header {

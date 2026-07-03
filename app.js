@@ -4959,10 +4959,8 @@ function getInterviewNextAction(finalDecision, notifyHr) {
   return "面接結果確認";
 }
 
-function setupRenderedInterviewForm(student) {
-  const form = document.querySelector("[data-interview-form]");
-  if (!form) return;
-
+function bindInterviewForm(form, student, options = {}) {
+  if (!form || !student) return;
   form.addEventListener("submit", async (event) => {
     event.preventDefault();
     const status = form.querySelector(".student-form-status");
@@ -4995,8 +4993,10 @@ function setupRenderedInterviewForm(student) {
         status.classList.add("is-success");
       }
       await refreshDashboardData();
-      const updatedStudent = findStudentById(student.id);
-      if (updatedStudent) openStudentModal(updatedStudent);
+      if (options.reopenStudentModal) {
+        const updatedStudent = findStudentById(student.id);
+        if (updatedStudent) openStudentModal(updatedStudent);
+      }
     } catch (error) {
       if (status) {
         status.textContent = error.message;
@@ -5005,6 +5005,113 @@ function setupRenderedInterviewForm(student) {
     } finally {
       if (submitButton) submitButton.disabled = false;
     }
+  });
+}
+
+function setupRenderedInterviewForm(student) {
+  const form = document.querySelector("[data-interview-form]");
+  bindInterviewForm(form, student, { reopenStudentModal: true });
+}
+
+function setupRenderedInterviewForms(root = document) {
+  root.querySelectorAll("[data-interview-form]").forEach((form) => {
+    const student = findStudentById(form.dataset.studentId);
+    bindInterviewForm(form, student);
+  });
+}
+
+function getInterviewManagementStudents() {
+  return getManagedStudents()
+    .filter((student) => {
+      const actionText = normalizeStudentSearchText(student.nextAction || "");
+      return student.interviewStatus === "予定"
+        || student.interviewStatus === "実施済"
+        || ["再面接", "条件付き合格"].includes(student.resultStatus)
+        || actionText.includes("面接")
+        || actionText.includes("合否通達");
+    })
+    .sort((a, b) => {
+      const aPending = a.interviewStatus === "予定" || a.resultStatus === "再面接" ? 0 : 1;
+      const bPending = b.interviewStatus === "予定" || b.resultStatus === "再面接" ? 0 : 1;
+      if (aPending !== bPending) return aPending - bPending;
+      return String(a.nextActionDate || "9999-12-31").localeCompare(String(b.nextActionDate || "9999-12-31"));
+    });
+}
+
+function renderInterviewSummaryCard(label, value, sub, className = "") {
+  return `
+    <div class="operation-log-summary-card ${className}">
+      <span>${escapeHtml(label)}</span>
+      <strong>${formatNumber.format(value)}</strong>
+      <small>${escapeHtml(sub)}</small>
+    </div>
+  `;
+}
+
+function renderInterviewManagement() {
+  const summaryGrid = document.getElementById("interviewSummaryGrid");
+  const list = document.getElementById("interviewScheduleList");
+  const tabBadge = document.getElementById("interviewTabBadge");
+  if (!summaryGrid || !list) return;
+
+  const students = getInterviewManagementStudents();
+  const scheduled = students.filter((student) => student.interviewStatus === "予定").length;
+  const completed = students.filter((student) => student.interviewStatus === "実施済").length;
+  const retry = students.filter((student) => student.resultStatus === "再面接").length;
+  const notifyPending = students.filter((student) => normalizeStudentSearchText(student.nextAction || "").includes("合否通達")).length;
+  const badgeCount = scheduled + retry + notifyPending;
+
+  if (tabBadge) {
+    tabBadge.hidden = badgeCount === 0;
+    tabBadge.textContent = formatNumber.format(badgeCount);
+  }
+
+  summaryGrid.innerHTML = [
+    renderInterviewSummaryCard("面接予定", scheduled, "これから実施する面接", scheduled ? "is-warning" : "is-linked"),
+    renderInterviewSummaryCard("実施済み", completed, "診断・判断の記録あり"),
+    renderInterviewSummaryCard("再面接", retry, "再調整が必要な学生", retry ? "is-warning" : "is-linked"),
+    renderInterviewSummaryCard("合否通達待ち", notifyPending, "総務人事への共有待ち", notifyPending ? "is-danger" : "is-linked")
+  ].join("");
+
+  if (!students.length) {
+    list.innerHTML = `
+      <div class="student-empty">
+        面接管理の対象者はありません。学生フォローで面接予定・再面接・合否通達の学生が出ると、ここに表示されます。
+      </div>
+    `;
+    return;
+  }
+
+  list.innerHTML = students.map((student, index) => {
+    const isOpen = index === 0 || student.interviewStatus === "予定" || student.resultStatus === "再面接";
+    return `
+      <details class="interview-student-card" ${isOpen ? "open" : ""}>
+        <summary>
+          <div>
+            <p class="section-kicker">${escapeHtml(student.studentId || "ID未設定")} / ${escapeHtml(student.cohort || getActiveCohortLabel())}</p>
+            <h3>${escapeHtml(student.name || "氏名未入力")}</h3>
+            <p>${escapeHtml(student.school || "学校未入力")}</p>
+          </div>
+          <div class="interview-card-meta">
+            <span>${escapeHtml(student.interviewStatus || "面接未設定")}</span>
+            <strong>${escapeHtml(student.resultStatus || "結果未定")}</strong>
+            <small>${escapeHtml(student.nextAction || "次アクション未設定")}</small>
+            <button class="detail-button compact" type="button" data-interview-open-student-id="${escapeHtml(student.studentId)}">学生カルテ</button>
+          </div>
+        </summary>
+        ${renderStudentInterviewPanel(student)}
+      </details>
+    `;
+  }).join("");
+
+  setupRenderedInterviewForms(list);
+  list.querySelectorAll("[data-interview-open-student-id]").forEach((button) => {
+    button.addEventListener("click", (event) => {
+      event.preventDefault();
+      event.stopPropagation();
+      const selectedStudent = getActiveStudents().find((student) => student.studentId === button.dataset.interviewOpenStudentId);
+      openStudentModal(selectedStudent);
+    });
   });
 }
 
@@ -5017,7 +5124,6 @@ function renderStudentModalTabs(student) {
     <div class="student-card-tabs" role="tablist" aria-label="学生カルテ内メニュー">
       ${renderStudentModalTabButton("overview", "概要")}
       ${renderStudentModalTabButton("edit", "基本・選考")}
-      ${renderStudentModalTabButton("interview", "面接実施")}
       ${renderStudentModalTabButton("followups", "フォロー", followupCount)}
       ${renderStudentModalTabButton("stores", "店舗", storeHistoryCount)}
       ${renderStudentModalTabButton("logs", "操作履歴", operationLogCount)}
@@ -5025,7 +5131,6 @@ function renderStudentModalTabs(student) {
     <div class="student-card-panels">
       ${renderStudentModalTabPanel("overview", renderStudentOverviewPanel(student))}
       ${renderStudentModalTabPanel("edit", renderStudentForm(student, "update"))}
-      ${renderStudentModalTabPanel("interview", renderStudentInterviewPanel(student))}
       ${renderStudentModalTabPanel("followups", renderStudentFollowupSection(student))}
       ${renderStudentModalTabPanel("stores", renderStudentStoreSection(student))}
       ${renderStudentModalTabPanel("logs", renderStudentOperationLogSection(student))}
@@ -5103,7 +5208,6 @@ function openStudentModal(student) {
   document.body.classList.add("modal-open");
   setupStudentModalTabs();
   setupRenderedStudentForm();
-  setupRenderedInterviewForm(student);
   setupRenderedStorePreferenceForm();
   setupRenderedStoreTourHistoryForm();
   setupRenderedFollowupForm();
@@ -5624,6 +5728,7 @@ function renderDashboard(isConnected) {
   renderLstepIntegrationStatus();
   renderStudentActions();
   renderStudentList();
+  renderInterviewManagement();
   renderDataQuality();
   renderOperationLogs();
 }

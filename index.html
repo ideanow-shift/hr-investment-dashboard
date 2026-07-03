@@ -4,7 +4,7 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>リクルート管理システム</title>
-  <link rel="stylesheet" href="style.css?v=20260703-interview-flow">
+  <link rel="stylesheet" href="style.css?v=20260703-interview-management">
 </head>
 <body>
   <header class="app-header">
@@ -38,6 +38,7 @@
       <button class="dashboard-tab" type="button" data-view="fair">フェア分析</button>
       <button class="dashboard-tab" type="button" data-view="school">学校分析</button>
       <button class="dashboard-tab" type="button" data-view="student">学生フォロー<span id="studentUrgentTabBadge" class="tab-count-badge" hidden>0</span></button>
+      <button class="dashboard-tab" type="button" data-view="interview">面接管理<span id="interviewTabBadge" class="tab-count-badge" hidden>0</span></button>
       <button class="dashboard-tab" type="button" data-view="quality">データ品質<span id="dataQualityTabBadge" class="tab-count-badge" hidden>0</span></button>
       <button class="dashboard-tab" type="button" data-view="logs">操作履歴<span id="operationLogTabBadge" class="tab-count-badge tab-count-badge-warning" hidden>0</span></button>
       <button class="dashboard-tab" type="button" data-view="guide">使い方</button>
@@ -176,6 +177,18 @@
       </div>
     </section>
 
+    <section class="section-block dashboard-view view-hidden" data-view="interview" aria-labelledby="interviewTitle">
+      <div class="section-heading">
+        <div>
+          <p class="section-kicker">Interview Management</p>
+          <h2 id="interviewTitle">面接管理</h2>
+        </div>
+        <p class="section-note">面接予定者・実施記録・NotebookLM診断・総務人事への通達をまとめて管理します。</p>
+      </div>
+      <div id="interviewSummaryGrid" class="student-summary-grid"></div>
+      <div id="interviewScheduleList" class="interview-management-list"></div>
+    </section>
+
     <section class="section-block dashboard-view view-hidden" data-view="quality" aria-labelledby="dataQualityTitle">
       <div class="section-heading">
         <div>
@@ -264,7 +277,8 @@
         <article class="guide-card">
           <h3>面接実施</h3>
           <ul>
-            <li>学生カルテの「面接実施」タブを開く。</li>
+            <li>上部メニューの「面接管理」タブを開く。</li>
+            <li>面接対象者のカードを開き、必要に応じて学生カルテで基本情報を確認する。</li>
             <li>録音同意トークを読み上げ、同意状況を記録する。</li>
             <li>録音内容をNotebookLMへ読み込み、新卒面接マニュアルに沿って診断する。</li>
             <li>AI診断要約と面接実施者の現場所感を入力する。</li>
@@ -415,7 +429,7 @@
     </section>
   </div>
 
-  <script src="app.js?v=20260703-interview-flow"></script>
+  <script src="app.js?v=20260703-interview-management"></script>
 </body>
 </html>
 
