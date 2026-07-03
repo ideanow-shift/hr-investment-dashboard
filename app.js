@@ -5139,6 +5139,7 @@ function renderInterviewSummaryCard(label, value, sub, className = "") {
 }
 
 function getInterviewGroupKey(student) {
+  if (normalizeStudentSearchText(student.nextAction || "").includes("合否通達")) return "notify";
   if (student.resultStatus === "再面接") return "retry";
   if (student.interviewStatus === "実施済") return "completed";
   if (student.nextActionDate) return `date:${student.nextActionDate}`;
@@ -5146,6 +5147,7 @@ function getInterviewGroupKey(student) {
 }
 
 function getInterviewGroupLabel(groupKey) {
+  if (groupKey === "notify") return "合否通達待ち";
   if (groupKey === "completed") return "実施済み";
   if (groupKey === "retry") return "再面接調整";
   if (groupKey === "unscheduled") return "日程未設定";
@@ -5155,6 +5157,7 @@ function getInterviewGroupLabel(groupKey) {
 
 function getInterviewGroupNote(groupKey, students) {
   const count = formatNumber.format(students.length);
+  if (groupKey === "notify") return `${count}名の合否通達・総務人事共有が必要です。`;
   if (groupKey === "completed") return `${count}名の実施記録を確認できます。`;
   if (groupKey === "retry") return `${count}名の再面接調整が必要です。`;
   if (groupKey === "unscheduled") return `${count}名の日程設定・候補者確認が必要です。`;
@@ -5169,10 +5172,11 @@ function getInterviewGroups(students) {
   }, new Map());
 
   const sortRank = (key) => {
-    if (key === "retry") return "0";
-    if (key.startsWith("date:")) return `1-${key}`;
-    if (key === "unscheduled") return "2";
-    if (key === "completed") return "3";
+    if (key === "notify") return "0";
+    if (key === "retry") return "1";
+    if (key.startsWith("date:")) return `2-${key}`;
+    if (key === "unscheduled") return "3";
+    if (key === "completed") return "4";
     return "9";
   };
 
@@ -5183,8 +5187,11 @@ function getInterviewGroups(students) {
 
 function renderInterviewStudentCard(student, forceOpen = false) {
   const shouldOpen = forceOpen || student.interviewStatus === "予定" || student.resultStatus === "再面接";
+  const actionText = normalizeStudentSearchText(student.nextAction || "");
+  const needsNotify = actionText.includes("合否通達");
+  const cardClass = needsNotify ? "needs-notify" : (student.resultStatus === "再面接" ? "needs-retry" : "");
   return `
-    <details class="interview-student-card" ${shouldOpen ? "open" : ""}>
+    <details class="interview-student-card ${cardClass}" ${shouldOpen || needsNotify ? "open" : ""}>
       <summary>
         <div>
           <p class="section-kicker">${escapeHtml(student.studentId || "ID未設定")} / ${escapeHtml(student.cohort || getActiveCohortLabel())}</p>
@@ -5195,6 +5202,8 @@ function renderInterviewStudentCard(student, forceOpen = false) {
           <span>${escapeHtml(student.interviewStatus || "面接未設定")}</span>
           <strong>${escapeHtml(student.resultStatus || "結果未定")}</strong>
           <small>${escapeHtml(student.nextAction || "次アクション未設定")}</small>
+          ${needsNotify ? `<em class="interview-alert-chip is-danger">合否通達待ち</em>` : ""}
+          ${student.resultStatus === "再面接" ? `<em class="interview-alert-chip is-warning">再面接</em>` : ""}
           <button class="detail-button compact" type="button" data-interview-open-student-id="${escapeHtml(student.studentId)}">学生カルテ</button>
         </div>
       </summary>

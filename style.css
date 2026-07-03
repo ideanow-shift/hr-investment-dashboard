@@ -2857,6 +2857,14 @@ td {
   border-top: 0;
 }
 
+.interview-student-card.needs-notify {
+  box-shadow: inset 4px 0 0 #ef4444;
+}
+
+.interview-student-card.needs-retry {
+  box-shadow: inset 4px 0 0 #f59e0b;
+}
+
 .interview-student-card summary {
   display: flex;
   align-items: flex-start;
@@ -2907,6 +2915,26 @@ td {
 .interview-card-meta small {
   color: var(--muted);
   max-width: 240px;
+}
+
+.interview-alert-chip {
+  border-radius: 999px;
+  display: inline-flex;
+  font-size: 12px;
+  font-style: normal;
+  font-weight: 700;
+  justify-self: end;
+  padding: 4px 9px;
+}
+
+.interview-alert-chip.is-danger {
+  background: #fee2e2;
+  color: #b91c1c;
+}
+
+.interview-alert-chip.is-warning {
+  background: #fef3c7;
+  color: #92400e;
 }
 
 .interview-student-card .student-interview-panel {
@@ -3437,6 +3465,10 @@ td {
     justify-items: start;
     min-width: 0;
     text-align: left;
+  }
+
+  .interview-alert-chip {
+    justify-self: start;
   }
 
   .lstep-status-header {
