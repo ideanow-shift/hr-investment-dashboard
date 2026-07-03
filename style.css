@@ -1840,6 +1840,44 @@ td {
   margin-top: 0;
 }
 
+.student-inline-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-top: 8px;
+}
+
+.student-inline-action {
+  border: 1px solid rgba(37, 99, 235, 0.2);
+  border-radius: 999px;
+  background: #fff;
+  color: var(--blue);
+  cursor: pointer;
+  font: inherit;
+  font-size: 12px;
+  font-weight: 700;
+  line-height: 1;
+  padding: 7px 10px;
+}
+
+.student-inline-action:hover {
+  background: var(--blue-soft);
+}
+
+.student-inline-action.is-danger {
+  border-color: rgba(220, 38, 38, 0.22);
+  color: var(--danger);
+}
+
+.student-inline-action.is-danger:hover {
+  background: #fee2e2;
+}
+
+.student-inline-action:disabled {
+  cursor: wait;
+  opacity: 0.65;
+}
+
 .student-table .urgency-badge {
   width: fit-content;
   margin: 0;

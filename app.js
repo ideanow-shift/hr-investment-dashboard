@@ -4431,10 +4431,111 @@ function renderStudentNextActionCell(student, primaryAction) {
         ${primaryAction ? renderFollowupCompleteButton(primaryAction) : ""}
         <button class="detail-button compact student-card-open-button" type="button" data-open-student-id="${escapeHtml(student.studentId)}">カルテ</button>
       </div>
+      ${renderStudentQuickActionButtons(student)}
     </div>
   `;
 }
 
+function buildStudentQuickUpdatePayload(student, overrides = {}) {
+  const merged = { ...student, ...overrides };
+  return {
+    sheetName: getActiveSheetName(),
+    studentRecordId: String(merged.id || ""),
+    studentId: String(merged.studentId || ""),
+    name: String(merged.name || "").trim(),
+    gender: String(merged.gender || "未回答"),
+    school: String(merged.school || "").trim(),
+    grade: String(merged.grade || ""),
+    source: String(merged.source || "").trim(),
+    contactDate: String(merged.contactDate || ""),
+    lineStatus: String(merged.lineStatus || "未登録"),
+    salonTourStatus: String(merged.salonTourStatus || "未設定"),
+    interviewStatus: String(merged.interviewStatus || "未設定"),
+    resultStatus: String(merged.resultStatus || "未定"),
+    offerStatus: String(merged.offerStatus || "未定"),
+    expectedJoinStatus: String(merged.expectedJoinStatus || "未定"),
+    owner: String(merged.owner || "総務人事").trim(),
+    nextAction: String(merged.nextAction || "").trim(),
+    nextActionDate: String(merged.nextActionDate || ""),
+    memo: String(merged.memo || "").trim(),
+    managementStatus: String(merged.managementStatus || "有効")
+  };
+}
+
+function getStudentQuickActions(student) {
+  const actions = [];
+  const offerJoinStatus = getOfferJoinStatusValue(student);
+
+  if (!["予定", "実施済"].includes(student.salonTourStatus || "")) {
+    actions.push({ key: "salonTour", label: "見学予定", confirmLabel: "見学予定に更新", overrides: { salonTourStatus: "予定", nextAction: student.nextAction || "見学前リマインド" } });
+  }
+  if (!["予定", "実施済"].includes(student.interviewStatus || "")) {
+    actions.push({ key: "interview", label: "面接予定", confirmLabel: "面接予定に更新", overrides: { interviewStatus: "予定", nextAction: student.nextAction || "面接日程確認" } });
+  }
+  if (!["内定", "入社予定", "入社済", "辞退"].includes(offerJoinStatus)) {
+    actions.push({ key: "offer", label: "内定", confirmLabel: "内定に更新", overrides: { resultStatus: "合格", offerStatus: "内定", expectedJoinStatus: "未定", nextAction: "内定後フォロー" } });
+  }
+  if (student.managementStatus !== "管理対象外") {
+    actions.push({ key: "inactive", label: "対象外", confirmLabel: "管理対象外に更新", className: "is-danger", overrides: { managementStatus: "管理対象外", nextAction: "", nextActionDate: "" } });
+  }
+
+  return actions;
+}
+
+function renderStudentQuickActionButtons(student) {
+  if (!isActiveCohortEditable() || !canWriteActionFromDashboard("edit")) return "";
+  const actions = getStudentQuickActions(student).slice(0, 4);
+  if (!actions.length) return "";
+
+  return `
+    <div class="student-inline-actions" aria-label="学生の簡易更新">
+      ${actions.map((action) => `
+        <button class="student-inline-action ${action.className || ""}" type="button" data-student-quick-action="${escapeHtml(action.key)}" data-student-id="${escapeHtml(student.studentId || "")}">
+          ${escapeHtml(action.label)}
+        </button>
+      `).join("")}
+    </div>
+  `;
+}
+
+async function handleStudentQuickAction(button) {
+  const studentId = button.dataset.studentId || "";
+  const actionKey = button.dataset.studentQuickAction || "";
+  const student = getActiveStudents().find((item) => item.studentId === studentId);
+  if (!student) {
+    window.alert("対象の学生が見つかりませんでした。データ更新後に再度お試しください。");
+    return;
+  }
+
+  const action = getStudentQuickActions(student).find((item) => item.key === actionKey);
+  if (!action) return;
+
+  const message = `${student.name || student.studentId} を「${action.confirmLabel}」します。よろしいですか？`;
+  if (!window.confirm(message)) return;
+
+  try {
+    button.disabled = true;
+    button.textContent = "保存中";
+    const result = await callGasAction("updateStudent", buildStudentQuickUpdatePayload(student, action.overrides));
+    if (!result || result.ok === false || result.error) {
+      throw new Error(result?.error || "簡易更新に失敗しました");
+    }
+    await refreshDashboardData();
+  } catch (error) {
+    button.disabled = false;
+    button.textContent = action.label;
+    window.alert(`保存できませんでした：${error.message}`);
+  }
+}
+
+function setupStudentQuickActionButtons(root = document) {
+  root.querySelectorAll("[data-student-quick-action]").forEach((button) => {
+    button.addEventListener("click", (event) => {
+      event.stopPropagation();
+      handleStudentQuickAction(button);
+    });
+  });
+}
 function setupStudentOpenButtons(root = document) {
   root.querySelectorAll("[data-open-student-id]").forEach((button) => {
     button.addEventListener("click", (event) => {
@@ -4568,6 +4669,7 @@ function renderStudentList(activeKey = activeStudentFilter) {
 
   setupFollowupCompleteButtons(document.getElementById("studentList"));
   setupStudentOpenButtons(document.getElementById("studentList"));
+  setupStudentQuickActionButtons(document.getElementById("studentList"));
 
   const showMoreButton = document.getElementById("studentShowMoreButton");
   if (showMoreButton) {
