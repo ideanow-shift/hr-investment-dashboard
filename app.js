@@ -4840,9 +4840,33 @@ function renderInterviewOption(value, selectedValue = "") {
   return `<option value="${escapeHtml(value)}" ${value === selectedValue ? "selected" : ""}>${escapeHtml(value)}</option>`;
 }
 
+function buildInterviewNotebookPrompt(student) {
+  return [
+    "以下は新卒採用面接の録音文字起こしです。",
+    "NotebookLMに登録されている「新卒面接マニュアル」に沿って、候補者の評価を診断してください。",
+    "",
+    "【候補者情報】",
+    `氏名：${student.name || "未入力"}`,
+    `学校：${student.school || "未入力"}`,
+    `卒年：${student.cohort || getActiveCohortLabel()}`,
+    `流入元：${student.source || "未入力"}`,
+    "",
+    "【診断してほしい観点】",
+    "1. 接客適性、素直さ、成長意欲、協調性、感情制御",
+    "2. 美容師としての将来性とリスク",
+    "3. 面接者が追加確認すべき質問",
+    "4. S/A/B/C/要再確認の暫定ランク",
+    "5. 合格・条件付き合格・再面接・不合格の判断材料",
+    "",
+    "【録音文字起こし】",
+    "ここに文字起こしを貼り付け"
+  ].join("\n");
+}
+
 function renderStudentInterviewPanel(student) {
   const interviewerName = getHubOperatorName() || student.owner || "総務人事";
   const disabled = getWriteDisabledAttribute(!isActiveCohortEditable(), "updateStudent");
+  const notebookPrompt = buildInterviewNotebookPrompt(student);
 
   return `
     <section class="student-interview-panel">
@@ -4854,6 +4878,12 @@ function renderStudentInterviewPanel(student) {
         </div>
         <a class="interview-manual-link" href="${INTERVIEW_MANUAL_URL}" target="_blank" rel="noopener">新卒面接マニュアルを開く</a>
       </div>
+      <div class="interview-precheck-grid" aria-label="面接前チェック">
+        <div><strong>面接前</strong><p>候補者名・学校・卒年・担当者を確認。</p></div>
+        <div><strong>録音前</strong><p>録音同意トークを読み上げ、同意状況を選択。</p></div>
+        <div><strong>診断前</strong><p>録音文字起こしをNotebookLMに投入。</p></div>
+        <div><strong>決定前</strong><p>AI診断と面接者所感の差分を話し合う。</p></div>
+      </div>
       <div class="interview-workflow-grid" aria-label="面接運用フロー">
         <div><span>1</span><strong>録音同意</strong><p>録音目的と利用範囲を伝えて同意を取得。</p></div>
         <div><span>2</span><strong>NotebookLM診断</strong><p>録音内容を新卒面接マニュアルに沿って診断。</p></div>
@@ -4863,6 +4893,14 @@ function renderStudentInterviewPanel(student) {
       <div class="interview-consent-box">
         <strong>録音同意トーク</strong>
         <p>本日はお越しいただきありがとうございます。弊社では、選考の公平性を保ち、後ほど内容を正確に振り返るために、面接内容を録音させていただいております。この音声データは採用選考の分析のみに使用し、終了後は速やかに破棄いたします。ご了承いただけますでしょうか？</p>
+      </div>
+      <div class="interview-prompt-box">
+        <div>
+          <strong>NotebookLM投入用プロンプト</strong>
+          <p>録音文字起こしと一緒に貼り付ける診断依頼文です。複数名面接の場合は、候補者ごとに文字起こしを分けて使ってください。</p>
+        </div>
+        <button class="detail-button compact" type="button" data-copy-interview-prompt>コピー</button>
+        <textarea data-interview-prompt rows="8" readonly>${escapeHtml(notebookPrompt)}</textarea>
       </div>
       <form class="interview-form" data-interview-form data-student-id="${escapeHtml(student.id || "")}">
         <div class="interview-form-grid">
@@ -5020,6 +5058,30 @@ function setupRenderedInterviewForms(root = document) {
   root.querySelectorAll("[data-interview-form]").forEach((form) => {
     const student = findStudentById(form.dataset.studentId);
     bindInterviewForm(form, student);
+  });
+  setupInterviewPromptCopyButtons(root);
+}
+
+function setupInterviewPromptCopyButtons(root = document) {
+  root.querySelectorAll("[data-copy-interview-prompt]").forEach((button) => {
+    button.onclick = async () => {
+      const box = button.closest(".interview-prompt-box");
+      const prompt = box?.querySelector("[data-interview-prompt]");
+      if (!prompt) return;
+      try {
+        await navigator.clipboard.writeText(prompt.value || "");
+        button.textContent = "コピー済み";
+        setTimeout(() => {
+          button.textContent = "コピー";
+        }, 1800);
+      } catch (error) {
+        prompt.select();
+        button.textContent = "選択しました";
+        setTimeout(() => {
+          button.textContent = "コピー";
+        }, 1800);
+      }
+    };
   });
 }
 

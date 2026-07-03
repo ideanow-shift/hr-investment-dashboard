@@ -2943,6 +2943,32 @@ td {
   gap: 12px;
 }
 
+.interview-precheck-grid {
+  display: grid;
+  gap: 10px;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  margin-bottom: 14px;
+}
+
+.interview-precheck-grid div {
+  border: 1px solid #cfe5f6;
+  border-radius: 8px;
+  background: #f8fbff;
+  padding: 12px;
+}
+
+.interview-precheck-grid strong {
+  display: block;
+  margin-bottom: 5px;
+}
+
+.interview-precheck-grid p {
+  color: var(--muted);
+  font-size: 13px;
+  line-height: 1.7;
+  margin: 0;
+}
+
 .interview-workflow-grid {
   grid-template-columns: repeat(4, minmax(0, 1fr));
   margin-bottom: 14px;
@@ -2993,6 +3019,37 @@ td {
 .interview-consent-box strong {
   display: block;
   margin-bottom: 6px;
+}
+
+.interview-prompt-box {
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: #fff;
+  display: grid;
+  gap: 10px;
+  grid-template-columns: minmax(0, 1fr) auto;
+  margin-bottom: 14px;
+  padding: 12px 14px;
+}
+
+.interview-prompt-box p {
+  color: var(--muted);
+  font-size: 13px;
+  line-height: 1.7;
+  margin: 4px 0 0;
+}
+
+.interview-prompt-box textarea {
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--surface-soft);
+  color: var(--text);
+  font: inherit;
+  grid-column: 1 / -1;
+  line-height: 1.7;
+  padding: 10px 12px;
+  resize: vertical;
+  width: 100%;
 }
 
 .interview-form-grid {
@@ -3363,6 +3420,11 @@ td {
 
   .interview-toolbar {
     align-items: stretch;
+    grid-template-columns: 1fr;
+  }
+
+  .interview-precheck-grid,
+  .interview-prompt-box {
     grid-template-columns: 1fr;
   }
 
