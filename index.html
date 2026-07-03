@@ -3,17 +3,17 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>NOV Talent</title>
-  <link rel="stylesheet" href="style.css?v=20260702-lstep-vendor-questions">
+  <title>リクルート管理システム</title>
+  <link rel="stylesheet" href="style.css?v=20260703-interview-flow">
 </head>
 <body>
   <header class="app-header">
     <div class="header-inner">
       <div>
         <p class="eyebrow">IDEA NOV Group / Human Capital Investment</p>
-        <h1 id="appTitle">NOV Talent</h1>
+        <h1 id="appTitle">リクルート管理システム</h1>
         <p class="lead">
-          求人費・就職フェア・学校接点・学生接触データをもとに、採用活動を「人材投資」として判断するための社内ダッシュボードです。
+          人材投資の可視化。求人費・就職フェア・学校接点・学生接触データをもとに、採用活動を投資判断として管理します。
         </p>
       </div>
       <div class="header-actions">
@@ -262,6 +262,16 @@
           </ul>
         </article>
         <article class="guide-card">
+          <h3>面接実施</h3>
+          <ul>
+            <li>学生カルテの「面接実施」タブを開く。</li>
+            <li>録音同意トークを読み上げ、同意状況を記録する。</li>
+            <li>録音内容をNotebookLMへ読み込み、新卒面接マニュアルに沿って診断する。</li>
+            <li>AI診断要約と面接実施者の現場所感を入力する。</li>
+            <li>話し合いメモと最終判断を保存し、総務人事への通達状態を残す。</li>
+          </ul>
+        </article>
+        <article class="guide-card">
           <h3>毎日の運用</h3>
           <ul>
             <li>右上の「データ更新」を押して最新状態にする。</li>
@@ -371,7 +381,7 @@
             <dt>見学・面接</dt>
             <dd>未設定 / 予定 / 実施済 / キャンセル</dd>
             <dt>選考結果</dt>
-            <dd>未定 / 合格 / 不合格 / 辞退</dd>
+            <dd>未定 / 合格 / 条件付き合格 / 再面接 / 不合格 / 辞退</dd>
             <dt>内定・入社予定</dt>
             <dd>未定 / 内定 / 承諾 / 入社予定 / 入社済 / 辞退</dd>
           </dl>
@@ -394,7 +404,7 @@
   </main>
 
   <footer class="app-footer">
-    <span>NOV Talent</span>
+    <span>リクルート管理システム</span>
     <strong id="footerStatus">Loading Data ...</strong>
   </footer>
 
@@ -405,7 +415,7 @@
     </section>
   </div>
 
-  <script src="app.js?v=20260702-lstep-vendor-questions"></script>
+  <script src="app.js?v=20260703-interview-flow"></script>
 </body>
 </html>
 

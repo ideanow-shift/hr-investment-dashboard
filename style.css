@@ -2735,6 +2735,109 @@ td {
   padding: 10px 12px;
 }
 
+.student-form-status.is-success {
+  border-left: 3px solid var(--green);
+  border-radius: 8px;
+  background: #ecfdf5;
+  color: #047857;
+  font-weight: 600;
+  line-height: 1.7;
+  padding: 10px 12px;
+}
+
+.student-interview-panel {
+  margin-top: 0;
+}
+
+.interview-panel-heading {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+  margin-bottom: 14px;
+}
+
+.interview-panel-heading h3 {
+  margin-bottom: 4px;
+}
+
+.interview-manual-link {
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  color: var(--blue);
+  flex: 0 0 auto;
+  font-size: 13px;
+  font-weight: 700;
+  padding: 10px 12px;
+  text-decoration: none;
+}
+
+.interview-workflow-grid,
+.interview-form-grid {
+  display: grid;
+  gap: 12px;
+}
+
+.interview-workflow-grid {
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  margin-bottom: 14px;
+}
+
+.interview-workflow-grid div {
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--surface-soft);
+  padding: 12px;
+}
+
+.interview-workflow-grid span {
+  align-items: center;
+  border-radius: 999px;
+  background: #dbeafe;
+  color: var(--blue);
+  display: inline-flex;
+  font-size: 12px;
+  font-weight: 700;
+  height: 24px;
+  justify-content: center;
+  margin-bottom: 8px;
+  width: 24px;
+}
+
+.interview-workflow-grid strong {
+  display: block;
+  margin-bottom: 6px;
+}
+
+.interview-workflow-grid p,
+.interview-consent-box p {
+  color: var(--muted);
+  font-size: 13px;
+  line-height: 1.7;
+  margin: 0;
+}
+
+.interview-consent-box {
+  border: 1px solid #b7d7f3;
+  border-radius: 8px;
+  background: #f3f8fd;
+  margin-bottom: 14px;
+  padding: 12px 14px;
+}
+
+.interview-consent-box strong {
+  display: block;
+  margin-bottom: 6px;
+}
+
+.interview-form-grid {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.interview-form-full {
+  grid-column: 1 / -1;
+}
+
 .student-form-grid {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -3198,8 +3301,14 @@ td {
   .modal-status-grid,
   .modal-progress,
   .student-form-grid,
+  .interview-form-grid,
+  .interview-workflow-grid,
   .student-store-grid {
     grid-template-columns: 1fr;
+  }
+
+  .interview-panel-heading {
+    display: grid;
   }
 
   .student-toolbar,

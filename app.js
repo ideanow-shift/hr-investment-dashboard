@@ -1,10 +1,15 @@
 const GAS_API_URL = "https://script.google.com/macros/s/AKfycbx0X9DvO6zydd8txe_Mgme1COTfltp7ZxueJyrIPQsJSwWCvbVrM2otmlgarPTDmU5iWg/exec";
 
+const HUB_DISPLAY_APP_NAME = "リクルート管理システム";
+const HUB_DISPLAY_APP_SUBTITLE = "人材投資の可視化";
+const INTERVIEW_MANUAL_URL = "https://docs.google.com/document/d/10F304BImOElyueoVWhX6GyrhGES2c6u_KKX2d2VHTBw/edit?usp=drive_link";
+const DESKTOP_STUDENT_LIST_COUNT = 50;
+const MOBILE_STUDENT_LIST_COUNT = 20;
 const HUB_CONTEXT_KEY = "novHub.currentEmployee";
 const HUB_CONTEXT_MAX_AGE_MS = 12 * 60 * 60 * 1000;
 
 let dashboardConfig = {
-  appName: "NOV Talent",
+  appName: HUB_DISPLAY_APP_NAME,
   targetHires: 18,
   targetContacts: 220,
   targetInterviews: 30,
@@ -218,7 +223,7 @@ let activeStudentFilter = "all";
 let activeStudentDueFilter = "all";
 let activeStudentSort = "priority";
 let studentSearchQuery = "";
-let studentListVisibleCount = 50;
+let studentListVisibleCount = getInitialStudentListCount();
 let studentSummary = buildStudentSummary(studentData);
 let activeDataQualityFilter = "all";
 let operationLogs = [];
@@ -227,6 +232,7 @@ let operationLogSearchQuery = "";
 let lstepSummary = buildDefaultLstepSummary();
 let storeOptions = [];
 let lastDataRefreshAt = null;
+let hasAttemptedDataLoad = false;
 
 async function fetchDashboardData() {
   if (!GAS_API_URL) {
@@ -234,7 +240,7 @@ async function fetchDashboardData() {
   }
 
   try {
-    const data = await loadJsonp(GAS_API_URL);
+    const data = await loadJsonp(GAS_API_URL, {}, isMobileViewport() ? 12000 : 20000);
     applyDashboardData(data);
     return true;
   } catch (error) {
@@ -243,14 +249,14 @@ async function fetchDashboardData() {
   }
 }
 
-function loadJsonp(apiUrl, params = {}) {
+function loadJsonp(apiUrl, params = {}, timeoutMs = 30000) {
   return new Promise((resolve, reject) => {
     const callbackName = `talentInvestmentDashboard_${Date.now()}_${Math.random().toString(36).slice(2)}`;
     const script = document.createElement("script");
     const timeoutId = window.setTimeout(() => {
       cleanup();
       reject(new Error("GAS APIの読み込みがタイムアウトしました"));
-    }, 30000);
+    }, timeoutMs);
 
     function cleanup() {
       window.clearTimeout(timeoutId);
@@ -538,6 +544,15 @@ function getActiveStudents() {
   return activeCohort ? activeCohort.students : studentData;
 }
 
+function findStudentById(studentId) {
+  const id = String(studentId || "");
+  if (!id) return null;
+  const allCohortStudents = studentCohorts.flatMap((cohort) => cohort.students || []);
+  return allCohortStudents.find((student) => String(student.id || "") === id)
+    || studentData.find((student) => String(student.id || "") === id)
+    || null;
+}
+
 function getManagedStudents() {
   return getActiveStudents().filter((student) => student.managementStatus !== "管理対象外");
 }
@@ -575,9 +590,23 @@ const escapeHtml = (value) => String(value ?? "").replace(/[&<>"']/g, (char) => 
   "\"": "&quot;",
   "'": "&#39;"
 })[char]);
+
+function isMobileViewport() {
+  return typeof window !== "undefined"
+    && typeof window.matchMedia === "function"
+    && window.matchMedia("(max-width: 640px)").matches;
+}
+
+function getInitialStudentListCount() {
+  return isMobileViewport() ? MOBILE_STUDENT_LIST_COUNT : DESKTOP_STUDENT_LIST_COUNT;
+}
+
 const normalizeAppName = (name) => {
-  if (!name || name === "Talent Investment Dashboard") return "NOV Talent";
-  return String(name);
+  const trimmed = String(name || "").trim();
+  if (!trimmed || trimmed === "Talent Investment Dashboard" || trimmed === "NOV Talent") {
+    return HUB_DISPLAY_APP_NAME;
+  }
+  return trimmed;
 };
 
 function getFairRank(tourRate) {
@@ -1721,7 +1750,7 @@ function renderStudentSummary() {
       activeStudentFilter = button.dataset.summaryFilter || "all";
       activeStudentDueFilter = button.dataset.summaryDue || "all";
       studentSearchQuery = "";
-      studentListVisibleCount = 50;
+      studentListVisibleCount = getInitialStudentListCount();
       renderStudentList();
       document.getElementById("studentList")?.scrollIntoView({ behavior: "smooth", block: "start" });
     });
@@ -1956,7 +1985,7 @@ function renderStudentCohortTabs() {
     button.addEventListener("click", () => {
       activeStudentCohort = button.dataset.studentCohort;
       studentData = getActiveStudents();
-      studentListVisibleCount = 50;
+      studentListVisibleCount = getInitialStudentListCount();
       renderStudentSummary();
       renderStudentActions();
       renderStudentList();
@@ -2228,7 +2257,7 @@ function renderSettingsForm() {
         </label>
         <label>
           <span>アプリ名</span>
-          <input name="appName" value="${escapeHtml(dashboardConfig.appName || "NOV Talent")}" placeholder="NOV Talent">
+          <input name="appName" value="${escapeHtml(dashboardConfig.appName || HUB_DISPLAY_APP_NAME)}" placeholder="${escapeHtml(HUB_DISPLAY_APP_NAME)}">
         </label>
         ${renderSettingsNumberField("targetHires", "採用目標人数", dashboardConfig.targetHires, "名", "今年度の内定・採用目標")}
         ${renderSettingsNumberField("targetContacts", "接触人数目標", dashboardConfig.targetContacts, "名", "フェア・学校接点の目標")}
@@ -3256,7 +3285,7 @@ function renderStudentQuickFilters() {
     button.addEventListener("click", () => {
       activeStudentFilter = button.dataset.studentFilter || "all";
       activeStudentDueFilter = button.dataset.studentDueFilter || "all";
-      studentListVisibleCount = 50;
+      studentListVisibleCount = getInitialStudentListCount();
       renderStudentList();
     });
   });
@@ -3293,7 +3322,7 @@ function renderStudentListFocusSummary() {
     button.addEventListener("click", () => {
       activeStudentFilter = button.dataset.studentFilter || "all";
       activeStudentDueFilter = button.dataset.studentDueFilter || "all";
-      studentListVisibleCount = 50;
+      studentListVisibleCount = getInitialStudentListCount();
       renderStudentList();
     });
   });
@@ -3319,7 +3348,7 @@ function renderStudentDueFilters(activeKey = activeStudentDueFilter) {
   filterWrap.querySelectorAll("[data-student-due-filter]").forEach((button) => {
     button.addEventListener("click", () => {
       activeStudentDueFilter = button.dataset.studentDueFilter;
-      studentListVisibleCount = 50;
+      studentListVisibleCount = getInitialStudentListCount();
       renderStudentList();
     });
   });
@@ -3342,7 +3371,7 @@ function renderStudentFilters(activeKey = activeStudentFilter) {
   filterWrap.querySelectorAll("[data-student-filter]").forEach((button) => {
     button.addEventListener("click", () => {
       activeStudentFilter = button.dataset.studentFilter;
-      studentListVisibleCount = 50;
+      studentListVisibleCount = getInitialStudentListCount();
       renderStudentList();
     });
   });
@@ -3413,7 +3442,7 @@ function renderStudentSearchControls() {
 
   input.oninput = () => {
     studentSearchQuery = input.value;
-    studentListVisibleCount = 50;
+    studentListVisibleCount = getInitialStudentListCount();
     renderStudentList();
   };
 
@@ -3423,7 +3452,7 @@ function renderStudentSearchControls() {
     `).join("");
     sortSelect.onchange = () => {
       activeStudentSort = sortSelect.value;
-      studentListVisibleCount = 50;
+      studentListVisibleCount = getInitialStudentListCount();
       renderStudentList();
     };
   }
@@ -3436,7 +3465,7 @@ function renderStudentSearchControls() {
       activeStudentDueFilter = "all";
       activeStudentSort = "priority";
       studentSearchQuery = "";
-      studentListVisibleCount = 50;
+      studentListVisibleCount = getInitialStudentListCount();
       renderStudentList();
       input.focus();
     };
@@ -4794,6 +4823,191 @@ function renderStudentOverviewPanel(student) {
   `;
 }
 
+function getLocalDateInputValue(date = new Date()) {
+  const localDate = new Date(date.getTime() - (date.getTimezoneOffset() * 60000));
+  return localDate.toISOString().slice(0, 10);
+}
+
+function getHubOperatorName() {
+  const employee = getHubCurrentEmployee();
+  return employee?.fullName || employee?.name || employee?.displayName || "";
+}
+
+function renderInterviewOption(value, selectedValue = "") {
+  return `<option value="${escapeHtml(value)}" ${value === selectedValue ? "selected" : ""}>${escapeHtml(value)}</option>`;
+}
+
+function renderStudentInterviewPanel(student) {
+  const interviewerName = getHubOperatorName() || student.owner || "総務人事";
+  const disabled = getWriteDisabledAttribute(!isActiveCohortEditable(), "updateStudent");
+
+  return `
+    <section class="student-interview-panel">
+      <div class="interview-panel-heading">
+        <div>
+          <p class="section-kicker">Interview Execution</p>
+          <h3>面接実施・AI診断記録</h3>
+          <p class="section-note">録音同意、NotebookLM診断、面接実施者の所感、最終判断を一緒に残します。</p>
+        </div>
+        <a class="interview-manual-link" href="${INTERVIEW_MANUAL_URL}" target="_blank" rel="noopener">新卒面接マニュアルを開く</a>
+      </div>
+      <div class="interview-workflow-grid" aria-label="面接運用フロー">
+        <div><span>1</span><strong>録音同意</strong><p>録音目的と利用範囲を伝えて同意を取得。</p></div>
+        <div><span>2</span><strong>NotebookLM診断</strong><p>録音内容を新卒面接マニュアルに沿って診断。</p></div>
+        <div><span>3</span><strong>現場評価</strong><p>表情、声色、受け答え、違和感を面接者が記録。</p></div>
+        <div><span>4</span><strong>最終判断</strong><p>AI診断と現場所感の差分を確認し、総務人事へ通達。</p></div>
+      </div>
+      <div class="interview-consent-box">
+        <strong>録音同意トーク</strong>
+        <p>本日はお越しいただきありがとうございます。弊社では、選考の公平性を保ち、後ほど内容を正確に振り返るために、面接内容を録音させていただいております。この音声データは採用選考の分析のみに使用し、終了後は速やかに破棄いたします。ご了承いただけますでしょうか？</p>
+      </div>
+      <form class="interview-form" data-interview-form data-student-id="${escapeHtml(student.id || "")}">
+        <div class="interview-form-grid">
+          <label>
+            <span>面接日</span>
+            <input name="interviewDate" type="date" value="${escapeHtml(getLocalDateInputValue())}" ${disabled}>
+          </label>
+          <label>
+            <span>面接実施者</span>
+            <input name="interviewerName" value="${escapeHtml(interviewerName)}" placeholder="例：店長・教育担当" ${disabled}>
+          </label>
+          <label>
+            <span>録音同意</span>
+            <select name="recordingConsent" ${disabled}>
+              ${["取得済", "未取得", "不要"].map((value) => renderInterviewOption(value, "取得済")).join("")}
+            </select>
+          </label>
+          <label>
+            <span>現場評価</span>
+            <select name="fieldRating" ${disabled}>
+              ${["高評価", "保留", "低評価"].map((value) => renderInterviewOption(value, "保留")).join("")}
+            </select>
+          </label>
+          <label>
+            <span>AI診断ランク</span>
+            <select name="aiRating" ${disabled}>
+              ${["S層", "A層", "B層", "C層", "要再確認"].map((value) => renderInterviewOption(value, "要再確認")).join("")}
+            </select>
+          </label>
+          <label>
+            <span>統合判断パターン</span>
+            <select name="integratedPattern" ${disabled}>
+              ${["未選択", "A：現場高評価 × AI高評価", "B：現場低評価 × AI高評価", "C：現場高評価 × AI低評価", "D：現場低評価 × AI低評価"].map((value) => renderInterviewOption(value, "未選択")).join("")}
+            </select>
+          </label>
+          <label>
+            <span>最終判断</span>
+            <select name="finalDecision" ${disabled}>
+              ${["保留", "合格", "条件付き合格", "再面接", "不合格"].map((value) => renderInterviewOption(value, "保留")).join("")}
+            </select>
+          </label>
+          <label>
+            <span>総務人事への通達</span>
+            <select name="notifyHr" ${disabled}>
+              ${["未通達", "通達済"].map((value) => renderInterviewOption(value, "未通達")).join("")}
+            </select>
+          </label>
+          <label class="interview-form-full">
+            <span>現場所感</span>
+            <textarea name="fieldMemo" rows="3" placeholder="声色・表情・聞く姿勢・違和感・良かった点" ${disabled}></textarea>
+          </label>
+          <label class="interview-form-full">
+            <span>NotebookLM診断要約</span>
+            <textarea name="aiDiagnosisSummary" rows="4" placeholder="観察力、柔軟性、客観性、向上心、感情制御、社会人基礎力の診断結果" ${disabled}></textarea>
+          </label>
+          <label class="interview-form-full">
+            <span>話し合いメモ</span>
+            <textarea name="discussionMemo" rows="3" placeholder="AI診断と面接実施者の評価が分かれた点、最終判断理由" ${disabled}></textarea>
+          </label>
+        </div>
+        <div class="student-form-actions">
+          <p class="student-form-status" aria-live="polite"></p>
+          <button class="refresh-button" type="submit" ${disabled}>面接結果を保存</button>
+        </div>
+      </form>
+    </section>
+  `;
+}
+
+function buildInterviewMemo(formData) {
+  return [
+    `【面接実施記録 ${String(formData.get("interviewDate") || getLocalDateInputValue())}】`,
+    `面接実施者：${String(formData.get("interviewerName") || "").trim() || "未入力"}`,
+    `録音同意：${String(formData.get("recordingConsent") || "未取得")}`,
+    `現場評価：${String(formData.get("fieldRating") || "保留")}`,
+    `AI診断ランク：${String(formData.get("aiRating") || "要再確認")}`,
+    `統合判断：${String(formData.get("integratedPattern") || "未選択")}`,
+    `最終判断：${String(formData.get("finalDecision") || "保留")}`,
+    `総務人事への通達：${String(formData.get("notifyHr") || "未通達")}`,
+    "",
+    "現場所感：",
+    String(formData.get("fieldMemo") || "").trim() || "未入力",
+    "",
+    "NotebookLM診断要約：",
+    String(formData.get("aiDiagnosisSummary") || "").trim() || "未入力",
+    "",
+    "話し合いメモ：",
+    String(formData.get("discussionMemo") || "").trim() || "未入力"
+  ].join("\n");
+}
+
+function getInterviewNextAction(finalDecision, notifyHr) {
+  if (notifyHr !== "通達済") return "総務人事へ合否通達";
+  if (finalDecision === "再面接") return "再面接日程調整";
+  if (finalDecision === "不合格") return "不合格連絡準備";
+  if (finalDecision === "合格" || finalDecision === "条件付き合格") return "内定可否確認";
+  return "面接結果確認";
+}
+
+function setupRenderedInterviewForm(student) {
+  const form = document.querySelector("[data-interview-form]");
+  if (!form) return;
+
+  form.addEventListener("submit", async (event) => {
+    event.preventDefault();
+    const status = form.querySelector(".student-form-status");
+    const submitButton = form.querySelector("button[type='submit']");
+    const formData = new FormData(form);
+    const finalDecision = String(formData.get("finalDecision") || "保留");
+    const notifyHr = String(formData.get("notifyHr") || "未通達");
+    const interviewMemo = buildInterviewMemo(formData);
+    const nextMemo = [student.memo, interviewMemo].filter(Boolean).join("\n\n");
+    const resultStatus = ["合格", "条件付き合格", "再面接", "不合格"].includes(finalDecision)
+      ? finalDecision
+      : (student.resultStatus || "未定");
+    const payload = buildStudentQuickUpdatePayload(student, {
+      interviewStatus: "実施済",
+      resultStatus,
+      nextAction: getInterviewNextAction(finalDecision, notifyHr),
+      nextActionDate: "",
+      memo: nextMemo
+    });
+
+    try {
+      if (status) {
+        status.textContent = "面接結果を保存しています...";
+        status.classList.remove("is-error", "is-success");
+      }
+      if (submitButton) submitButton.disabled = true;
+      await callGasAction("updateStudent", payload);
+      if (status) {
+        status.textContent = "保存しました。データ更新後、学生カルテに反映されます。";
+        status.classList.add("is-success");
+      }
+      await refreshDashboardData();
+      const updatedStudent = findStudentById(student.id);
+      if (updatedStudent) openStudentModal(updatedStudent);
+    } catch (error) {
+      if (status) {
+        status.textContent = error.message;
+        status.classList.add("is-error");
+      }
+    } finally {
+      if (submitButton) submitButton.disabled = false;
+    }
+  });
+}
+
 function renderStudentModalTabs(student) {
   const followupCount = Array.isArray(student.followups) ? student.followups.length : 0;
   const storeHistoryCount = Array.isArray(student.storeTourHistories) ? student.storeTourHistories.length : 0;
@@ -4803,6 +5017,7 @@ function renderStudentModalTabs(student) {
     <div class="student-card-tabs" role="tablist" aria-label="学生カルテ内メニュー">
       ${renderStudentModalTabButton("overview", "概要")}
       ${renderStudentModalTabButton("edit", "基本・選考")}
+      ${renderStudentModalTabButton("interview", "面接実施")}
       ${renderStudentModalTabButton("followups", "フォロー", followupCount)}
       ${renderStudentModalTabButton("stores", "店舗", storeHistoryCount)}
       ${renderStudentModalTabButton("logs", "操作履歴", operationLogCount)}
@@ -4810,6 +5025,7 @@ function renderStudentModalTabs(student) {
     <div class="student-card-panels">
       ${renderStudentModalTabPanel("overview", renderStudentOverviewPanel(student))}
       ${renderStudentModalTabPanel("edit", renderStudentForm(student, "update"))}
+      ${renderStudentModalTabPanel("interview", renderStudentInterviewPanel(student))}
       ${renderStudentModalTabPanel("followups", renderStudentFollowupSection(student))}
       ${renderStudentModalTabPanel("stores", renderStudentStoreSection(student))}
       ${renderStudentModalTabPanel("logs", renderStudentOperationLogSection(student))}
@@ -4887,6 +5103,7 @@ function openStudentModal(student) {
   document.body.classList.add("modal-open");
   setupStudentModalTabs();
   setupRenderedStudentForm();
+  setupRenderedInterviewForm(student);
   setupRenderedStorePreferenceForm();
   setupRenderedStoreTourHistoryForm();
   setupRenderedFollowupForm();
@@ -5420,6 +5637,7 @@ async function refreshDashboardData() {
   }
 
   const isConnected = await fetchDashboardData();
+  hasAttemptedDataLoad = true;
   lastDataRefreshAt = new Date();
   renderDashboard(isConnected);
 
@@ -5622,7 +5840,14 @@ function updateDataSourceStatus(isConnected) {
   const badge = document.querySelector(".header-badge");
   const footerStatus = document.getElementById("footerStatus");
   updateDataRefreshMeta(isConnected);
-  const status = isConnected
+  const status = !hasAttemptedDataLoad
+    ? {
+      label: "Loading Data",
+      version: "...",
+      footer: "Loading Data ...",
+      color: "#64748b"
+    }
+    : isConnected
     ? {
       label: "● GAS Connected",
       version: "v0.2",
@@ -5655,7 +5880,8 @@ async function initDashboard() {
   setupSchoolModal();
   setupMonthlyReportExport();
   setupDataRefresh();
-  await refreshDashboardData();
+  renderDashboard(false);
+  refreshDashboardData();
 }
 
 document.addEventListener("DOMContentLoaded", initDashboard);
