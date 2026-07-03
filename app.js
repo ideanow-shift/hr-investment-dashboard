@@ -5254,6 +5254,67 @@ function bindInterviewManagementFilters() {
   }
 }
 
+function getInterviewStatusFilterLabel() {
+  const labels = {
+    all: "すべて",
+    scheduled: "面接予定",
+    retry: "再面接",
+    notify: "合否通達待ち",
+    unscheduled: "日程未設定",
+    completed: "実施済み"
+  };
+  return labels[activeInterviewStatusFilter] || labels.all;
+}
+
+function downloadInterviewCsv() {
+  const students = getInterviewManagementStudents();
+  const headers = [
+    "面接グループ",
+    "学生ID",
+    "氏名",
+    "学校",
+    "卒年",
+    "流入元",
+    "面接ステータス",
+    "選考結果",
+    "内定・入社ステータス",
+    "次アクション日",
+    "次アクション",
+    "担当者",
+    "メモ"
+  ];
+  const rows = students.map((student) => [
+    getInterviewGroupLabel(getInterviewGroupKey(student)),
+    student.studentId || "",
+    student.name || "",
+    student.school || "",
+    student.cohort || getActiveCohortLabel(),
+    student.source || "",
+    student.interviewStatus || "",
+    student.resultStatus || "",
+    student.offerStatus || "",
+    student.nextActionDate || "",
+    student.nextAction || "",
+    student.owner || "",
+    student.memo || ""
+  ]);
+  const filterLabel = getInterviewStatusFilterLabel().replace(/[\\/:*?"<>|]/g, "");
+  downloadCsvFile(
+    `nov-talent-interviews-${getActiveCohortLabel()}-${filterLabel}-${new Date().toISOString().slice(0, 10)}.csv`,
+    headers,
+    rows
+  );
+}
+
+function setupInterviewCsvExport(count) {
+  const button = document.getElementById("interviewCsvExportButton");
+  if (!button) return;
+  button.disabled = count === 0;
+  const countLabel = button.querySelector("span");
+  if (countLabel) countLabel.textContent = formatNumber.format(count);
+  button.onclick = downloadInterviewCsv;
+}
+
 function renderInterviewManagement() {
   const summaryGrid = document.getElementById("interviewSummaryGrid");
   const list = document.getElementById("interviewScheduleList");
@@ -5262,6 +5323,7 @@ function renderInterviewManagement() {
   bindInterviewManagementFilters();
 
   const students = getInterviewManagementStudents();
+  setupInterviewCsvExport(students.length);
   const scheduled = students.filter((student) => student.interviewStatus === "予定").length;
   const completed = students.filter((student) => student.interviewStatus === "実施済").length;
   const retry = students.filter((student) => student.resultStatus === "再面接").length;

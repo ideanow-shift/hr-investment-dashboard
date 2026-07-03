@@ -2762,7 +2762,7 @@ td {
   background: #fff;
   display: grid;
   gap: 12px;
-  grid-template-columns: minmax(220px, 1fr) minmax(150px, 180px) minmax(150px, 180px) auto;
+  grid-template-columns: minmax(220px, 1fr) minmax(140px, 170px) minmax(140px, 170px) auto auto;
   margin-top: 14px;
   padding: 14px;
 }
