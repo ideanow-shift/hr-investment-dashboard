@@ -5048,6 +5048,71 @@ function renderInterviewSummaryCard(label, value, sub, className = "") {
   `;
 }
 
+function getInterviewGroupKey(student) {
+  if (student.resultStatus === "再面接") return "retry";
+  if (student.interviewStatus === "実施済") return "completed";
+  if (student.nextActionDate) return `date:${student.nextActionDate}`;
+  return "unscheduled";
+}
+
+function getInterviewGroupLabel(groupKey) {
+  if (groupKey === "completed") return "実施済み";
+  if (groupKey === "retry") return "再面接調整";
+  if (groupKey === "unscheduled") return "日程未設定";
+  if (groupKey.startsWith("date:")) return groupKey.replace("date:", "");
+  return "面接対象";
+}
+
+function getInterviewGroupNote(groupKey, students) {
+  const count = formatNumber.format(students.length);
+  if (groupKey === "completed") return `${count}名の実施記録を確認できます。`;
+  if (groupKey === "retry") return `${count}名の再面接調整が必要です。`;
+  if (groupKey === "unscheduled") return `${count}名の日程設定・候補者確認が必要です。`;
+  return `${count}名を同じ面接回として確認できます。`;
+}
+
+function getInterviewGroups(students) {
+  const groups = students.reduce((map, student) => {
+    const key = getInterviewGroupKey(student);
+    map.set(key, [...(map.get(key) || []), student]);
+    return map;
+  }, new Map());
+
+  const sortRank = (key) => {
+    if (key === "retry") return "0";
+    if (key.startsWith("date:")) return `1-${key}`;
+    if (key === "unscheduled") return "2";
+    if (key === "completed") return "3";
+    return "9";
+  };
+
+  return Array.from(groups.entries())
+    .sort(([a], [b]) => sortRank(a).localeCompare(sortRank(b)))
+    .map(([key, groupStudents]) => ({ key, label: getInterviewGroupLabel(key), students: groupStudents }));
+}
+
+function renderInterviewStudentCard(student, forceOpen = false) {
+  const shouldOpen = forceOpen || student.interviewStatus === "予定" || student.resultStatus === "再面接";
+  return `
+    <details class="interview-student-card" ${shouldOpen ? "open" : ""}>
+      <summary>
+        <div>
+          <p class="section-kicker">${escapeHtml(student.studentId || "ID未設定")} / ${escapeHtml(student.cohort || getActiveCohortLabel())}</p>
+          <h3>${escapeHtml(student.name || "氏名未入力")}</h3>
+          <p>${escapeHtml(student.school || "学校未入力")}</p>
+        </div>
+        <div class="interview-card-meta">
+          <span>${escapeHtml(student.interviewStatus || "面接未設定")}</span>
+          <strong>${escapeHtml(student.resultStatus || "結果未定")}</strong>
+          <small>${escapeHtml(student.nextAction || "次アクション未設定")}</small>
+          <button class="detail-button compact" type="button" data-interview-open-student-id="${escapeHtml(student.studentId)}">学生カルテ</button>
+        </div>
+      </summary>
+      ${renderStudentInterviewPanel(student)}
+    </details>
+  `;
+}
+
 function renderInterviewManagement() {
   const summaryGrid = document.getElementById("interviewSummaryGrid");
   const list = document.getElementById("interviewScheduleList");
@@ -5082,27 +5147,24 @@ function renderInterviewManagement() {
     return;
   }
 
-  list.innerHTML = students.map((student, index) => {
-    const isOpen = index === 0 || student.interviewStatus === "予定" || student.resultStatus === "再面接";
-    return `
-      <details class="interview-student-card" ${isOpen ? "open" : ""}>
-        <summary>
-          <div>
-            <p class="section-kicker">${escapeHtml(student.studentId || "ID未設定")} / ${escapeHtml(student.cohort || getActiveCohortLabel())}</p>
-            <h3>${escapeHtml(student.name || "氏名未入力")}</h3>
-            <p>${escapeHtml(student.school || "学校未入力")}</p>
-          </div>
-          <div class="interview-card-meta">
-            <span>${escapeHtml(student.interviewStatus || "面接未設定")}</span>
-            <strong>${escapeHtml(student.resultStatus || "結果未定")}</strong>
-            <small>${escapeHtml(student.nextAction || "次アクション未設定")}</small>
-            <button class="detail-button compact" type="button" data-interview-open-student-id="${escapeHtml(student.studentId)}">学生カルテ</button>
-          </div>
-        </summary>
-        ${renderStudentInterviewPanel(student)}
-      </details>
-    `;
-  }).join("");
+  list.innerHTML = getInterviewGroups(students).map((group, groupIndex) => `
+    <section class="interview-session-group">
+      <div class="interview-session-heading">
+        <div>
+          <p class="section-kicker">Interview Session</p>
+          <h3>${escapeHtml(group.label)}</h3>
+          <p>${escapeHtml(getInterviewGroupNote(group.key, group.students))}</p>
+        </div>
+        <div class="interview-session-count">
+          <strong>${formatNumber.format(group.students.length)}</strong>
+          <span>名</span>
+        </div>
+      </div>
+      <div class="interview-session-people" aria-label="${escapeHtml(group.label)}の面接対象者">
+        ${group.students.map((student, studentIndex) => renderInterviewStudentCard(student, groupIndex === 0 && studentIndex === 0)).join("")}
+      </div>
+    </section>
+  `).join("");
 
   setupRenderedInterviewForms(list);
   list.querySelectorAll("[data-interview-open-student-id]").forEach((button) => {

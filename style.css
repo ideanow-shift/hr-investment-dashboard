@@ -2755,11 +2755,67 @@ td {
   margin-top: 18px;
 }
 
-.interview-student-card {
+.interview-session-group {
   border: 1px solid var(--line);
   border-radius: 8px;
   background: #fff;
   overflow: hidden;
+}
+
+.interview-session-heading {
+  align-items: center;
+  background: var(--surface-soft);
+  border-bottom: 1px solid var(--line);
+  display: flex;
+  gap: 16px;
+  justify-content: space-between;
+  padding: 16px 18px;
+}
+
+.interview-session-heading h3 {
+  margin: 2px 0 4px;
+  font-size: 18px;
+}
+
+.interview-session-heading p {
+  margin: 0;
+  color: var(--muted);
+}
+
+.interview-session-count {
+  align-items: baseline;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: #fff;
+  display: inline-flex;
+  flex: 0 0 auto;
+  gap: 4px;
+  padding: 10px 14px;
+}
+
+.interview-session-count strong {
+  font-size: 24px;
+}
+
+.interview-session-count span {
+  color: var(--muted);
+}
+
+.interview-session-people {
+  display: grid;
+  gap: 0;
+}
+
+.interview-student-card {
+  border: 0;
+  border-radius: 0;
+  border-top: 1px solid var(--line);
+  background: #fff;
+  overflow: hidden;
+}
+
+.interview-student-card:first-child {
+  border-top: 0;
 }
 
 .interview-student-card summary {
@@ -3263,6 +3319,11 @@ td {
   }
 
   .interview-student-card summary {
+    display: grid;
+  }
+
+  .interview-session-heading {
+    align-items: flex-start;
     display: grid;
   }
 
