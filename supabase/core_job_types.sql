@@ -1,5 +1,7 @@
-﻿-- Core DB / employee attribute master
--- 職種マスタ追加DDL
+-- Core DB / employee attribute master
+-- 参考履歴: Core DB職種マスタDDL（既存Core DBへ再投入しない）
+-- 注意: public.job_types / employees.job_type_id は既存Core DBで確認済み。
+--       NOV Talent側から新規投入しない。
 --
 -- 方針:
 -- - job_types はCore共通マスタとして public に作成する
@@ -67,6 +69,3 @@ set
 -- 対象: public.job_types 追加、public.employees.job_type_id 追加
 -- 理由: 社員属性を「部署・役職・職種・雇用形態・就労ステータス・休職種別・権限」に分離するため
 -- 影響: Shift / NOV Talent / Management Platform / LSTEP連携で職種をCore DB参照に寄せる
-
-
-

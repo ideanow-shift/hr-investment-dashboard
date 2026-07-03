@@ -21,7 +21,7 @@
 - `storeId` / `storeName`
 - `departmentId` / `departmentName`
 - `positionId` / `positionName`
-- `jobTypeId` / `jobTypeName`（Core DB側で `job_types` 新設後）
+- `jobTypeId` / `jobTypeName`（Core DB既存 `job_types` 参照）
 - `roleKeys`
 - `roles`
 - `permissions`
@@ -95,3 +95,9 @@ NOV Talentでは社員属性を独自マスタ化しない。
 | 権限 | `roles` / `employee_roles` |
 
 雇用形態、就労ステータス、休職種別はCore DBの社員属性として参照する。`レセプションパート` のような混合値はNOV Talent側で新たに作らず、Core DB側の方針に合わせて職種と雇用形態を分離する。
+
+## 2026-07-03 役職・職種の分離
+
+HUB contextで役職・職種を扱う場合、`一般スタッフ` は `positions`、`レセプション` は `job_types` として扱う。
+
+NOV Talentでは、`レセプション` を社員の役職として表示・判定に使わない。採用分析、学生希望職種、LSTEP配信対象で使う場合は、Core DBの `job_types.id` / `job_type_key` を参照する。

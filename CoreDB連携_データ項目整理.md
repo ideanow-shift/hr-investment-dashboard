@@ -216,7 +216,7 @@ NOV Talent側でも、今後は「人に関する履歴」を最終的に Core D
 ### NOV Talent側の設計ルール
 
 - 社員・店舗・部署・役職は独自管理せず、Core DBの既存マスタを参照する
-- 職種はCore DB側で `job_types` が追加された後、`job_types.id` を参照する
+- 職種は既存Core DBの `job_types.id` を参照する
 - 雇用形態、就労ステータス、休職種別はCore DBの社員属性として扱い、NOV Talent専用マスタは作らない
 - 社員を記録する場合は、氏名ではなく `employees.id` を保存する
 - 店舗を記録する場合は、店舗名ではなく `stores.id` を保存する
@@ -254,7 +254,43 @@ NOV Talentでは、これらの社員属性を独自マスタ化しない。
 - 店舗: `stores.id`
 - 部署: `departments.id`
 - 役職: `positions.id`
-- 職種: `job_types.id`（Core DB側で新設後）
+- 職種: `job_types.id`
 - 権限: `roles` / `employee_roles`
 
 表示名はCore DBから参照する。`レセプションパート` のような混合値は、将来的に `employment_type = パート・アルバイト` + `job_type = レセプション` のように分離する。
+
+## 2026-07-02 家族関係・敬称ラベルの扱い
+
+IDEA NOV OS / Core DB側の確定指示として、`会長夫人`、`創業者夫人`、`夫人` のような家族関係・敬称ラベルは、社員属性として扱わない。
+
+NOV Talentでは以下を禁止する。
+
+- 家族関係・敬称ラベルを役職、職種、雇用形態、権限として扱う
+- 採用分析、教育対象分類、LSTEP配信対象の条件に使う
+- Talent側で独自マスタ化する
+- Talent側から社員属性として更新する
+
+社員属性の正本は引き続き以下に統一する。
+
+| 属性 | 正本 |
+| --- | --- |
+| 部署 | `departments` |
+| 役職 | `positions` |
+| 職種 | `job_types` |
+| 雇用形態 | `employees.employment_type` |
+| 就労ステータス | `employees.employment_status` |
+| 休職種別 | `employees.leave_type` |
+| 権限 | `roles` / `employee_roles` |
+
+## 2026-07-03 positions / job_types 分離ルール
+
+IDEA NOV OS / Core DB側の正式指示として、`positions` 正式リストには `一般スタッフ` を含める。
+
+`レセプション` は役職ではなく、Core DB の `job_types` で管理する職種として扱う。
+
+NOV Talentでは以下を守る。
+
+- 社員の役職として `レセプション` を使わない
+- 採用分析、学生希望職種、LSTEP配信対象で `レセプション` を扱う場合は `job_types.id` / `job_type_key` を参照する
+- `一般スタッフ` は役職として `positions.id` を参照する
+- 役職と職種を混ぜたTalent独自マスタや文字列正本を作らない

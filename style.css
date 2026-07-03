@@ -1291,7 +1291,7 @@ td {
 
 .student-list-focus-summary {
   display: grid;
-  grid-template-columns: repeat(6, minmax(0, 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(118px, 1fr));
   gap: 10px;
   margin: 12px 0 14px;
 }
@@ -1479,7 +1479,7 @@ td {
 
 .student-quick-filters {
   display: grid;
-  grid-template-columns: repeat(6, minmax(0, 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(118px, 1fr));
   gap: 8px;
   margin-bottom: 10px;
 }
@@ -1654,6 +1654,37 @@ td {
 .student-list {
   display: grid;
   gap: 10px;
+}
+.student-list-insights {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(128px, 1fr));
+  gap: 8px;
+}
+
+.student-list-insight {
+  display: grid;
+  gap: 3px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: #ffffff;
+  padding: 10px 12px;
+}
+
+.student-list-insight span {
+  color: var(--muted);
+  font-size: 12px;
+}
+
+.student-list-insight strong {
+  color: var(--text);
+  font-size: 22px;
+  line-height: 1.1;
+}
+
+.student-list-insight small {
+  color: var(--muted);
+  font-size: 11px;
+  line-height: 1.4;
 }
 
 .student-table-wrap {

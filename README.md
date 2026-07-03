@@ -247,7 +247,7 @@ LSTEP系テーブルを投入した後は、`supabase/talent_lstep_integration_v
 
 ## Core DB 職種マスタ関連SQL
 
-Core DB側で承認済みの職種マスタ追加に関するSQLです。NOV Talent側では独自職種マスタを作らず、Core DBの job_types.id を参照します。
+Core DB既存の職種マスタ参照に関する確認SQLです。NOV Talent側では独自職種マスタを作らず、Core DBの job_types.id を参照します。
 
 ```text
 supabase/core_job_types.sql

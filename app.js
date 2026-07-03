@@ -3219,6 +3219,7 @@ function getStudentQuickFilters() {
   return [
     { label: "今日対応", filterKey: "needsFollowUp", dueKey: "today", tone: "danger" },
     { label: "期限超過", filterKey: "needsFollowUp", dueKey: "overdue", tone: "danger" },
+    { label: "日程未設定", filterKey: "needsFollowUp", dueKey: "unscheduled", tone: "warning" },
     { label: "見学予定", filterKey: "salonTour", dueKey: "all", tone: "blue" },
     { label: "面接予定", filterKey: "interview", dueKey: "all", tone: "blue" },
     { label: "内定者", filterKey: "offered", dueKey: "all", tone: "green" },
@@ -3351,6 +3352,7 @@ function getStudentSortOptions() {
   return [
     { key: "priority", label: "対応優先順" },
     { key: "updated", label: "更新が新しい順" },
+    { key: "contact", label: "接触日が新しい順" },
     { key: "name", label: "氏名順" },
     { key: "school", label: "学校名順" },
     { key: "offer", label: "内定・入社予定順" }
@@ -4275,6 +4277,12 @@ function sortStudentsForList(students) {
       return (a.name || "").localeCompare(b.name || "", "ja");
     }
 
+    if (activeStudentSort === "contact") {
+      const dateCompare = String(b.contactDate || "").localeCompare(String(a.contactDate || ""));
+      if (dateCompare !== 0) return dateCompare;
+      return (a.name || "").localeCompare(b.name || "", "ja");
+    }
+
     if (activeStudentSort === "name") {
       return (a.name || "").localeCompare(b.name || "", "ja");
     }
@@ -4437,11 +4445,44 @@ function setupStudentOpenButtons(root = document) {
   });
 }
 
+function getStudentListInsightItems(students) {
+  const primaryActions = students.map((student) => getPrimaryStudentAction(student)).filter(Boolean);
+  const schoolCount = new Set(students.map((student) => student.school).filter(Boolean)).size;
+  const offeredOrJoiners = students.filter((student) => ["内定", "承諾", "入社予定", "入社済"].includes(getOfferJoinStatusValue(student))).length;
+
+  return [
+    { label: "表示対象", value: students.length, caption: "現在の絞り込み" },
+    { label: "学校数", value: schoolCount, caption: "学校別確認の目安" },
+    { label: "要フォロー", value: primaryActions.length, caption: "未完了アクション" },
+    { label: "日程未設定", value: primaryActions.filter((action) => !action.dueDate).length, caption: "期日入力が必要" },
+    { label: "見学予定", value: students.filter((student) => student.salonTourStatus === "予定").length, caption: "来店前フォロー" },
+    { label: "面接予定", value: students.filter((student) => student.interviewStatus === "予定").length, caption: "選考フォロー" },
+    { label: "内定・入社", value: offeredOrJoiners, caption: "内定後フォロー" },
+    { label: "LSTEP未紐付け", value: students.filter((student) => getStudentLstepStatus(student).className === "is-pending").length, caption: "連携確認" }
+  ];
+}
+
+function renderStudentListInsightBar(students) {
+  if (!Array.isArray(students) || students.length === 0) return "";
+
+  return `
+    <div class="student-list-insights" aria-label="学生一覧の現在状況">
+      ${getStudentListInsightItems(students).map((item) => `
+        <div class="student-list-insight">
+          <span>${escapeHtml(item.label)}</span>
+          <strong>${formatNumber.format(item.value)}</strong>
+          <small>${escapeHtml(item.caption)}</small>
+        </div>
+      `).join("")}
+    </div>
+  `;
+}
 function renderStudentListTable(students) {
   const visibleStudents = students.slice(0, studentListVisibleCount);
   const hasMore = students.length > visibleStudents.length;
 
   return `
+    ${renderStudentListInsightBar(students)}
     <div class="student-table-wrap">
       <table class="student-table">
         <colgroup>
@@ -4476,7 +4517,7 @@ function renderStudentListTable(students) {
                 </td>
                 <td>
                   <strong>${escapeHtml(student.school || "学校未設定")}</strong>
-                  <small>${escapeHtml(student.source || "接点未設定")} / 担当：${escapeHtml(student.owner || "未設定")}</small>
+                  <small>${escapeHtml(student.source || "接点未設定")} / 接触：${escapeHtml(student.contactDate || "未設定")} / 担当：${escapeHtml(student.owner || "未設定")}</small>
                 </td>
                 <td>${renderStudentTableStatus(student)}</td>
                 <td>${renderStudentNextActionCell(student, primaryAction)}</td>
