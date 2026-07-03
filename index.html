@@ -4,7 +4,7 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>リクルート管理システム</title>
-  <link rel="stylesheet" href="style.css?v=20260703-interview-groups">
+  <link rel="stylesheet" href="style.css?v=20260703-interview-filters">
 </head>
 <body>
   <header class="app-header">
@@ -186,6 +186,28 @@
         <p class="section-note">面接予定者・実施記録・NotebookLM診断・総務人事への通達をまとめて管理します。</p>
       </div>
       <div id="interviewSummaryGrid" class="student-summary-grid"></div>
+      <div class="interview-toolbar" aria-label="面接管理の絞り込み">
+        <label class="interview-search-field">
+          <span>検索</span>
+          <input id="interviewSearchInput" type="search" placeholder="学生名・学校名・次アクションで検索">
+        </label>
+        <label>
+          <span>状態</span>
+          <select id="interviewStatusFilter">
+            <option value="all">すべて</option>
+            <option value="scheduled">面接予定</option>
+            <option value="retry">再面接</option>
+            <option value="notify">合否通達待ち</option>
+            <option value="unscheduled">日程未設定</option>
+            <option value="completed">実施済み</option>
+          </select>
+        </label>
+        <label>
+          <span>面接日</span>
+          <input id="interviewDateFilter" type="date">
+        </label>
+        <button id="interviewFilterReset" class="detail-button compact" type="button">絞り込み解除</button>
+      </div>
       <div id="interviewScheduleList" class="interview-management-list"></div>
     </section>
 
@@ -430,7 +452,7 @@
     </section>
   </div>
 
-  <script src="app.js?v=20260703-interview-groups"></script>
+  <script src="app.js?v=20260703-interview-filters"></script>
 </body>
 </html>
 

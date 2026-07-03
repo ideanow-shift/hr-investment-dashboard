@@ -225,6 +225,9 @@ let activeStudentSort = "priority";
 let studentSearchQuery = "";
 let studentListVisibleCount = getInitialStudentListCount();
 let studentSummary = buildStudentSummary(studentData);
+let interviewSearchQuery = "";
+let activeInterviewStatusFilter = "all";
+let activeInterviewDateFilter = "";
 let activeDataQualityFilter = "all";
 let operationLogs = [];
 let activeOperationLogFilter = "all";
@@ -5021,6 +5024,7 @@ function setupRenderedInterviewForms(root = document) {
 }
 
 function getInterviewManagementStudents() {
+  const query = normalizeStudentSearchText(interviewSearchQuery);
   return getManagedStudents()
     .filter((student) => {
       const actionText = normalizeStudentSearchText(student.nextAction || "");
@@ -5029,6 +5033,30 @@ function getInterviewManagementStudents() {
         || ["再面接", "条件付き合格"].includes(student.resultStatus)
         || actionText.includes("面接")
         || actionText.includes("合否通達");
+    })
+    .filter((student) => {
+      if (!query) return true;
+      return [
+        student.name,
+        student.school,
+        student.source,
+        student.studentId,
+        student.nextAction,
+        student.interviewStatus,
+        student.resultStatus
+      ].some((value) => normalizeStudentSearchText(value || "").includes(query));
+    })
+    .filter((student) => {
+      if (activeInterviewStatusFilter === "scheduled") return student.interviewStatus === "予定";
+      if (activeInterviewStatusFilter === "retry") return student.resultStatus === "再面接";
+      if (activeInterviewStatusFilter === "notify") return normalizeStudentSearchText(student.nextAction || "").includes("合否通達");
+      if (activeInterviewStatusFilter === "unscheduled") return !student.nextActionDate && student.interviewStatus !== "実施済";
+      if (activeInterviewStatusFilter === "completed") return student.interviewStatus === "実施済";
+      return true;
+    })
+    .filter((student) => {
+      if (!activeInterviewDateFilter) return true;
+      return student.nextActionDate === activeInterviewDateFilter;
     })
     .sort((a, b) => {
       const aPending = a.interviewStatus === "予定" || a.resultStatus === "再面接" ? 0 : 1;
@@ -5113,11 +5141,54 @@ function renderInterviewStudentCard(student, forceOpen = false) {
   `;
 }
 
+function bindInterviewManagementFilters() {
+  const searchInput = document.getElementById("interviewSearchInput");
+  const statusSelect = document.getElementById("interviewStatusFilter");
+  const dateInput = document.getElementById("interviewDateFilter");
+  const resetButton = document.getElementById("interviewFilterReset");
+
+  if (searchInput) {
+    searchInput.value = interviewSearchQuery;
+    searchInput.oninput = () => {
+      interviewSearchQuery = searchInput.value;
+      renderInterviewManagement();
+    };
+  }
+
+  if (statusSelect) {
+    statusSelect.value = activeInterviewStatusFilter;
+    statusSelect.onchange = () => {
+      activeInterviewStatusFilter = statusSelect.value || "all";
+      renderInterviewManagement();
+    };
+  }
+
+  if (dateInput) {
+    dateInput.value = activeInterviewDateFilter;
+    dateInput.onchange = () => {
+      activeInterviewDateFilter = dateInput.value || "";
+      renderInterviewManagement();
+    };
+  }
+
+  if (resetButton) {
+    const hasFilter = Boolean(interviewSearchQuery.trim()) || activeInterviewStatusFilter !== "all" || Boolean(activeInterviewDateFilter);
+    resetButton.disabled = !hasFilter;
+    resetButton.onclick = () => {
+      interviewSearchQuery = "";
+      activeInterviewStatusFilter = "all";
+      activeInterviewDateFilter = "";
+      renderInterviewManagement();
+    };
+  }
+}
+
 function renderInterviewManagement() {
   const summaryGrid = document.getElementById("interviewSummaryGrid");
   const list = document.getElementById("interviewScheduleList");
   const tabBadge = document.getElementById("interviewTabBadge");
   if (!summaryGrid || !list) return;
+  bindInterviewManagementFilters();
 
   const students = getInterviewManagementStudents();
   const scheduled = students.filter((student) => student.interviewStatus === "予定").length;
@@ -5141,7 +5212,7 @@ function renderInterviewManagement() {
   if (!students.length) {
     list.innerHTML = `
       <div class="student-empty">
-        面接管理の対象者はありません。学生フォローで面接予定・再面接・合否通達の学生が出ると、ここに表示されます。
+        条件に合う面接対象者はありません。絞り込みを解除するか、学生フォローで面接予定・再面接・合否通達の学生を確認してください。
       </div>
     `;
     return;
