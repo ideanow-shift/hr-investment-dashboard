@@ -6297,16 +6297,7 @@ function renderDashboard(isConnected) {
   renderSchools();
   generateActionCards();
   updateLightweightTabBadges();
-
-  if (isMobileViewport()) {
-    renderActiveDashboardView();
-    return;
-  }
-
-  renderStudentView();
-  renderInterviewManagement();
-  renderDataQuality();
-  renderOperationLogs();
+  renderActiveDashboardView();
 }
 
 async function refreshDashboardData() {
