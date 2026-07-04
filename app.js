@@ -236,6 +236,7 @@ let lstepSummary = buildDefaultLstepSummary();
 let storeOptions = [];
 let lastDataRefreshAt = null;
 let hasAttemptedDataLoad = false;
+let activeDashboardView = "overview";
 
 async function fetchDashboardData() {
   if (!GAS_API_URL) {
@@ -243,7 +244,7 @@ async function fetchDashboardData() {
   }
 
   try {
-    const data = await loadJsonp(GAS_API_URL, {}, isMobileViewport() ? 12000 : 20000);
+    const data = await loadJsonp(GAS_API_URL, {}, isMobileViewport() ? 25000 : 20000);
     applyDashboardData(data);
     return true;
   } catch (error) {
@@ -1946,7 +1947,7 @@ function renderLstepIntegrationStatus() {
     activeStudentDueFilter = "all";
     activeStudentSearchTerm = "";
     activeStudentSearchScope = "all";
-    activateDashboardView("students");
+    activateDashboardView("student");
     renderStudentList();
   });
 
@@ -2095,23 +2096,51 @@ function getHubRoleKeys() {
       return role.roleKey || role.role_key || role.key || role.name || "";
     }
     return "";
-  }).map((role) => String(role).trim()).filter(Boolean);
+  }).map(normalizeHubRoleKey).filter(Boolean);
+}
+
+function normalizeHubRoleKey(roleKey) {
+  const normalized = String(roleKey || "")
+    .trim()
+    .replace(/([a-z0-9])([A-Z])/g, "$1_$2")
+    .replace(/[\s-]+/g, "_")
+    .toLowerCase();
+
+  const aliases = {
+    talent_admin_user: "talent_admin",
+    nov_talent_admin: "talent_admin",
+    nov_talent_editor: "talent_editor",
+    nov_talent_viewer: "talent_viewer"
+  };
+  return aliases[normalized] || normalized;
+}
+
+function getHubDepartmentName() {
+  const employee = getHubCurrentEmployee();
+  if (!employee || typeof employee !== "object") return "";
+  return String(
+    employee.departmentName
+    || employee.department_name
+    || employee.department?.departmentName
+    || employee.department?.department_name
+    || employee.department?.name
+    || ""
+  ).trim();
+}
+
+function isHumanResourcesHubEmployee() {
+  return getHubDepartmentName() === "総務人事部";
 }
 
 function canWriteActionFromDashboard(action = "edit") {
   if (!canWriteFromDashboard()) return false;
-  const roleKeys = getHubRoleKeys();
-  if (!roleKeys.length) return true;
-
-  const adminRoles = ["super_admin", "talent_admin"];
-  const editorRoles = ["super_admin", "talent_admin", "talent_editor"];
-  const requiredRoles = action === "updateSettings" ? adminRoles : editorRoles;
-  return roleKeys.some((roleKey) => requiredRoles.includes(roleKey));
+  return true;
 }
 
 function getTalentPermissionState() {
   const employee = getHubCurrentEmployee();
   const roleKeys = getHubRoleKeys().map((roleKey) => String(roleKey).trim()).filter(Boolean);
+  const departmentName = getHubDepartmentName();
 
   if (!employee) {
     return {
@@ -2127,6 +2156,18 @@ function getTalentPermissionState() {
   const canAdmin = roleKeys.some((roleKey) => ["super_admin", "talent_admin"].includes(roleKey));
   const canEdit = canAdmin || roleKeys.includes("talent_editor");
   const isViewer = roleKeys.includes("talent_viewer");
+
+  if (!canAdmin && isHumanResourcesHubEmployee()) {
+    return {
+      label: "総務人事",
+      description: "総務人事部として保存操作を有効にしています。保存時はGAS側でCore DB権限を最終確認します。",
+      roleKeys,
+      canEdit: true,
+      canAdmin: true,
+      className: "is-admin",
+      departmentName
+    };
+  }
 
   if (canAdmin) {
     return {
@@ -2702,20 +2743,11 @@ function setupRenderedStorePreferenceForm() {
       status.textContent = "保存中...";
       await saveStudentStorePreferences(payload);
       status.textContent = "保存しました。データを再取得しています...";
-      await refreshDashboardData();
-      const updatedStudent = getAllStudentsForLookup().find((student) => {
-        return String(student.id || "") === String(payload.studentRecordId || "")
-          || String(student.studentId || "") === String(payload.studentId || "");
-      });
-
-      if (updatedStudent) {
-        openStudentModal(updatedStudent);
-      } else {
-        closeStudentModal();
-      }
+      await refreshStudentModalAfterStoreSave(payload, status);
     } catch (error) {
       status.classList.add("is-error");
       status.textContent = `保存できませんでした：${error.message}`;
+    } finally {
       submitButton.disabled = false;
     }
   });
@@ -2753,23 +2785,44 @@ function setupRenderedStoreTourHistoryForm() {
         throw new Error("保存確認ができませんでした。データ更新後に再度確認してください。");
       }
       status.textContent = "保存しました。データを再取得しています...";
-      await refreshDashboardData();
-      const updatedStudent = getAllStudentsForLookup().find((student) => {
-        return String(student.id || "") === String(result.studentRecordId || payload.studentRecordId || "")
-          || String(student.studentId || "") === String(result.studentId || payload.studentId || "");
-      });
-
-      if (updatedStudent) {
-        openStudentModal(updatedStudent);
-      } else {
-        closeStudentModal();
-      }
+      await refreshStudentModalAfterStoreSave({
+        ...payload,
+        studentRecordId: result.studentRecordId || payload.studentRecordId || "",
+        studentId: result.studentId || payload.studentId || ""
+      }, status);
     } catch (error) {
       status.classList.add("is-error");
       status.textContent = `保存できませんでした：${error.message}`;
+    } finally {
       submitButton.disabled = false;
     }
   });
+}
+
+async function refreshStudentModalAfterStoreSave(payload, statusElement) {
+  try {
+    await refreshDashboardData();
+  } catch (error) {
+    if (statusElement) {
+      statusElement.classList.add("is-error");
+      statusElement.textContent = `保存は完了しましたが、再取得に失敗しました：${error.message}。右上の「データ更新」を押してください。`;
+    }
+    return;
+  }
+
+  const updatedStudent = getAllStudentsForLookup().find((student) => {
+    return String(student.id || "") === String(payload.studentRecordId || "")
+      || String(student.studentId || "") === String(payload.studentId || "");
+  });
+
+  if (updatedStudent) {
+    openStudentModal(updatedStudent);
+  } else {
+    if (statusElement) {
+      statusElement.classList.add("is-error");
+      statusElement.textContent = "保存は完了しましたが、学生カードの再表示ができませんでした。右上の「データ更新」を押してください。";
+    }
+  }
 }
 
 function renderStudentFollowupSection(student) {
@@ -5973,12 +6026,65 @@ function renderOperationLogs() {
   setupOperationLogStudentLinks();
 }
 
+function getActiveDashboardView() {
+  return activeDashboardView
+    || document.querySelector(".dashboard-tab.active")?.dataset.view
+    || "overview";
+}
+
+function updateInterviewTabBadgeOnly() {
+  const badge = document.getElementById("interviewTabBadge");
+  if (!badge) return;
+  const students = getInterviewManagementStudents();
+  const scheduled = students.filter((student) => student.interviewStatus === "予定").length;
+  const retry = students.filter((student) => student.resultStatus === "再面接").length;
+  const notifyPending = students.filter((student) => normalizeStudentSearchText(student.nextAction || "").includes("合否通達")).length;
+  const badgeCount = scheduled + retry + notifyPending;
+  badge.hidden = badgeCount === 0;
+  badge.textContent = formatNumber.format(badgeCount);
+}
+
+function updateLightweightTabBadges() {
+  updateStudentUrgentTabBadge(studentSummary);
+  updateInterviewTabBadgeOnly();
+  updateDataQualityTabBadge(getDataQualitySummary(getStudentQualityIssues()));
+  updateOperationLogTabBadge(operationLogs.filter((log) => !log.actorEmployeeId).length);
+}
+
+function renderStudentView() {
+  renderStudentCohortTabs();
+  renderStudentEditControls();
+  renderStudentSummary();
+  renderStudentQualityNotice();
+  renderLstepIntegrationStatus();
+  renderStudentActions();
+  renderStudentList();
+}
+
+function renderActiveDashboardView(targetView = getActiveDashboardView()) {
+  if (targetView === "student") {
+    renderStudentView();
+    return;
+  }
+  if (targetView === "interview") {
+    renderInterviewManagement();
+    return;
+  }
+  if (targetView === "quality") {
+    renderDataQuality();
+    return;
+  }
+  if (targetView === "logs") {
+    renderOperationLogs();
+  }
+}
+
 function renderDashboard(isConnected) {
   updateDataSourceStatus(isConnected);
   renderHubContextBadge();
   renderHubDiagnostics();
-  document.getElementById("appTitle").textContent = dashboardConfig.appName;
-  document.title = dashboardConfig.appName;
+  document.getElementById("appTitle").textContent = HUB_DISPLAY_APP_NAME;
+  document.title = HUB_DISPLAY_APP_NAME;
 
   const metrics = buildMetrics();
   renderKpis(metrics);
@@ -5987,13 +6093,14 @@ function renderDashboard(isConnected) {
   renderFairTable();
   renderSchools();
   generateActionCards();
-  renderStudentCohortTabs();
-  renderStudentEditControls();
-  renderStudentSummary();
-  renderStudentQualityNotice();
-  renderLstepIntegrationStatus();
-  renderStudentActions();
-  renderStudentList();
+  updateLightweightTabBadges();
+
+  if (isMobileViewport()) {
+    renderActiveDashboardView();
+    return;
+  }
+
+  renderStudentView();
   renderInterviewManagement();
   renderDataQuality();
   renderOperationLogs();
@@ -6029,16 +6136,19 @@ function setupTabs() {
 }
 
 function activateDashboardView(targetView) {
+  activeDashboardView = targetView || "overview";
   const tabs = Array.from(document.querySelectorAll(".dashboard-tab"));
   const views = Array.from(document.querySelectorAll(".dashboard-view"));
 
   tabs.forEach((item) => {
-    item.classList.toggle("active", item.dataset.view === targetView);
+    item.classList.toggle("active", item.dataset.view === activeDashboardView);
   });
 
   views.forEach((view) => {
-    view.classList.toggle("view-hidden", view.dataset.view !== targetView);
+    view.classList.toggle("view-hidden", view.dataset.view !== activeDashboardView);
   });
+
+  renderActiveDashboardView(activeDashboardView);
 }
 
 function setupDataRefresh() {
