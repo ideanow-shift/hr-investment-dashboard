@@ -587,6 +587,7 @@ const formatCurrency = new Intl.NumberFormat("ja-JP", {
 
 const percent = (value) => `${Math.round(value * 100)}%`;
 const safeDivide = (numerator, denominator) => denominator ? numerator / denominator : 0;
+const loadingValue = "-";
 const escapeHtml = (value) => String(value ?? "").replace(/[&<>"']/g, (char) => ({
   "&": "&amp;",
   "<": "&lt;",
@@ -594,6 +595,41 @@ const escapeHtml = (value) => String(value ?? "").replace(/[&<>"']/g, (char) => 
   "\"": "&quot;",
   "'": "&#39;"
 })[char]);
+
+function shouldMaskDashboardNumbers() {
+  return !hasAttemptedDataLoad;
+}
+
+function hasDisplayableNumber(value) {
+  return value !== null && value !== undefined && Number.isFinite(Number(value));
+}
+
+function displayNumber(value) {
+  if (shouldMaskDashboardNumbers() || !hasDisplayableNumber(value)) return loadingValue;
+  return formatNumber.format(Number(value));
+}
+
+function displayCurrency(value) {
+  if (shouldMaskDashboardNumbers() || !hasDisplayableNumber(value)) return loadingValue;
+  return formatCurrency.format(Number(value));
+}
+
+function displayPercent(value) {
+  if (shouldMaskDashboardNumbers() || !hasDisplayableNumber(value)) return loadingValue;
+  return percent(Number(value));
+}
+
+function displayValueWithUnit(value, unit = "") {
+  if (shouldMaskDashboardNumbers()) {
+    return `<span>${loadingValue}</span>`;
+  }
+
+  const displayValue = typeof value === "number" ? formatNumber.format(value) : escapeHtml(value);
+  return `
+    <span>${displayValue}</span>
+    ${unit ? `<span class="kpi-unit">${escapeHtml(unit)}</span>` : ""}
+  `;
+}
 
 function isMobileViewport() {
   return typeof window !== "undefined"
@@ -906,10 +942,9 @@ function renderKpis(metrics) {
     <article class="kpi-card ${kpi.status ? `status-${kpi.status}` : ""}">
       <p class="kpi-label">${kpi.label}</p>
       <div class="kpi-value">
-        <span>${typeof kpi.value === "number" ? formatNumber.format(kpi.value) : kpi.value}</span>
-        ${kpi.unit ? `<span class="kpi-unit">${kpi.unit}</span>` : ""}
+        ${displayValueWithUnit(kpi.value, kpi.unit)}
       </div>
-      <p class="kpi-sub">${kpi.sub}</p>
+      <p class="kpi-sub">${shouldMaskDashboardNumbers() ? "データ取得後に表示します" : kpi.sub}</p>
     </article>
   `).join("");
 }
@@ -927,28 +962,30 @@ function renderDecisionSummary(metrics) {
     bestFair && {
       type: "重点投資",
       title: bestFair.name,
-      value: `${percent(bestFair.tourRate)} 見学率`,
+      value: `${displayPercent(bestFair.tourRate)} 見学率`,
       body: "次年度も参加候補です。見学予約導線を残し、同じ勝ち筋を再現します。",
       className: "decision-good"
     },
     reviewFair && {
       type: "見直し候補",
       title: reviewFair.name,
-      value: reviewFair.salonTours ? `${formatCurrency.format(reviewFair.tourCost)} / 見学` : "見学取得 0",
+      value: shouldMaskDashboardNumbers()
+        ? loadingValue
+        : (reviewFair.salonTours ? `${formatCurrency.format(reviewFair.tourCost)} / 見学` : "見学取得 0"),
       body: "出展内容、声かけ、参加可否を見直す対象です。代替フェアや学校訪問への振替も検討します。",
       className: "decision-risk"
     },
     topSchool && {
       type: "優先学校",
       title: topSchool.name,
-      value: `${getSchoolPromise(topSchool).score} 有望度`,
+      value: `${displayNumber(getSchoolPromise(topSchool).score)} 有望度`,
       body: "学校訪問や先生連携を優先し、将来の活躍人材との接点を増やします。",
       className: "decision-blue"
     },
     {
       type: "運用注意",
       title: "学生フォロー",
-      value: `${formatNumber.format(followUpCount)}名 要確認`,
+      value: `${displayNumber(followUpCount)}名 要確認`,
       body: budgetUseRate >= 0.75
         ? "予算消化が進んでいます。未フォロー学生の見学・面接化を優先してください。"
         : "次アクション日未設定の学生を減らし、接点を次の行動へ進めます。",
@@ -982,7 +1019,9 @@ function renderFunnel(metrics) {
   document.getElementById("funnelList").innerHTML = steps.map((step, index) => {
     const previousValue = index === 0 ? firstValue : steps[index - 1].value;
     const conversionRate = index === 0 ? 1 : safeDivide(step.value, previousValue);
-    const width = Math.max(safeDivide(step.value, firstValue) * 100, step.value > 0 ? 4 : 0);
+    const width = shouldMaskDashboardNumbers()
+      ? 0
+      : Math.max(safeDivide(step.value, firstValue) * 100, step.value > 0 ? 4 : 0);
 
     return `
       <div class="funnel-step">
@@ -991,8 +1030,8 @@ function renderFunnel(metrics) {
           <div class="funnel-fill" style="width: ${width}%"></div>
         </div>
         <div class="funnel-meta">
-          <strong>${formatNumber.format(step.value)}名</strong><br>
-          ${index === 0 ? "起点" : `転換率 ${percent(conversionRate)}`}
+          <strong>${displayNumber(step.value)}${shouldMaskDashboardNumbers() ? "" : "名"}</strong><br>
+          ${index === 0 ? "起点" : `転換率 ${displayPercent(conversionRate)}`}
         </div>
       </div>
     `;
@@ -1016,13 +1055,13 @@ function renderFairTable() {
       <td><span class="rank-pill ${fair.rank.className}">${fair.rank.rank}</span> ${fair.rank.label}</td>
       <td><button class="detail-link" type="button" data-fair-key="${escapeHtml(getFairKey(fair))}">${escapeHtml(fair.name)}</button></td>
       <td>${escapeHtml(fair.date)}</td>
-      <td>${formatCurrency.format(fair.cost)}</td>
-      <td>${formatNumber.format(fair.contacts)}</td>
-      <td>${formatNumber.format(fair.lineRegistrations)} <span class="muted">(${percent(fair.lineRate)})</span></td>
-      <td>${formatNumber.format(fair.salonTours)}</td>
-      <td>${percent(fair.tourRate)}</td>
-      <td>${formatCurrency.format(fair.contactCost)}</td>
-      <td>${fair.salonTours ? formatCurrency.format(fair.tourCost) : "未取得"}</td>
+      <td>${displayCurrency(fair.cost)}</td>
+      <td>${displayNumber(fair.contacts)}</td>
+      <td>${displayNumber(fair.lineRegistrations)} <span class="muted">(${displayPercent(fair.lineRate)})</span></td>
+      <td>${displayNumber(fair.salonTours)}</td>
+      <td>${displayPercent(fair.tourRate)}</td>
+      <td>${displayCurrency(fair.contactCost)}</td>
+      <td>${shouldMaskDashboardNumbers() ? loadingValue : (fair.salonTours ? formatCurrency.format(fair.tourCost) : "未取得")}</td>
     </tr>
   `).join("");
 
@@ -1082,7 +1121,7 @@ function setupFairCsvExport(count) {
   if (!button) return;
   button.disabled = count === 0;
   const countLabel = button.querySelector("span");
-  if (countLabel) countLabel.textContent = formatNumber.format(count);
+  if (countLabel) countLabel.textContent = displayNumber(count);
   button.onclick = downloadFairCsv;
 }
 
@@ -1112,9 +1151,9 @@ function renderFairDetail(fair) {
     </div>
     <div class="detail-grid">
       <div class="detail-metric"><span>評価</span><strong>${fair.rank.rank}</strong><small>${fair.rank.label}</small></div>
-      <div class="detail-metric"><span>見学率</span><strong>${percent(fair.tourRate)}</strong><small>見学取得 / 接触</small></div>
-      <div class="detail-metric"><span>接触単価</span><strong>${formatCurrency.format(fair.contactCost)}</strong><small>費用 / 接触数</small></div>
-      <div class="detail-metric"><span>関連学生</span><strong>${relatedStudents.length}</strong><small>個別管理シート連携</small></div>
+      <div class="detail-metric"><span>見学率</span><strong>${displayPercent(fair.tourRate)}</strong><small>見学取得 / 接触</small></div>
+      <div class="detail-metric"><span>接触単価</span><strong>${displayCurrency(fair.contactCost)}</strong><small>費用 / 接触数</small></div>
+      <div class="detail-metric"><span>関連学生</span><strong>${displayNumber(relatedStudents.length)}</strong><small>個別管理シート連携</small></div>
     </div>
     <div class="related-list">
       <strong>関連する学生フォロー</strong>
@@ -1321,16 +1360,16 @@ function renderSchools() {
         <h3>${escapeHtml(school.displayName || school.name)}</h3>
         <p class="score-text">${escapeHtml(school.area || "エリア未設定")}</p>
         <div class="school-stats">
-          <div class="school-stat"><span>接触</span><strong>${school.contacts}</strong></div>
-          <div class="school-stat"><span>LINE</span><strong>${school.lineRegistrations}</strong></div>
-          <div class="school-stat"><span>見学</span><strong>${school.salonTours}</strong></div>
-          <div class="school-stat"><span>面接</span><strong>${school.interviews}</strong></div>
-          <div class="school-stat"><span>合格</span><strong>${school.passed}</strong></div>
-          <div class="school-stat"><span>内定</span><strong>${school.offers}</strong></div>
+          <div class="school-stat"><span>接触</span><strong>${displayNumber(school.contacts)}</strong></div>
+          <div class="school-stat"><span>LINE</span><strong>${displayNumber(school.lineRegistrations)}</strong></div>
+          <div class="school-stat"><span>見学</span><strong>${displayNumber(school.salonTours)}</strong></div>
+          <div class="school-stat"><span>面接</span><strong>${displayNumber(school.interviews)}</strong></div>
+          <div class="school-stat"><span>合格</span><strong>${displayNumber(school.passed)}</strong></div>
+          <div class="school-stat"><span>内定</span><strong>${displayNumber(school.offers)}</strong></div>
         </div>
         <div class="school-card-footer">
           <span class="promise-pill ${promise.className}">${promise.label}</span>
-          <span class="score-text">有望度スコア ${promise.score}</span>
+          <span class="score-text">有望度スコア ${displayNumber(promise.score)}</span>
         </div>
         <button class="detail-button" type="button" data-school-key="${escapeHtml(getSchoolKey(school))}">詳細を見る</button>
       </article>
@@ -1411,7 +1450,7 @@ function setupSchoolCsvExport(count) {
   if (!button) return;
   button.disabled = count === 0;
   const countLabel = button.querySelector("span");
-  if (countLabel) countLabel.textContent = formatNumber.format(count);
+  if (countLabel) countLabel.textContent = displayNumber(count);
   button.onclick = downloadSchoolCsv;
 }
 
@@ -1512,10 +1551,10 @@ function renderSchoolDetail(school) {
       <button class="detail-button compact" type="button" data-school-edit-key="${escapeHtml(getSchoolKey(school))}">学校編集</button>
     </div>
     <div class="detail-grid">
-      <div class="detail-metric"><span>有望度</span><strong>${promise.score}</strong><small>${promise.label}</small></div>
-      <div class="detail-metric"><span>見学率</span><strong>${percent(tourRate)}</strong><small>見学 / 接触</small></div>
-      <div class="detail-metric"><span>内定率</span><strong>${percent(offerRate)}</strong><small>内定 / 接触</small></div>
-      <div class="detail-metric"><span>関連学生</span><strong>${relatedStudents.length}</strong><small>個別管理シート連携</small></div>
+      <div class="detail-metric"><span>有望度</span><strong>${displayNumber(promise.score)}</strong><small>${promise.label}</small></div>
+      <div class="detail-metric"><span>見学率</span><strong>${displayPercent(tourRate)}</strong><small>見学 / 接触</small></div>
+      <div class="detail-metric"><span>内定率</span><strong>${displayPercent(offerRate)}</strong><small>内定 / 接触</small></div>
+      <div class="detail-metric"><span>関連学生</span><strong>${displayNumber(relatedStudents.length)}</strong><small>個別管理シート連携</small></div>
     </div>
     <div class="related-list">
       <strong>この学校の学生フォロー</strong>
@@ -1712,6 +1751,16 @@ function getRecommendedActions() {
 }
 
 function generateActionCards() {
+  if (shouldMaskDashboardNumbers()) {
+    document.getElementById("actionCards").innerHTML = `
+      <article class="action-card">
+        <strong>データ読み込み中</strong>
+        <p>取得完了後に、フェア・学校・学生フォローの状況から次に取るべき行動を表示します。</p>
+      </article>
+    `;
+    return;
+  }
+
   const actions = getRecommendedActions();
 
   document.getElementById("actionCards").innerHTML = actions.map((action, index) => `
@@ -1744,7 +1793,7 @@ function renderStudentSummary() {
   summaryGrid.innerHTML = summaryItems.map((item) => `
     <button class="student-summary-card clickable" type="button" data-summary-filter="${escapeHtml(item.filterKey || "all")}" data-summary-due="${escapeHtml(item.dueKey || "all")}">
       <p>${item.label}</p>
-      <strong>${formatNumber.format(item.value)}<span>${escapeHtml(item.unit || "名")}</span></strong>
+      <strong>${displayNumber(item.value)}${shouldMaskDashboardNumbers() ? "" : `<span>${escapeHtml(item.unit || "名")}</span>`}</strong>
       <small>${item.sub}</small>
     </button>
   `).join("");
@@ -1776,7 +1825,7 @@ function renderStudentQualityNotice() {
       <div>
         <span>データ品質</span>
         <strong>${hasIssues ? "確認が必要な項目があります" : "主要チェックは問題ありません"}</strong>
-        <p>重複候補 ${formatNumber.format(duplicates)}件 / 要修正 ${formatNumber.format(needsFix)}件 / 注意 ${formatNumber.format(warnings)}件</p>
+        <p>重複候補 ${displayNumber(duplicates)}件 / 要修正 ${displayNumber(needsFix)}件 / 注意 ${displayNumber(warnings)}件</p>
       </div>
       <button class="detail-button compact" type="button" data-quality-summary-open>データ品質を見る</button>
     </div>
@@ -1896,7 +1945,7 @@ function renderLstepIntegrationStatus() {
       ${metrics.map((item) => `
         <article class="lstep-status-card ${item.tone || ""}">
           <span>${escapeHtml(item.label)}</span>
-          <strong>${typeof item.value === "number" ? formatNumber.format(item.value) : escapeHtml(item.value)}${item.unit ? `<small>${escapeHtml(item.unit)}</small>` : ""}</strong>
+          <strong>${typeof item.value === "number" ? displayNumber(item.value) : escapeHtml(item.value)}${item.unit && !shouldMaskDashboardNumbers() ? `<small>${escapeHtml(item.unit)}</small>` : ""}</strong>
         </article>
       `).join("")}
     </div>
@@ -1963,6 +2012,11 @@ function renderLstepIntegrationStatus() {
 function updateStudentUrgentTabBadge(summary) {
   const badge = document.getElementById("studentUrgentTabBadge");
   if (!badge) return;
+  if (shouldMaskDashboardNumbers()) {
+    badge.hidden = true;
+    badge.textContent = "";
+    return;
+  }
   const count = (summary.overdueFollowups || 0) + (summary.todayFollowups || 0);
   badge.hidden = count === 0;
   badge.textContent = formatNumber.format(count);
@@ -1981,7 +2035,7 @@ function renderStudentCohortTabs() {
 
   tabs.innerHTML = studentCohorts.map((cohort) => `
     <button class="student-cohort-tab ${cohort.key === activeStudentCohort ? "active" : ""}" type="button" data-student-cohort="${cohort.key}">
-      ${cohort.label}<span>${formatNumber.format(cohort.students.length)}</span>
+      ${cohort.label}<span>${displayNumber(cohort.students.length)}</span>
     </button>
   `).join("");
 
@@ -3091,7 +3145,7 @@ function renderStudentForm(student = {}, mode = "update") {
       <input type="hidden" name="owner" value="${escapeHtml(student.owner || "総務人事")}">
       <div class="student-form-heading">
         <div>
-          <h3>${isAdd ? "学生を追加" : "基本情報・選考を更新"}</h3>
+          <h3>${isAdd ? "学生を追加" : "日常フォローを更新"}</h3>
           <p>${escapeHtml(getActiveCohortLabel())} / ${escapeHtml(getActiveSheetName())}</p>
         </div>
       </div>
@@ -3105,12 +3159,51 @@ function renderStudentForm(student = {}, mode = "update") {
         </ul>
       </div>
       ${renderOperatorNotice()}
-      <section class="student-form-section">
+      <section class="student-form-section student-form-section-priority">
         <div class="student-form-section-title">
           <span>1</span>
           <div>
+            <h4>今日更新すること</h4>
+            <p>日常運用では、次アクションと期限をまず更新します。</p>
+          </div>
+        </div>
+        <div class="student-form-grid">
+          <label>
+            <span>次アクション日</span>
+            <input name="nextActionDate" type="date" value="${escapeHtml(student.nextActionDate || "")}" ${disabled}>
+          </label>
+          <label>
+            <span>次アクション</span>
+            <input name="nextAction" value="${escapeHtml(student.nextAction || "")}" placeholder="例：見学前リマインド" ${disabled}>
+          </label>
+        </div>
+        <label class="student-form-full">
+          <span>メモ</span>
+          <textarea name="memo" rows="3" placeholder="次回確認すること、本人の希望、面談メモなど" ${disabled}>${escapeHtml(student.memo || "")}</textarea>
+        </label>
+      </section>
+      <section class="student-form-section">
+        <div class="student-form-section-title">
+          <span>2</span>
+          <div>
+            <h4>選考状況</h4>
+            <p>LINE、見学、面接、内定・入社の進み具合を更新します。</p>
+          </div>
+        </div>
+        <div class="student-form-grid">
+          ${renderSelectField("lineStatus", "LINE登録", studentSelectOptions.lineStatus, student.lineStatus || "未登録", disabled)}
+          ${renderSelectField("salonTourStatus", "見学ステータス", studentSelectOptions.salonTourStatus, student.salonTourStatus || "未設定", disabled)}
+          ${renderSelectField("interviewStatus", "面接ステータス", studentSelectOptions.interviewStatus, student.interviewStatus || "未設定", disabled)}
+          ${renderSelectField("resultStatus", "選考結果", studentSelectOptions.resultStatus, student.resultStatus || "未定", disabled)}
+          ${renderSelectField("offerJoinStatus", "内定・入社ステータス", studentSelectOptions.offerJoinStatus, getOfferJoinStatusValue(student), disabled)}
+        </div>
+      </section>
+      <section class="student-form-section">
+        <div class="student-form-section-title">
+          <span>3</span>
+          <div>
             <h4>基本情報</h4>
-            <p>氏名・学校・接点の正確さが、重複判定と学校分析に効きます。</p>
+            <p>初回登録時または情報が変わった時だけ確認します。</p>
           </div>
         </div>
         <div class="student-form-grid">
@@ -3134,46 +3227,24 @@ function renderStudentForm(student = {}, mode = "update") {
           </label>
         </div>
       </section>
-      <section class="student-form-section">
-        <div class="student-form-section-title">
-          <span>2</span>
-          <div>
-            <h4>選考状況</h4>
-            <p>LINE、見学、面接、内定・入社の進み具合を更新します。</p>
-          </div>
-        </div>
+      <details class="student-admin-details">
+        <summary>管理項目を表示</summary>
         <div class="student-form-grid">
-          ${renderSelectField("lineStatus", "LINE登録", studentSelectOptions.lineStatus, student.lineStatus || "未登録", disabled)}
-          ${renderSelectField("salonTourStatus", "見学ステータス", studentSelectOptions.salonTourStatus, student.salonTourStatus || "未設定", disabled)}
-          ${renderSelectField("interviewStatus", "面接ステータス", studentSelectOptions.interviewStatus, student.interviewStatus || "未設定", disabled)}
-          ${renderSelectField("resultStatus", "選考結果", studentSelectOptions.resultStatus, student.resultStatus || "未定", disabled)}
-          ${renderSelectField("offerJoinStatus", "内定・入社ステータス", studentSelectOptions.offerJoinStatus, getOfferJoinStatusValue(student), disabled)}
           ${renderSelectField("managementStatus", "管理状態", studentSelectOptions.managementStatus, student.managementStatus || "有効", disabled)}
-        </div>
-      </section>
-      <section class="student-form-section">
-        <div class="student-form-section-title">
-          <span>3</span>
-          <div>
-            <h4>次の対応</h4>
-            <p>対応漏れを防ぐため、アクションと日付をセットで残します。</p>
-          </div>
-        </div>
-        <div class="student-form-grid">
           <label>
-            <span>次アクション日</span>
-            <input name="nextActionDate" type="date" value="${escapeHtml(student.nextActionDate || "")}" ${disabled}>
+            <span>担当者</span>
+            <input value="${escapeHtml(student.owner || "総務人事")}" disabled>
           </label>
           <label>
-            <span>次アクション</span>
-            <input name="nextAction" value="${escapeHtml(student.nextAction || "")}" placeholder="例：見学前リマインド" ${disabled}>
+            <span>学生ID</span>
+            <input value="${escapeHtml(student.studentId || "未採番")}" disabled>
+          </label>
+          <label>
+            <span>DB ID</span>
+            <input value="${escapeHtml(student.id || "未取得")}" disabled>
           </label>
         </div>
-        <label class="student-form-full">
-          <span>メモ</span>
-          <textarea name="memo" rows="3" ${disabled}>${escapeHtml(student.memo || "")}</textarea>
-        </label>
-      </section>
+      </details>
       <div class="student-form-actions">
         <p class="student-form-status" aria-live="polite"></p>
         <button class="refresh-button" type="submit" ${getWriteDisabledAttribute(!isActiveCohortEditable())}>${submitText}</button>
@@ -4053,6 +4124,11 @@ function setupDataQualityFilters() {
 function updateDataQualityTabBadge(summary) {
   const badge = document.getElementById("dataQualityTabBadge");
   if (!badge) return;
+  if (shouldMaskDashboardNumbers()) {
+    badge.hidden = true;
+    badge.textContent = "";
+    return;
+  }
   const count = summary["要修正"] || 0;
   badge.hidden = count === 0;
   badge.textContent = formatNumber.format(count);
@@ -4075,7 +4151,7 @@ function renderDataQuality() {
   if (exportButton) {
     exportButton.disabled = filteredIssues.length === 0;
     const countLabel = exportButton.querySelector("span");
-    if (countLabel) countLabel.textContent = formatNumber.format(filteredIssues.length);
+    if (countLabel) countLabel.textContent = displayNumber(filteredIssues.length);
     exportButton.onclick = downloadDataQualityCsv;
   }
 
@@ -4083,14 +4159,14 @@ function renderDataQuality() {
   if (duplicateExportButton) {
     duplicateExportButton.disabled = duplicateRows.length === 0;
     const countLabel = duplicateExportButton.querySelector("span");
-    if (countLabel) countLabel.textContent = formatNumber.format(duplicateRows.length);
+    if (countLabel) countLabel.textContent = displayNumber(duplicateRows.length);
     duplicateExportButton.onclick = downloadDataQualityDuplicateCandidateCsv;
   }
 
   if (removeCandidateExportButton) {
     removeCandidateExportButton.disabled = removeCandidateRows.length === 0;
     const countLabel = removeCandidateExportButton.querySelector("span");
-    if (countLabel) countLabel.textContent = formatNumber.format(removeCandidateRows.length);
+    if (countLabel) countLabel.textContent = displayNumber(removeCandidateRows.length);
     removeCandidateExportButton.onclick = downloadDataQualityRemoveCandidateCsv;
   }
 
@@ -4100,32 +4176,32 @@ function renderDataQuality() {
     summaryContainer.innerHTML = `
       <div class="operation-log-summary-card ${issues.length ? "is-warning" : "is-linked"}">
         <span>品質チェック件数</span>
-        <strong>${formatNumber.format(issues.length)}</strong>
+        <strong>${displayNumber(issues.length)}</strong>
         <small>${escapeHtml(getActiveCohortLabel())} の確認対象</small>
       </div>
       <div class="operation-log-summary-card ${summary["要修正"] ? "is-warning" : "is-linked"}">
         <span>要修正</span>
-        <strong>${formatNumber.format(summary["要修正"] || 0)}</strong>
+        <strong>${displayNumber(summary["要修正"] || 0)}</strong>
         <small>保存前に直したい項目</small>
       </div>
       <div class="operation-log-summary-card">
         <span>注意</span>
-        <strong>${formatNumber.format(summary["注意"] || 0)}</strong>
+        <strong>${displayNumber(summary["注意"] || 0)}</strong>
         <small>運用確認が必要</small>
       </div>
       <div class="operation-log-summary-card">
         <span>確認</span>
-        <strong>${formatNumber.format(summary["確認"] || 0)}</strong>
+        <strong>${displayNumber(summary["確認"] || 0)}</strong>
         <small>精度向上の補足項目</small>
       </div>
       <div class="operation-log-summary-card ${duplicateIssueCount ? "is-warning" : "is-linked"}">
         <span>重複候補</span>
-        <strong>${formatNumber.format(duplicateIssueCount)}</strong>
+        <strong>${displayNumber(duplicateIssueCount)}</strong>
         <small>同姓同校の確認対象</small>
       </div>
       <div class="operation-log-summary-card ${removeCandidateTotal ? "is-warning" : "is-linked"}">
         <span>対象外候補</span>
-        <strong>${formatNumber.format(removeCandidateTotal)}</strong>
+        <strong>${displayNumber(removeCandidateTotal)}</strong>
         <small>整理候補としてCSV出力可</small>
       </div>
     `;
@@ -4656,7 +4732,7 @@ function renderStudentListInsightBar(students) {
       ${getStudentListInsightItems(students).map((item) => `
         <div class="student-list-insight">
           <span>${escapeHtml(item.label)}</span>
-          <strong>${formatNumber.format(item.value)}</strong>
+          <strong>${displayNumber(item.value)}</strong>
           <small>${escapeHtml(item.caption)}</small>
         </div>
       `).join("")}
@@ -4715,12 +4791,12 @@ function renderStudentListTable(students) {
     </div>
     ${hasMore ? `
       <div class="student-list-more">
-        <span>${formatNumber.format(visibleStudents.length)} / ${formatNumber.format(students.length)}名を表示中</span>
+        <span>${displayNumber(visibleStudents.length)} / ${displayNumber(students.length)}名を表示中</span>
         <button class="detail-button compact" type="button" id="studentShowMoreButton">さらに50件表示</button>
       </div>
     ` : `
       <div class="student-list-more">
-        <span>${formatNumber.format(students.length)}名を表示中</span>
+        <span>${displayNumber(students.length)}名を表示中</span>
       </div>
     `}
   `;
@@ -4737,7 +4813,7 @@ function renderStudentList(activeKey = activeStudentFilter) {
   const totalCount = getStudentListTotalCountForActiveScope();
 
   document.getElementById("studentFilterCount").innerHTML = `
-    <strong>表示中：${formatNumber.format(students.length)}名 <span>/ ${escapeHtml(getActiveCohortLabel())} ${formatNumber.format(totalCount)}名</span></strong>
+    <strong>表示中：${displayNumber(students.length)}名 <span>/ ${escapeHtml(getActiveCohortLabel())} ${displayNumber(totalCount)}名</span></strong>
     ${renderStudentConditionChips(activeFilter, activeDueFilter)}
   `;
   setupStudentCsvExport(students.length);
@@ -4829,6 +4905,7 @@ function renderStudentOverviewAlerts(student) {
 function renderStudentOverviewPanel(student) {
   const primaryAction = getPrimaryStudentAction(student);
   const lstepStatus = getStudentLstepStatus(student);
+  const missingItems = getStudentDailyMissingItems(student);
 
   return `
     <div class="student-overview-badges">
@@ -4839,23 +4916,27 @@ function renderStudentOverviewPanel(student) {
     ${renderStudentOverviewAlerts(student)}
     <div class="student-overview-focus">
       <div>
-        <span>次にやること</span>
+        <span>今日やること</span>
         <strong>${escapeHtml(primaryAction?.title || student.nextAction || "次アクション未設定")}</strong>
         <p>${escapeHtml(primaryAction?.dueDate || student.nextActionDate || "日付未設定")} / ${escapeHtml(primaryAction?.sourceLabel || "学生管理")}</p>
       </div>
       <div class="student-overview-actions">
-        <button class="detail-button compact" type="button" data-jump-student-tab="followups">フォロー確認</button>
-        <button class="detail-button compact" type="button" data-jump-student-tab="edit">基本編集</button>
-        <button class="detail-button compact" type="button" data-jump-student-tab="stores">店舗確認</button>
+        <button class="detail-button compact" type="button" data-jump-student-tab="edit">次アクション更新</button>
+        <button class="detail-button compact" type="button" data-jump-student-tab="followups">フォロー履歴</button>
+        <button class="detail-button compact" type="button" data-jump-student-tab="stores">店舗</button>
       </div>
     </div>
-    <div class="modal-status-grid">
-      <div><span>接点</span><strong>${escapeHtml(student.source || "未設定")}</strong></div>
-      <div><span>接触日</span><strong>${escapeHtml(student.contactDate || "未設定")}</strong></div>
-      <div><span>性別</span><strong>${escapeHtml(student.gender || "未設定")}</strong></div>
+    ${missingItems.length ? `
+      <div class="student-missing-strip">
+        <strong>確認が必要</strong>
+        ${missingItems.map((item) => `<span>${escapeHtml(item)}</span>`).join("")}
+      </div>
+    ` : ""}
+    <div class="modal-status-grid is-daily">
+      <div><span>学校</span><strong>${escapeHtml(student.school || "未設定")}</strong></div>
+      <div><span>卒年/学年</span><strong>${escapeHtml(student.cohort || student.grade || "未設定")}</strong></div>
+      <div><span>流入元</span><strong>${escapeHtml(student.source || "未設定")}</strong></div>
       <div><span>担当</span><strong>${escapeHtml(student.owner || "未設定")}</strong></div>
-      <div><span>学生ID</span><strong>${escapeHtml(student.studentId || "未設定")}</strong></div>
-      <div><span>管理状態</span><strong>${escapeHtml(student.managementStatus || "有効")}</strong></div>
     </div>
     <div class="modal-progress">
       ${[
@@ -4877,6 +4958,16 @@ function renderStudentOverviewPanel(student) {
       <p>${escapeHtml(student.memo || "メモはまだありません。")}</p>
     </div>
   `;
+}
+
+function getStudentDailyMissingItems(student) {
+  const items = [];
+  if (!student.nextAction && student.managementStatus !== "管理対象外") items.push("次アクション未設定");
+  if (student.nextAction && !student.nextActionDate) items.push("次アクション日未設定");
+  if (!student.lineStatus || student.lineStatus === "未登録") items.push("LINE未登録");
+  if (!student.salonTourStatus || student.salonTourStatus === "未設定") items.push("見学未設定");
+  if (!student.interviewStatus || student.interviewStatus === "未設定") items.push("面接未設定");
+  return items.slice(0, 4);
 }
 
 function getLocalDateInputValue(date = new Date()) {
@@ -5185,7 +5276,7 @@ function renderInterviewSummaryCard(label, value, sub, className = "") {
   return `
     <div class="operation-log-summary-card ${className}">
       <span>${escapeHtml(label)}</span>
-      <strong>${formatNumber.format(value)}</strong>
+      <strong>${displayNumber(value)}</strong>
       <small>${escapeHtml(sub)}</small>
     </div>
   `;
@@ -5441,11 +5532,11 @@ function renderStudentModalTabs(student) {
 
   return `
     <div class="student-card-tabs" role="tablist" aria-label="学生カルテ内メニュー">
-      ${renderStudentModalTabButton("overview", "概要")}
-      ${renderStudentModalTabButton("edit", "基本・選考")}
-      ${renderStudentModalTabButton("followups", "フォロー", followupCount)}
-      ${renderStudentModalTabButton("stores", "店舗", storeHistoryCount)}
-      ${renderStudentModalTabButton("logs", "操作履歴", operationLogCount)}
+      ${renderStudentModalTabButton("overview", "今日やること")}
+      ${renderStudentModalTabButton("edit", "進捗・基本")}
+      ${renderStudentModalTabButton("stores", "見学・店舗", storeHistoryCount)}
+      ${renderStudentModalTabButton("followups", "メモ・履歴", followupCount)}
+      ${renderStudentModalTabButton("logs", "管理", operationLogCount)}
     </div>
     <div class="student-card-panels">
       ${renderStudentModalTabPanel("overview", renderStudentOverviewPanel(student))}
@@ -5692,22 +5783,22 @@ function renderOperationLogSummary() {
   summary.innerHTML = `
     <div class="operation-log-summary-card">
       <span>直近履歴</span>
-      <strong>${formatNumber.format(operationLogs.length)}</strong>
+      <strong>${displayNumber(operationLogs.length)}</strong>
       <small>最大30件を表示</small>
     </div>
     <div class="operation-log-summary-card ${inactiveCount ? "is-warning" : "is-linked"}">
       <span>管理対象外化</span>
-      <strong>${formatNumber.format(inactiveCount)}</strong>
+      <strong>${displayNumber(inactiveCount)}</strong>
       <small>重複整理・対象外処理</small>
     </div>
     <div class="operation-log-summary-card ${deniedCount ? "is-danger" : "is-linked"}">
       <span>拒否ログ</span>
-      <strong>${formatNumber.format(deniedCount)}</strong>
+      <strong>${displayNumber(deniedCount)}</strong>
       <small>${deniedCount ? "権限・入力エラーを確認" : "拒否なし"}</small>
     </div>
     <div class="operation-log-summary-card ${missingCount ? "is-warning" : "is-linked"}">
       <span>HUB社員IDなし</span>
-      <strong>${formatNumber.format(missingCount)}</strong>
+      <strong>${displayNumber(missingCount)}</strong>
       <small>${missingCount ? "直開き・検証保存の可能性" : "問題なし"}</small>
     </div>
   `;
@@ -5716,6 +5807,11 @@ function renderOperationLogSummary() {
 function updateOperationLogTabBadge(missingCount) {
   const badge = document.getElementById("operationLogTabBadge");
   if (!badge) return;
+  if (shouldMaskDashboardNumbers()) {
+    badge.hidden = true;
+    badge.textContent = "";
+    return;
+  }
   badge.hidden = missingCount === 0;
   badge.textContent = formatNumber.format(missingCount);
   badge.setAttribute("aria-label", `HUB社員IDなし ${missingCount}件`);
@@ -6035,6 +6131,11 @@ function getActiveDashboardView() {
 function updateInterviewTabBadgeOnly() {
   const badge = document.getElementById("interviewTabBadge");
   if (!badge) return;
+  if (shouldMaskDashboardNumbers()) {
+    badge.hidden = true;
+    badge.textContent = "";
+    return;
+  }
   const students = getInterviewManagementStudents();
   const scheduled = students.filter((student) => student.interviewStatus === "予定").length;
   const retry = students.filter((student) => student.resultStatus === "再面接").length;
