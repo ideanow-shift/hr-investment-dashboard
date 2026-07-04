@@ -5084,6 +5084,23 @@ function renderStudentInterviewPanel(student) {
         </div>
         <a class="interview-manual-link" href="${INTERVIEW_MANUAL_URL}" target="_blank" rel="noopener">新卒面接マニュアルを開く</a>
       </div>
+      <div class="interview-day-guide">
+        <div>
+          <span>1</span>
+          <strong>面接前に確認</strong>
+          <p>${escapeHtml(student.name || "氏名未設定")} / ${escapeHtml(student.school || "学校未設定")} / ${escapeHtml(student.cohort || getActiveCohortLabel())}</p>
+        </div>
+        <div>
+          <span>2</span>
+          <strong>診断を貼り付け</strong>
+          <p>NotebookLMの要約と、面接者の所感を分けて記録します。</p>
+        </div>
+        <div>
+          <span>3</span>
+          <strong>最終判断を保存</strong>
+          <p>保存すると学生カードのメモへ追記し、総務人事への通達状態も残します。</p>
+        </div>
+      </div>
       <div class="interview-precheck-grid" aria-label="面接前チェック">
         <div><strong>面接前</strong><p>候補者名・学校・卒年・担当者を確認。</p></div>
         <div><strong>録音前</strong><p>録音同意トークを読み上げ、同意状況を選択。</p></div>
@@ -5344,6 +5361,26 @@ function renderInterviewSummaryCard(label, value, sub, className = "") {
   `;
 }
 
+function renderInterviewManagementHint(students) {
+  const statusLabel = getInterviewStatusFilterLabel();
+  const query = interviewSearchQuery.trim();
+  const dateLabel = activeInterviewDateFilter ? ` / ${activeInterviewDateFilter}` : "";
+  const filterLabel = query ? `検索「${query}」` : `${statusLabel}${dateLabel}`;
+  return `
+    <div class="interview-management-hint">
+      <div>
+        <strong>面接対象 ${displayNumber(students.length)}名</strong>
+        <p>${escapeHtml(filterLabel)}で表示しています。複数名面接の場合は、同じグループ内の学生を確認し、候補者ごとに診断結果を保存してください。</p>
+      </div>
+      <div class="interview-management-hint-tags">
+        <span>録音同意</span>
+        <span>NotebookLM</span>
+        <span>合否通達</span>
+      </div>
+    </div>
+  `;
+}
+
 function getInterviewGroupKey(student) {
   if (normalizeStudentSearchText(student.nextAction || "").includes("合否通達")) return "notify";
   if (student.resultStatus === "再面接") return "retry";
@@ -5557,7 +5594,9 @@ function renderInterviewManagement() {
     return;
   }
 
-  list.innerHTML = getInterviewGroups(students).map((group, groupIndex) => `
+  list.innerHTML = `
+    ${renderInterviewManagementHint(students)}
+    ${getInterviewGroups(students).map((group, groupIndex) => `
     <section class="interview-session-group">
       <div class="interview-session-heading">
         <div>
@@ -5574,7 +5613,8 @@ function renderInterviewManagement() {
         ${group.students.map((student, studentIndex) => renderInterviewStudentCard(student, groupIndex === 0 && studentIndex === 0)).join("")}
       </div>
     </section>
-  `).join("");
+  `).join("")}
+  `;
 
   setupRenderedInterviewForms(list);
   list.querySelectorAll("[data-interview-open-student-id]").forEach((button) => {
