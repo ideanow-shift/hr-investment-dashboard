@@ -3403,7 +3403,7 @@ function renderStudentQuickFilters() {
     return `
       <button class="student-quick-filter ${isActive ? "active" : ""} tone-${escapeHtml(filter.tone)}" type="button" data-student-filter="${escapeHtml(filter.filterKey)}" data-student-due-filter="${escapeHtml(filter.dueKey)}">
         <span>${escapeHtml(filter.label)}</span>
-        <strong>${formatNumber.format(count)}</strong>
+        <strong>${displayNumber(count)}</strong>
       </button>
     `;
   }).join("");
@@ -3439,7 +3439,7 @@ function renderStudentListFocusSummary() {
     return `
       <button class="student-focus-card ${isActive ? "active" : ""} tone-${escapeHtml(item.tone)}" type="button" data-student-filter="${escapeHtml(item.filterKey)}" data-student-due-filter="${escapeHtml(item.dueKey)}">
         <span>${escapeHtml(item.label)}</span>
-        <strong>${formatNumber.format(count)}</strong>
+        <strong>${displayNumber(count)}</strong>
         <small>${escapeHtml(item.caption)}</small>
       </button>
     `;
@@ -3467,7 +3467,7 @@ function renderStudentDueFilters(activeKey = activeStudentDueFilter) {
     const count = scopedStudents.filter(filter.predicate).length;
     return `
       <button class="student-filter student-due-filter ${filter.key === activeKey ? "active" : ""}" type="button" data-student-due-filter="${filter.key}">
-        ${filter.label}<span>${count}</span>
+        ${filter.label}<span>${displayNumber(count)}</span>
       </button>
     `;
   }).join("");
@@ -3490,7 +3490,7 @@ function renderStudentFilters(activeKey = activeStudentFilter) {
     const count = countBase.filter(filter.predicate).length;
     return `
       <button class="student-filter ${filter.key === activeKey ? "active" : ""}" type="button" data-student-filter="${filter.key}">
-        ${filter.label}<span>${count}</span>
+        ${filter.label}<span>${displayNumber(count)}</span>
       </button>
     `;
   }).join("");
@@ -3587,15 +3587,7 @@ function renderStudentSearchControls() {
   if (resetButton) {
     const hasCondition = activeStudentFilter !== "all" || activeStudentDueFilter !== "all" || activeStudentSort !== "priority" || Boolean(studentSearchQuery.trim());
     resetButton.disabled = !hasCondition;
-    resetButton.onclick = () => {
-      activeStudentFilter = "all";
-      activeStudentDueFilter = "all";
-      activeStudentSort = "priority";
-      studentSearchQuery = "";
-      studentListVisibleCount = getInitialStudentListCount();
-      renderStudentList();
-      input.focus();
-    };
+    resetButton.onclick = resetStudentListConditions;
   }
 }
 
@@ -4802,6 +4794,67 @@ function renderStudentListTable(students) {
   `;
 }
 
+function renderStudentListHint(students, activeFilter, activeDueFilter) {
+  const query = studentSearchQuery.trim();
+  let title = "学生一覧の見方";
+  let body = "上のカードで今日対応・期限超過・日程未設定を絞り込み、上から順にカルテを開いて更新します。";
+  const tags = ["検索", "絞り込み", "カルテ更新"];
+
+  if (query) {
+    title = `検索結果：${query}`;
+    body = `氏名・学校・接点・メモ・LSTEP名から ${displayNumber(students.length)}名を表示しています。見つからない場合は、スペースなし・学校名の一部・学生IDでも検索できます。`;
+    tags.splice(0, tags.length, "氏名", "学校", "学生ID");
+  } else if (activeDueFilter.key === "overdue") {
+    title = "期限超過の対応";
+    body = "対応日を過ぎている学生です。対応済みにするか、次アクション日を更新してください。";
+    tags.splice(0, tags.length, "期限超過", "日程更新", "完了");
+  } else if (activeDueFilter.key === "today") {
+    title = "今日対応する学生";
+    body = "本日対応予定の学生です。見学前リマインド、面接確認、内定後フォローを優先して進めます。";
+    tags.splice(0, tags.length, "今日対応", "リマインド", "フォロー");
+  } else if (activeDueFilter.key === "unscheduled") {
+    title = "日程未設定の整理";
+    body = "次アクションはあるが日付が未設定の学生です。対応漏れを防ぐため、まず次アクション日を入れてください。";
+    tags.splice(0, tags.length, "日付入力", "対応漏れ防止", "要確認");
+  } else if (activeFilter.key === "offered") {
+    title = "内定後フォロー";
+    body = "内定・入社予定の学生です。入社前不安の解消、配属希望、見学店舗履歴を確認します。";
+    tags.splice(0, tags.length, "内定", "入社準備", "配属希望");
+  } else if (activeFilter.key === "inactive") {
+    title = "管理対象外の確認";
+    body = "現在のKPIには含めない学生です。誤って対象外にしていないか、必要な時だけ確認してください。";
+    tags.splice(0, tags.length, "対象外", "確認用", "KPI除外");
+  }
+
+  return `
+    <div class="student-list-hint" aria-live="polite">
+      <div>
+        <strong>${escapeHtml(title)}</strong>
+        <p>${escapeHtml(body)}</p>
+      </div>
+      <div class="student-list-hint-tags">
+        ${tags.map((tag) => `<span>${escapeHtml(tag)}</span>`).join("")}
+      </div>
+    </div>
+  `;
+}
+
+function resetStudentListConditions() {
+  activeStudentFilter = "all";
+  activeStudentDueFilter = "all";
+  activeStudentSort = "priority";
+  studentSearchQuery = "";
+  studentListVisibleCount = getInitialStudentListCount();
+  renderStudentList();
+  document.getElementById("studentSearchInput")?.focus();
+}
+
+function setupStudentEmptyResetButton() {
+  const button = document.querySelector("[data-student-empty-reset]");
+  if (!button) return;
+  button.addEventListener("click", resetStudentListConditions);
+}
+
 function renderStudentList(activeKey = activeStudentFilter) {
   renderStudentQuickFilters();
   renderStudentFilters(activeStudentFilter);
@@ -4818,15 +4871,24 @@ function renderStudentList(activeKey = activeStudentFilter) {
   `;
   setupStudentCsvExport(students.length);
   setupLstepUnlinkedCsvExport();
+  const listHint = renderStudentListHint(students, activeFilter, activeDueFilter);
 
   if (students.length === 0) {
     document.getElementById("studentList").innerHTML = `
-      <div class="student-empty">該当する学生はいません。</div>
+      ${listHint}
+      <div class="student-empty">
+        <strong>該当する学生はいません。</strong>
+        <p>検索語句や絞り込み条件を少し広げると見つかる場合があります。</p>
+        <div class="student-empty-actions">
+          <button class="detail-button compact" type="button" data-student-empty-reset>条件をリセット</button>
+        </div>
+      </div>
     `;
+    setupStudentEmptyResetButton();
     return;
   }
 
-  document.getElementById("studentList").innerHTML = renderStudentListTable(students);
+  document.getElementById("studentList").innerHTML = `${listHint}${renderStudentListTable(students)}`;
 
   setupFollowupCompleteButtons(document.getElementById("studentList"));
   setupStudentOpenButtons(document.getElementById("studentList"));
