@@ -2291,9 +2291,6 @@ function getWriteDisabledAttribute(extraDisabled = false, action = "edit") {
 
 function buildStudentSaveConfirmMessage(payload, mode) {
   const action = mode === "add" ? "追加" : "更新";
-  const offerJoinStatus = payload.expectedJoinStatus && payload.expectedJoinStatus !== "未定"
-    ? payload.expectedJoinStatus
-    : (payload.offerStatus || "未定");
   const nextAction = payload.nextAction
     ? `${payload.nextAction} / ${payload.nextActionDate || "日程未設定"}`
     : "未設定";
@@ -2312,7 +2309,6 @@ function buildStudentSaveConfirmMessage(payload, mode) {
     `見学：${payload.salonTourStatus || "未設定"}`,
     `面接：${payload.interviewStatus || "未設定"}`,
     `選考結果：${payload.resultStatus || "未定"}`,
-    `内定・入社：${offerJoinStatus}`,
     "",
     "【次の対応】",
     `次アクション：${nextAction}`,
@@ -2488,7 +2484,13 @@ function setupSettingsModal() {
 }
 function getStudentFormPayload(form) {
   const formData = new FormData(form);
-  const offerJoinStatus = splitOfferJoinStatus(String(formData.get("offerJoinStatus") || "未定"));
+  const offerJoinValue = String(formData.get("offerJoinStatus") || "");
+  const offerJoinStatus = offerJoinValue
+    ? splitOfferJoinStatus(offerJoinValue)
+    : {
+      offerStatus: String(formData.get("offerStatus") || "未定"),
+      expectedJoinStatus: String(formData.get("expectedJoinStatus") || "未定")
+    };
   return {
     sheetName: getActiveSheetName(),
     studentRecordId: String(formData.get("studentRecordId") || ""),
@@ -3135,6 +3137,8 @@ function renderStudentForm(student = {}, mode = "update") {
       <input type="hidden" name="studentRecordId" value="${escapeHtml(student.id || "")}">
       <input type="hidden" name="studentId" value="${escapeHtml(student.studentId || "")}">
       <input type="hidden" name="owner" value="${escapeHtml(student.owner || "総務人事")}">
+      <input type="hidden" name="offerStatus" value="${escapeHtml(student.offerStatus || "未定")}">
+      <input type="hidden" name="expectedJoinStatus" value="${escapeHtml(student.expectedJoinStatus || "未定")}">
       <div class="student-form-heading">
         <div>
           <h3>${isAdd ? "学生を追加" : "日常フォローを更新"}</h3>
@@ -3146,7 +3150,7 @@ function renderStudentForm(student = {}, mode = "update") {
         <ul>
           <li>氏名と学校名は重複チェックに使います。正式名称で入力してください。</li>
           <li>見学予定・面接予定にする場合は、次アクション日も入力してください。</li>
-          <li>内定・入社ステータスは「内定」「入社予定」「入社済」「辞退」の進行管理に使います。</li>
+          <li>選考結果と次アクションを更新すると、日常フォローに反映されます。</li>
           <li>誤登録や対象外は削除せず、管理状態を「管理対象外」にします。</li>
         </ul>
       </div>
@@ -3179,7 +3183,7 @@ function renderStudentForm(student = {}, mode = "update") {
           <span>2</span>
           <div>
             <h4>選考状況</h4>
-            <p>LINE、見学、面接、内定・入社の進み具合を更新します。</p>
+            <p>LINE、見学、面接、選考結果の進み具合を更新します。</p>
           </div>
         </div>
         <div class="student-form-grid">
@@ -3187,7 +3191,6 @@ function renderStudentForm(student = {}, mode = "update") {
           ${renderSelectField("salonTourStatus", "見学ステータス", studentSelectOptions.salonTourStatus, student.salonTourStatus || "未設定", disabled)}
           ${renderSelectField("interviewStatus", "面接ステータス", studentSelectOptions.interviewStatus, student.interviewStatus || "未設定", disabled)}
           ${renderSelectField("resultStatus", "選考結果", studentSelectOptions.resultStatus, student.resultStatus || "未定", disabled)}
-          ${renderSelectField("offerJoinStatus", "内定・入社ステータス", studentSelectOptions.offerJoinStatus, getOfferJoinStatusValue(student), disabled)}
         </div>
       </section>
       <section class="student-form-section">
