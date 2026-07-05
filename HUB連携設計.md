@@ -101,3 +101,60 @@ NOV Talentでは社員属性を独自マスタ化しない。
 HUB contextで役職・職種を扱う場合、`一般スタッフ` は `positions`、`レセプション` は `job_types` として扱う。
 
 NOV Talentでは、`レセプション` を社員の役職として表示・判定に使わない。採用分析、学生希望職種、LSTEP配信対象で使う場合は、Core DBの `job_types.id` / `job_type_key` を参照する。
+
+## 2026-07-03 HUB/Core相談先判定ルール
+
+IDEA NOV OS / Core DB番人 v2 の統一指示により、NOV TalentからHUB/Coreへ確認する場合は、内容に応じて相談先を判定してから依頼する。
+
+## 2026-07-05 HUB窓口統合
+
+旧 `☆① HUB 認証・権限・通知基盤` と旧 `☆③ HUB Core・マスタ管理` は統合された。
+
+新しいHUB相談先:
+
+```text
+NOV HUB Core / 認証・権限・通知・マスタ管理
+thread: 019f25b7-127b-7cd3-bed6-8fbc18395d47
+```
+
+NOV Talentから相談する内容:
+
+- `talent_admin` などのrole / app access
+- HUB context / roleKeys / appKeys
+- NOV HUBカード表示・導線
+- `os.notifications` / LINE WORKS通知
+- 社員・部署・役職マスタ参照
+
+保存前のフロントpre-blockだけで権限を確定しない。最終判定はDB / RPC / Edge / GAS backend側で行う。
+外部監査はClaudeへ提出する。提出は脇田さんが直接行い、NOV Talent側は提出用packを作成する。
+
+### 相談先
+
+| 相談先 | 確認する内容 |
+| --- | --- |
+| ☆HUB Core / 認証・権限・通知・マスタ管理 | ログイン、Firebase Auth、Supabase Auth、`employee_login_credentials`、`login_enabled`、`roles` / `employee_roles`、アプリ利用可否、HUB context、roleKeys、appKeys、NOV HUBカード表示、`os.notifications`、NOV HUB通知Inbox、LINE WORKS通知、社員・店舗・部署・役職・職種マスタ参照 |
+| ☆② HUB人事労務管理 / HR Module | 住所、家族、扶養、通勤、銀行、給与、税、保険、契約、書類、マイナンバー管理ステータス、HR秘匿情報、HRタブ、`hr` schema、HR監査ログ |
+| ★④ Core DB 番人 v2 | DDL投入前レビュー、新規テーブル追加判断、RLS、GRANT、service_role方針、`public` / `core` / `os` / `hr` schema境界、複数アプリに影響する変更、正本判断が必要なもの |
+
+迷う場合は ★④ Core DB 番人 v2 へ確認する。
+
+### NOV Talentで必ず守ること
+
+- 社員・店舗・部署・役職・職種・権限を独自マスタ化しない
+- 社員は `public.employees.id`、店舗は `public.stores.id` を正本として参照する
+- 権限は `roles` / `employee_roles` を正本にする
+- HR秘匿情報をHUB contextやNOV Talent側DBへ持ち込まない
+- service_role keyをフロント、GitHub Pages、ブラウザに出さない
+- DDL / UPDATE / DELETE / GRANT / RLS policy は ★④ Core DB 番人 v2 のレビュー前に実行しない
+
+### レビュー依頼フォーマット
+
+HUB/Coreへ相談する時は、必ず冒頭に以下を付ける。
+
+```text
+相談先判定: ☆HUB Core / ☆② / ★④
+理由:
+影響範囲:
+実行したいこと:
+実行可否の希望:
+```
