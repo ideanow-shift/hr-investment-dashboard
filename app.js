@@ -1352,7 +1352,7 @@ function renderSchools() {
   const rankedSchools = getRankedSchools();
   setupSchoolCsvExport(rankedSchools.length);
 
-  document.getElementById("schoolGrid").innerHTML = rankedSchools.map((school) => {
+  document.getElementById("schoolGrid").innerHTML = rankedSchools.map((school, index) => {
     const promise = getSchoolPromise(school);
 
     return `
@@ -1371,14 +1371,15 @@ function renderSchools() {
           <span class="promise-pill ${promise.className}">${promise.label}</span>
           <span class="score-text">有望度スコア ${displayNumber(promise.score)}</span>
         </div>
-        <button class="detail-button" type="button" data-school-key="${escapeHtml(getSchoolKey(school))}">詳細を見る</button>
+        <button class="detail-button" type="button" data-school-index="${index}">詳細を見る</button>
       </article>
     `;
   }).join("");
 
-  document.querySelectorAll("[data-school-key]").forEach((button) => {
+  document.querySelectorAll("[data-school-index]").forEach((button) => {
     button.addEventListener("click", () => {
-      renderSchoolDetail(findSchoolByKey(button.dataset.schoolKey));
+      const selectedSchool = rankedSchools[Number(button.dataset.schoolIndex)];
+      renderSchoolDetail(selectedSchool || rankedSchools[0]);
     });
   });
 
@@ -2542,15 +2543,6 @@ function getStudentValidationErrors(payload, mode) {
   if (!payload.school) errors.push("学校名を入力してください。");
   if (duplicate) {
     errors.push(`同じ氏名・学校名の学生が既にいます：${formatDuplicateStudentSummary(duplicate)}`);
-  }
-  if ((payload.offerStatus === "内定" || payload.offerStatus === "承諾") && payload.interviewStatus !== "実施済") {
-    errors.push("内定・承諾にする場合は、面接ステータスを「実施済」にしてください。");
-  }
-  if ((payload.expectedJoinStatus === "入社予定" || payload.expectedJoinStatus === "入社済") && !["内定", "承諾"].includes(payload.offerStatus)) {
-    errors.push("入社予定・入社済にする場合は、内定ステータスを「内定」または「承諾」にしてください。");
-  }
-  if (payload.resultStatus === "不合格" && ["内定", "承諾"].includes(payload.offerStatus)) {
-    errors.push("選考結果が不合格の場合、内定ステータスは「未定」または「辞退」にしてください。");
   }
   if ((payload.salonTourStatus === "予定" || payload.interviewStatus === "予定") && !payload.nextActionDate) {
     errors.push("見学予定・面接予定の場合は、次アクション日を入力してください。");
