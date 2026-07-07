@@ -229,9 +229,9 @@ LSTEP制作会社_確認依頼.md
 
 注意: Supabase移行は `idea-nov-core` のCore DB参照前提で進めます。社員・店舗・法人・部署・役職・権限の専用マスタは作らず、Core DBの既存テーブルを参照します。
 
-LSTEP連携は、学生側の未紐付け確認・CSV出力・画面表示までは実装済みです。Supabase側に `talent_line_accounts` などのLSTEP系テーブルを投入すると、GAS経由で受け皿作成済みとして確認できます。
+LSTEP連携は、学生側の未紐付け確認・CSV出力・画面表示までは実装済みです。ただし、LINE公式アカウント側の現行運用との兼ね合いにより、本接続は約2か月後まで保留します。現時点ではAPI/Webhook/自動同期は進めず、未紐付け候補の整理と制作会社確認用テンプレートの準備に限定します。
 
-LSTEP系テーブルを投入した後は、`supabase/talent_lstep_integration_verify.sql` をSQL Editorで実行し、テーブル、RLS、service_role権限、制約、現在件数を確認してください。制作会社への確認用には、画面の「LSTEP連携状況」から「連携テンプレート」CSVを出力できます。確認依頼文は `LSTEP制作会社_確認依頼.md` にあります。
+LSTEP本接続を再開する段階では、`supabase/talent_lstep_integration_verify.sql` をSQL Editorで実行し、テーブル、RLS、service_role権限、制約、現在件数を再確認してください。制作会社への確認用には、画面の「LSTEP連携状況」から「連携テンプレート」CSVを出力できます。確認依頼文は `LSTEP制作会社_確認依頼.md` にあります。
 
 ## 今後追加予定の機能
 

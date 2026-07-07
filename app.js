@@ -1847,13 +1847,14 @@ function renderLstepIntegrationStatus() {
     : (isReady ? "is-ready" : "is-pending");
   const statusLabel = lstepSummary.status === "linked"
     ? "LSTEP紐付けあり"
-    : (isReady ? "LSTEP受け皿あり" : "LSTEP未確認");
+    : (isReady ? "LSTEP準備モード" : "LSTEP本接続保留");
   const lastSyncedText = lstepSummary.lastSyncedAt
     ? formatDate(lstepSummary.lastSyncedAt)
     : "未同期";
-  const rawNote = lstepSummary.note || "LSTEP連携の準備状況を確認します。";
+  const holdNote = "LINE公式との兼ね合いにより、LSTEP本接続は約2か月後まで保留します。現時点では未紐付け学生の整理とCSV照合準備だけ進めます。";
+  const rawNote = lstepSummary.note || holdNote;
   const displayNote = /読み取り失敗|Could not find the table|PGRST205|Invalid path/i.test(rawNote)
-    ? "LSTEP連携テーブルは未作成または未同期です。学生データ側の未紐付け確認はこの画面で進められます。"
+    ? holdNote
     : rawNote;
   const unlinkedStudents = getLstepUnlinkedStudents();
   const unlinkedCount = unlinkedStudents.length;
@@ -1871,13 +1872,13 @@ function renderLstepIntegrationStatus() {
   ];
   const nextSteps = [
     unlinkedCount
-      ? `LSTEP未紐付けの学生 ${formatNumber.format(unlinkedCount)}名をCSVで照合する`
-      : "学生とLSTEP/LINEアカウントの紐付けは現在クリア",
+      ? `LSTEP本接続前に、未紐付け候補 ${formatNumber.format(unlinkedCount)}名をCSVで整理する`
+      : "本接続前の未紐付け候補は現在クリア",
     lstepSummary.unprocessedEvents
-      ? `未処理イベント ${formatNumber.format(lstepSummary.unprocessedEvents)}件を同期対象として確認する`
+      ? `未処理イベント ${formatNumber.format(lstepSummary.unprocessedEvents)}件は本接続前の確認対象として保留する`
       : "未処理イベントは現在クリア",
-    "連携テンプレートを制作会社へ渡し、出力可能な列名とID形式を確認する",
-    "本接続時はLSTEP側IDと学生IDを突合し、GAS backend経由で保存する"
+    "連携テンプレートは制作会社への確認用として保持する",
+    "LSTEP API/Webhook/CSV実接続は、約2か月後にLINE公式側の整理後に再開する"
   ];
   const readinessItems = [
     {
@@ -1896,13 +1897,13 @@ function renderLstepIntegrationStatus() {
       done: true
     },
     {
-      label: "LSTEP受け皿SQL",
-      detail: isReady ? "GASからLSTEP系テーブルを確認済み" : "supabase/talent_lstep_integration_review.sql の投入待ち",
+      label: "LSTEP受け皿",
+      detail: isReady ? "将来接続用の受け皿は確認済み。本接続は保留中" : "本接続再開時に受け皿SQLを再確認",
       done: isReady
     },
     {
-      label: "本同期方式",
-      detail: "LSTEP側のAPI/Webhook/CSV仕様回答待ち",
+      label: "本接続",
+      detail: "LINE公式との兼ね合いにより約2か月後まで保留",
       done: lstepSummary.status === "linked"
     }
   ];
@@ -1952,8 +1953,8 @@ function renderLstepIntegrationStatus() {
     </div>
     <div class="lstep-action-panel">
       <div>
-        <strong>LSTEP本接続前の確認</strong>
-        <p>未紐付け学生を先に整理しておくと、LSTEP同期時の名寄せミスを減らせます。</p>
+        <strong>LSTEP本接続は保留中</strong>
+        <p>今は未紐付け学生の整理・CSV照合・制作会社への確認準備だけ進めます。</p>
       </div>
       <div class="lstep-action-buttons">
         <button type="button" data-lstep-open-students>未紐付け学生を見る</button>
@@ -1978,8 +1979,8 @@ function renderLstepIntegrationStatus() {
     </div>
     <div class="lstep-vendor-questions">
       <div>
-        <strong>制作会社へ確認する項目</strong>
-        <p>返答が来たら、この6項目を埋めると同期方式をすぐ決められます。</p>
+        <strong>本接続再開時に確認する項目</strong>
+        <p>約2か月後に連携を再開する際、この6項目を確認すれば同期方式をすぐ決められます。</p>
       </div>
       <div class="lstep-vendor-question-grid">
         ${vendorQuestions.map((item) => `
