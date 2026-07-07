@@ -275,6 +275,9 @@ supabase/talent_lstep_integration_review.sql
 supabase/talent_lstep_integration_verify.sql
 LSTEP連携設計.md
 LSTEP制作会社_確認依頼.md
+総務人事管理システム_段階構築ロードマップ.md
+総務人事部向け_現職者管理ヒアリングシート.md
+Coreレビュー依頼_現職者管理_入社手続きキュー.md
 ```
 
 注意: Supabase移行は `idea-nov-core` のCore DB参照前提で進めます。社員・店舗・法人・部署・役職・権限の専用マスタは作らず、Core DBの既存テーブルを参照します。
@@ -286,6 +289,8 @@ LSTEP本接続を再開する段階では、`supabase/talent_lstep_integration_v
 ## 今後追加予定の機能
 
 - Googleスプレッドシート連携
+- 現職者管理の入社手続きキュー
+- 異動、産休・育休、復職、退職手続きのチェックリスト
 - 学校別LTV分析
 - 入社後定着率分析
 - 店長候補輩出分析
