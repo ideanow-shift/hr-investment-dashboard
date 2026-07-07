@@ -1,6 +1,6 @@
 const GAS_API_URL = "https://script.google.com/macros/s/AKfycbx0X9DvO6zydd8txe_Mgme1COTfltp7ZxueJyrIPQsJSwWCvbVrM2otmlgarPTDmU5iWg/exec";
 
-const HUB_DISPLAY_APP_NAME = "人財投資管理システム";
+const HUB_DISPLAY_APP_NAME = "リクルート管理システム";
 const HUB_DISPLAY_APP_SUBTITLE = "人材投資の可視化";
 const INTERVIEW_MANUAL_URL = "https://docs.google.com/document/d/10F304BImOElyueoVWhX6GyrhGES2c6u_KKX2d2VHTBw/edit?usp=drive_link";
 const DESKTOP_STUDENT_LIST_COUNT = 50;
@@ -646,7 +646,7 @@ function getInitialStudentListCount() {
 
 const normalizeAppName = (name) => {
   const trimmed = String(name || "").trim();
-  if (!trimmed || trimmed === "Talent Investment Dashboard" || trimmed === "NOV Talent") {
+  if (!trimmed || trimmed === "Talent Investment Dashboard" || trimmed === "NOV Talent" || trimmed === "人財投資管理システム") {
     return HUB_DISPLAY_APP_NAME;
   }
   return trimmed;
