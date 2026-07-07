@@ -269,6 +269,7 @@ Supabase移行に関する設計資料は以下にあります。
 CoreDB連携_データ項目整理.md
 CoreDB職種マスタ追加_レビュー依頼.md
 Supabase移行設計書.md
+Supabase_スプレッドシート照合手順_2026-07-07.md
 supabase/schema.sql
 supabase/migration_plan.md
 supabase/talent_lstep_integration_review.sql
