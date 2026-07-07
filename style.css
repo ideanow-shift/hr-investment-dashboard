@@ -571,6 +571,33 @@ h3 {
   font-size: 24px;
 }
 
+.employee-onboarding-readiness {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 10px;
+  margin: 0 0 12px;
+}
+
+.employee-onboarding-readiness div {
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: #fff;
+  padding: 10px 12px;
+}
+
+.employee-onboarding-readiness span {
+  display: block;
+  color: var(--muted);
+  font-size: 12px;
+  margin-bottom: 4px;
+}
+
+.employee-onboarding-readiness strong {
+  display: block;
+  color: var(--text);
+  font-size: 22px;
+}
+
 .employee-onboarding-list {
   display: grid;
   gap: 10px;
@@ -3734,6 +3761,10 @@ td {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 
+  .employee-onboarding-readiness {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
   .student-quick-filters {
     grid-template-columns: repeat(3, minmax(0, 1fr));
   }
@@ -3804,6 +3835,7 @@ td {
   .school-grid,
   .student-summary-grid,
   .student-quick-filters,
+  .employee-onboarding-readiness,
   .lstep-status-grid,
   .lstep-readiness-list,
   .lstep-vendor-question-grid,

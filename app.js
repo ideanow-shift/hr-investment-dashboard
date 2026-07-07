@@ -6325,6 +6325,7 @@ function renderEmployeeOperationsPreview() {
   if (!container) return;
 
   const candidates = getEmployeeOnboardingCandidates();
+  const readiness = getEmployeeOnboardingReadiness(candidates);
   container.innerHTML = `
     <div class="employee-onboarding-header">
       <div>
@@ -6338,6 +6339,26 @@ function renderEmployeeOperationsPreview() {
       </div>
     </div>
     ${candidates.length ? `
+      <div class="employee-onboarding-readiness" aria-label="入社手続き候補の確認サマリー">
+        <div>
+          <span>準備確認済み</span>
+          <strong>${displayNumber(readiness.ready)}</strong>
+        </div>
+        <div>
+          <span>配属希望未確認</span>
+          <strong>${displayNumber(readiness.missingPreferredStore)}</strong>
+        </div>
+        <div>
+          <span>見学履歴要確認</span>
+          <strong>${displayNumber(readiness.missingTourHistory)}</strong>
+        </div>
+        <div>
+          <span>次アクション日未設定</span>
+          <strong>${displayNumber(readiness.missingActionDate)}</strong>
+        </div>
+      </div>
+    ` : ""}
+    ${candidates.length ? `
       <div class="employee-onboarding-list">
         ${candidates.map(renderEmployeeOnboardingCandidate).join("")}
       </div>
@@ -6348,6 +6369,21 @@ function renderEmployeeOperationsPreview() {
 
   container.querySelectorAll("[data-onboarding-student-id]").forEach((button) => {
     button.addEventListener("click", () => openStudentModal(button.dataset.onboardingStudentId));
+  });
+}
+
+function getEmployeeOnboardingReadiness(candidates) {
+  return candidates.reduce((summary, student) => {
+    if (!getEmployeeOnboardingMissingLabels(student).length) summary.ready += 1;
+    if (!hasEmployeePreferredStore(student)) summary.missingPreferredStore += 1;
+    if (!hasEmployeeCompletedTour(student)) summary.missingTourHistory += 1;
+    if (!student.nextActionDate) summary.missingActionDate += 1;
+    return summary;
+  }, {
+    ready: 0,
+    missingPreferredStore: 0,
+    missingTourHistory: 0,
+    missingActionDate: 0
   });
 }
 
@@ -6379,20 +6415,26 @@ function renderEmployeeOnboardingCandidate(student) {
 
 function getEmployeeOnboardingMissingLabels(student) {
   const labels = [];
-  const preferences = Array.isArray(student.storePreferences) ? student.storePreferences : [];
-  const hasPreferredStore = preferences.some((preference) => preference && (preference.storeId || preference.storeName));
-  const tours = Array.isArray(student.storeTourHistories) ? student.storeTourHistories : [];
-  const hasCompletedTour = tours.some((tour) => tour && (tour.tourStatus === "実施済" || tour.tourStatus === "済"));
 
-  if (!hasPreferredStore) labels.push({ label: "不足: 配属希望店舗", tone: "warning" });
+  if (!hasEmployeePreferredStore(student)) labels.push({ label: "不足: 配属希望店舗", tone: "warning" });
   if (!student.nextActionDate) labels.push({ label: "不足: 次アクション日", tone: "warning" });
-  if (!hasCompletedTour) labels.push({ label: "確認: 見学店舗履歴", tone: "notice" });
+  if (!hasEmployeeCompletedTour(student)) labels.push({ label: "確認: 見学店舗履歴", tone: "notice" });
   if (!student.nextAction) labels.push({ label: "確認: 入社前フォロー", tone: "notice" });
   if (student.expectedJoinStatus !== "入社予定" && student.expectedJoinStatus !== "入社済") {
     labels.push({ label: "確認: 入社予定", tone: "notice" });
   }
 
   return labels.slice(0, 4);
+}
+
+function hasEmployeePreferredStore(student) {
+  const preferences = Array.isArray(student.storePreferences) ? student.storePreferences : [];
+  return preferences.some((preference) => preference && (preference.storeId || preference.storeName));
+}
+
+function hasEmployeeCompletedTour(student) {
+  const tours = Array.isArray(student.storeTourHistories) ? student.storeTourHistories : [];
+  return tours.some((tour) => tour && (tour.tourStatus === "実施済" || tour.tourStatus === "済"));
 }
 
 function renderDashboard(isConnected) {
