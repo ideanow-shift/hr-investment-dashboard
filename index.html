@@ -41,6 +41,7 @@
       <button class="dashboard-tab" type="button" data-view="interview">面接管理<span id="interviewTabBadge" class="tab-count-badge" hidden>0</span></button>
       <button class="dashboard-tab" type="button" data-view="quality">データ品質<span id="dataQualityTabBadge" class="tab-count-badge" hidden>0</span></button>
       <button class="dashboard-tab" type="button" data-view="logs">操作履歴<span id="operationLogTabBadge" class="tab-count-badge tab-count-badge-warning" hidden>0</span></button>
+      <button class="dashboard-tab" type="button" data-view="employee">現職者管理</button>
       <button class="dashboard-tab" type="button" data-view="guide">使い方</button>
     </nav>
 
@@ -210,6 +211,38 @@
         <button id="interviewFilterReset" class="detail-button compact" type="button">絞り込み解除</button>
       </div>
       <div id="interviewScheduleList" class="interview-management-list"></div>
+    </section>
+
+    <section class="section-block dashboard-view view-hidden" data-view="employee" aria-labelledby="employeeOpsTitle">
+      <div class="section-heading">
+        <div>
+          <p class="section-kicker">Employee Operations / Design Preview</p>
+          <h2 id="employeeOpsTitle">現職者管理システム 構想</h2>
+        </div>
+        <p class="section-note">入社後の手続き、異動、休職・復職、退職を扱う将来領域です。現時点では設計確認用で、社員マスタは更新しません。</p>
+      </div>
+      <div class="decision-grid">
+        <article class="action-card">
+          <strong>1. 入社手続き</strong>
+          <p>リクルート管理で内定後フォローが完了した候補者を、入社手続きキューへ渡す構想です。社員マスタ反映は承認後に行います。</p>
+        </article>
+        <article class="action-card">
+          <strong>2. 異動手続き</strong>
+          <p>異動元店舗、異動先店舗、異動予定日、承認者、店舗共有状況を管理する想定です。店舗正本はCore DBのstoresを参照します。</p>
+        </article>
+        <article class="action-card">
+          <strong>3. 産休・育休・休職・復職</strong>
+          <p>休職種別、開始日、終了予定日、復職予定日、必要書類、共有状況をチェックリスト化する想定です。HR秘匿情報は持ち込みません。</p>
+        </article>
+        <article class="action-card">
+          <strong>4. 退職手続き</strong>
+          <p>退職予定日、最終出勤日、貸与物返却、アカウント停止確認、社員マスタ反映待ちを管理する想定です。</p>
+        </article>
+      </div>
+      <div class="guide-callout">
+        <strong>実装前の確認</strong>
+        <p>現職者管理はCore DB、HUB権限、HR秘匿情報、通知、承認フローに関わります。DB化する前に、Core DB番人 / HUBレビューへ戻します。</p>
+      </div>
     </section>
 
     <section class="section-block dashboard-view view-hidden" data-view="quality" aria-labelledby="dataQualityTitle">
@@ -461,7 +494,7 @@
     </section>
   </div>
 
-  <script src="app.js?v=20260707-recruit-hr-scope"></script>
+  <script src="app.js?v=20260707-employee-preview"></script>
 </body>
 </html>
 
