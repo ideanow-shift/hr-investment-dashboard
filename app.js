@@ -2585,6 +2585,31 @@ function getAllStudentsForLookup() {
   return Array.from(byKey.values());
 }
 
+function getEmployeeOnboardingCandidates() {
+  return getAllStudentsForLookup()
+    .filter((student) => student.managementStatus !== "管理対象外")
+    .filter((student) => {
+      const resultStatus = student.resultStatus || "";
+      const offerStatus = student.offerStatus || "";
+      const expectedJoinStatus = student.expectedJoinStatus || "";
+      if (["辞退", "不合格"].includes(resultStatus)) return false;
+      if (["辞退"].includes(offerStatus) || ["辞退", "入社済"].includes(expectedJoinStatus)) return false;
+      return ["内定", "条件付き内定", "合格", "条件付き合格"].includes(resultStatus)
+        || ["内定", "承諾"].includes(offerStatus)
+        || expectedJoinStatus === "入社予定";
+    })
+    .sort((a, b) => getEmployeeOnboardingPriority(a) - getEmployeeOnboardingPriority(b))
+    .slice(0, 8);
+}
+
+function getEmployeeOnboardingPriority(student) {
+  if (student.expectedJoinStatus === "入社予定") return 0;
+  if (student.offerStatus === "承諾") return 1;
+  if (student.offerStatus === "内定" || student.resultStatus === "内定" || student.resultStatus === "合格") return 2;
+  if (student.resultStatus === "条件付き内定" || student.resultStatus === "条件付き合格") return 3;
+  return 9;
+}
+
 function findStudentByOperationLog(log) {
   const candidates = [
     log.studentId,
@@ -6282,6 +6307,10 @@ function renderActiveDashboardView(targetView = getActiveDashboardView()) {
     renderInterviewManagement();
     return;
   }
+  if (targetView === "employee") {
+    renderEmployeeOperationsPreview();
+    return;
+  }
   if (targetView === "quality") {
     renderDataQuality();
     return;
@@ -6289,6 +6318,57 @@ function renderActiveDashboardView(targetView = getActiveDashboardView()) {
   if (targetView === "logs") {
     renderOperationLogs();
   }
+}
+
+function renderEmployeeOperationsPreview() {
+  const container = document.getElementById("employeeOnboardingPreview");
+  if (!container) return;
+
+  const candidates = getEmployeeOnboardingCandidates();
+  container.innerHTML = `
+    <div class="employee-onboarding-header">
+      <div>
+        <p class="section-kicker">Onboarding Candidates</p>
+        <h3>入社手続き候補</h3>
+        <p>リクルート管理で内定・承諾・入社予定になった学生を、現職者管理へ渡す前の確認候補として表示します。社員マスタ更新は行いません。</p>
+      </div>
+      <div class="employee-onboarding-count">
+        <strong>${displayNumber(candidates.length)}</strong>
+        <span>候補</span>
+      </div>
+    </div>
+    ${candidates.length ? `
+      <div class="employee-onboarding-list">
+        ${candidates.map(renderEmployeeOnboardingCandidate).join("")}
+      </div>
+    ` : `
+      <div class="employee-onboarding-empty">現在、入社手続き候補はありません。内定・承諾・入社予定の学生が出るとここに表示されます。</div>
+    `}
+  `;
+
+  container.querySelectorAll("[data-onboarding-student-id]").forEach((button) => {
+    button.addEventListener("click", () => openStudentModal(button.dataset.onboardingStudentId));
+  });
+}
+
+function renderEmployeeOnboardingCandidate(student) {
+  const status = getOfferJoinStatusValue(student);
+  const nextAction = student.nextAction || "入社前確認";
+  const nextActionDate = student.nextActionDate || "日付未設定";
+  return `
+    <article class="employee-onboarding-item">
+      <div>
+        <strong>${escapeHtml(student.name || "氏名未設定")}</strong>
+        <p>${escapeHtml(student.school || "学校未設定")} / ${escapeHtml(student.cohort || "卒年未設定")}</p>
+        <div class="employee-onboarding-tags">
+          <span>${escapeHtml(status)}</span>
+          <span>${escapeHtml(nextAction)}</span>
+          <span>${escapeHtml(nextActionDate)}</span>
+        </div>
+      </div>
+      <button class="detail-button compact" type="button" data-onboarding-student-id="${escapeHtml(student.id || "")}">学生カード</button>
+    </article>
+  `;
 }
 
 function renderDashboard(isConnected) {
