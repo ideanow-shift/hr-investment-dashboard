@@ -43,12 +43,13 @@
 | 流入元種別 | `source_type` | フェア / 学校訪問 / 紹介 / その他 |
 | 流入元名 | `source_name` | フェア名、学校訪問名など |
 | 接触日 | `contact_date` | 最初の接触日 |
-| LINE登録 | `line_status` | 未登録 / 登録済 |
-| 見学ステータス | `salon_tour_status` | 未設定 / 予定 / 実施済 / キャンセル |
+| LINE登録 | `line_status` | 画面表示は 済 / 未。既存互換で 未登録 / 登録済 も扱う |
+| 見学ステータス | `salon_tour_status` | 画面表示は 済 / 見学予定 / 未。既存互換で 未設定 / 予定 / 実施済 / キャンセル も扱う |
 | 面接ステータス | `interview_status` | 未設定 / 予定 / 実施済 / キャンセル |
-| 選考結果 | `result_status` | 未定 / 合格 / 不合格 / 辞退 |
-| 内定ステータス | `offer_status` | 未定 / 内定 / 承諾 / 辞退 |
-| 入社予定 | `expected_join_status` | 未定 / 入社予定 / 入社済 / 辞退 |
+| 応募 | `application_status` 候補 | 済 / 未。現行DBにない場合は画面・GAS互換を確認してから追加検討 |
+| 選考結果 | `result_status` | 未定 / 合格 / 条件付き合格 / 再面接 / 不合格 / 辞退。画面上は内定表現へ寄せる検討あり |
+| 内定ステータス | `offer_status` | 旧互換項目。日常画面では選考結果中心に整理 |
+| 入社予定 | `expected_join_status` | 旧互換項目。入社後手続きは将来の現職者管理側で扱う |
 | 次アクション | `next_action` | フォロー内容 |
 | 次アクション日 | `next_action_date` | フォロー予定日 |
 | メモ | `memo` | 自由記述 |
