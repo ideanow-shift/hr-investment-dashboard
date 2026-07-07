@@ -8,6 +8,8 @@ const MOBILE_STUDENT_LIST_COUNT = 20;
 const HUB_CONTEXT_KEY = "novHub.currentEmployee";
 const HUB_CONTEXT_MAX_AGE_MS = 12 * 60 * 60 * 1000;
 const FAST_ENTRY_FALLBACK_MS = 4000;
+const DESKTOP_GAS_TIMEOUT_MS = 20000;
+const MOBILE_GAS_TIMEOUT_MS = 45000;
 
 let dashboardConfig = {
   appName: HUB_DISPLAY_APP_NAME,
@@ -247,7 +249,7 @@ async function fetchDashboardData() {
   }
 
   try {
-    const data = await loadJsonp(GAS_API_URL, {}, isMobileViewport() ? 25000 : 20000);
+    const data = await loadJsonp(GAS_API_URL, {}, isMobileViewport() ? MOBILE_GAS_TIMEOUT_MS : DESKTOP_GAS_TIMEOUT_MS);
     applyDashboardData(data);
     return true;
   } catch (error) {
