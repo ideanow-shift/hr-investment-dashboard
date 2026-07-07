@@ -1,12 +1,13 @@
 const GAS_API_URL = "https://script.google.com/macros/s/AKfycbx0X9DvO6zydd8txe_Mgme1COTfltp7ZxueJyrIPQsJSwWCvbVrM2otmlgarPTDmU5iWg/exec";
 
-const HUB_DISPLAY_APP_NAME = "リクルート管理システム";
+const HUB_DISPLAY_APP_NAME = "人財投資管理システム";
 const HUB_DISPLAY_APP_SUBTITLE = "人材投資の可視化";
 const INTERVIEW_MANUAL_URL = "https://docs.google.com/document/d/10F304BImOElyueoVWhX6GyrhGES2c6u_KKX2d2VHTBw/edit?usp=drive_link";
 const DESKTOP_STUDENT_LIST_COUNT = 50;
 const MOBILE_STUDENT_LIST_COUNT = 20;
 const HUB_CONTEXT_KEY = "novHub.currentEmployee";
 const HUB_CONTEXT_MAX_AGE_MS = 12 * 60 * 60 * 1000;
+const FAST_ENTRY_FALLBACK_MS = 4000;
 
 let dashboardConfig = {
   appName: HUB_DISPLAY_APP_NAME,
@@ -236,6 +237,8 @@ let lstepSummary = buildDefaultLstepSummary();
 let storeOptions = [];
 let lastDataRefreshAt = null;
 let hasAttemptedDataLoad = false;
+let dataLoadInProgress = false;
+let fastEntryFallbackActive = false;
 let activeDashboardView = "overview";
 
 async function fetchDashboardData() {
@@ -6261,6 +6264,14 @@ function renderStudentView() {
 }
 
 function renderActiveDashboardView(targetView = getActiveDashboardView()) {
+  if (targetView === "fair") {
+    renderFairTable();
+    return;
+  }
+  if (targetView === "school") {
+    renderSchools();
+    return;
+  }
   if (targetView === "student") {
     renderStudentView();
     return;
@@ -6289,8 +6300,6 @@ function renderDashboard(isConnected) {
   renderKpis(metrics);
   renderDecisionSummary(metrics);
   renderFunnel(metrics);
-  renderFairTable();
-  renderSchools();
   generateActionCards();
   updateLightweightTabBadges();
   renderActiveDashboardView();
@@ -6304,14 +6313,29 @@ async function refreshDashboardData() {
     refreshButton.textContent = "更新中...";
   }
 
-  const isConnected = await fetchDashboardData();
-  hasAttemptedDataLoad = true;
-  lastDataRefreshAt = new Date();
-  renderDashboard(isConnected);
+  dataLoadInProgress = true;
+  fastEntryFallbackActive = false;
+  const fallbackTimer = window.setTimeout(() => {
+    if (!hasAttemptedDataLoad && dataLoadInProgress) {
+      fastEntryFallbackActive = true;
+      updateDataSourceStatus(false);
+    }
+  }, FAST_ENTRY_FALLBACK_MS);
 
-  if (refreshButton) {
-    refreshButton.disabled = false;
-    refreshButton.textContent = "データ更新";
+  try {
+    const isConnected = await fetchDashboardData();
+    hasAttemptedDataLoad = true;
+    lastDataRefreshAt = new Date();
+    renderDashboard(isConnected);
+  } finally {
+    window.clearTimeout(fallbackTimer);
+    dataLoadInProgress = false;
+    fastEntryFallbackActive = false;
+
+    if (refreshButton) {
+      refreshButton.disabled = false;
+      refreshButton.textContent = "データ更新";
+    }
   }
 }
 
@@ -6511,11 +6535,18 @@ function updateDataSourceStatus(isConnected) {
   const badge = document.querySelector(".header-badge");
   const footerStatus = document.getElementById("footerStatus");
   updateDataRefreshMeta(isConnected);
-  const status = !hasAttemptedDataLoad
+  const status = fastEntryFallbackActive && !hasAttemptedDataLoad
     ? {
-      label: "Loading Data",
+      label: "初期表示OK",
       version: "...",
-      footer: "Loading Data ...",
+      footer: "初期表示中 / 最新データ確認中 ...",
+      color: "#64748b"
+    }
+    : !hasAttemptedDataLoad
+    ? {
+      label: "初期表示中",
+      version: "...",
+      footer: "初期表示中 ...",
       color: "#64748b"
     }
     : isConnected
