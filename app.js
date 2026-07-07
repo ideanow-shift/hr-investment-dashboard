@@ -1787,8 +1787,8 @@ function renderStudentSummary() {
     { label: "完了履歴", value: studentSummary.completedFollowups || 0, unit: "件", sub: "完了済みフォロー履歴", filterKey: "completedFollowup", dueKey: "all" },
     { label: "見学予定者", value: studentSummary.salonTourScheduled || 0, unit: "名", sub: "サロン見学につなげる学生", filterKey: "salonTour", dueKey: "all" },
     { label: "面接予定者", value: studentSummary.interviewScheduled || 0, unit: "名", sub: "選考フォロー対象", filterKey: "interview", dueKey: "all" },
-    { label: "内定者", value: studentSummary.offered || 0, unit: "名", sub: "内定後フォロー対象", filterKey: "offered", dueKey: "all" },
-    { label: "入社予定者", value: studentSummary.expectedJoiners || 0, unit: "名", sub: "入社準備フォロー対象", filterKey: "expectedJoin", dueKey: "all" },
+    { label: "内定後フォロー", value: studentSummary.offered || 0, unit: "名", sub: "入社手続き前の確認対象", filterKey: "offered", dueKey: "all" },
+    { label: "入社手続き候補", value: studentSummary.expectedJoiners || 0, unit: "名", sub: "現職者管理へ渡す候補", filterKey: "expectedJoin", dueKey: "all" },
     { label: "男性", value: studentSummary.male || 0, unit: "名", sub: "学生管理の性別区分", filterKey: "male", dueKey: "all" },
     { label: "女性", value: studentSummary.female || 0, unit: "名", sub: "学生管理の性別区分", filterKey: "female", dueKey: "all" }
   ];
@@ -3510,7 +3510,7 @@ function getStudentSortOptions() {
     { key: "contact", label: "接触日が新しい順" },
     { key: "name", label: "氏名順" },
     { key: "school", label: "学校名順" },
-    { key: "offer", label: "内定・入社予定順" }
+    { key: "offer", label: "内定後フォロー順" }
   ];
 }
 
@@ -3807,7 +3807,7 @@ function getStudentQualityIssues() {
         isOfferStage ? "注意" : "確認",
         "LSTEP未紐付け",
         isOfferStage
-          ? "内定・入社予定フェーズですが、LSTEP/LINEアカウントが未紐付けです。"
+          ? "内定後フォロー対象ですが、LSTEP/LINEアカウントが未紐付けです。"
           : "LSTEP/LINEアカウントが未紐付けです。",
         "学生フォロー画面のLSTEP未紐付けCSVを出力し、LSTEP側の友だち情報と照合してください。"
       );
@@ -3958,7 +3958,7 @@ function renderQualityIssueExtra(issue) {
         </div>
       `;
       }).join("")}
-      <small class="quality-related-note">目安：内定・入社予定がある行を残し、サロン実習などの重複元を管理対象外にします。</small>
+      <small class="quality-related-note">目安：内定後フォローが必要な行を残し、サロン実習などの重複元を管理対象外にします。</small>
     </div>
   `;
 }
@@ -4546,7 +4546,7 @@ function renderStudentTableStatus(student) {
     ["LINE", student.lineStatus || "未設定"],
     ["見学", student.salonTourStatus || "未設定"],
     ["面接", student.interviewStatus || "未設定"],
-    ["内定", getOfferJoinStatusValue(student)]
+    ["結果", student.resultStatus || getOfferJoinStatusValue(student)]
   ];
 
   return `
@@ -4710,7 +4710,7 @@ function getStudentListInsightItems(students) {
     { label: "日程未設定", value: primaryActions.filter((action) => !action.dueDate).length, caption: "期日入力が必要" },
     { label: "見学予定", value: students.filter((student) => student.salonTourStatus === "予定").length, caption: "来店前フォロー" },
     { label: "面接予定", value: students.filter((student) => student.interviewStatus === "予定").length, caption: "選考フォロー" },
-    { label: "内定・入社", value: offeredOrJoiners, caption: "内定後フォロー" },
+    { label: "内定後フォロー", value: offeredOrJoiners, caption: "入社手続き前の確認対象" },
     { label: "LSTEP未紐付け", value: students.filter((student) => getStudentLstepStatus(student).className === "is-pending").length, caption: "連携確認" }
   ];
 }
@@ -4817,8 +4817,8 @@ function renderStudentListHint(students, activeFilter, activeDueFilter) {
     tags.splice(0, tags.length, "日付入力", "対応漏れ防止", "要確認");
   } else if (activeFilter.key === "offered") {
     title = "内定後フォロー";
-    body = "内定・入社予定の学生です。入社前不安の解消、配属希望、見学店舗履歴を確認します。";
-    tags.splice(0, tags.length, "内定", "入社準備", "配属希望");
+    body = "内定後の学生です。入社前不安の解消、配属希望、見学店舗履歴を確認します。入社手続きは将来の現職者管理へ引き継ぎます。";
+    tags.splice(0, tags.length, "内定後", "引き継ぎ前", "配属希望");
   } else if (activeFilter.key === "inactive") {
     title = "管理対象外の確認";
     body = "現在のKPIには含めない学生です。誤って対象外にしていないか、必要な時だけ確認してください。";
@@ -4941,7 +4941,7 @@ function getStudentOverviewAlerts(student) {
     alerts.push({ tone: urgency.level === "overdue" ? "danger" : "warning", title: urgency.label, body: primaryAction?.title || student.nextAction || "対応内容を確認してください。" });
   }
   if (hasOffer && student.expectedJoinStatus === "未定") {
-    alerts.push({ tone: "warning", title: "内定後の入社予定が未定", body: "内定後フォローとして、入社予定・辞退・入社済のどれかへ更新してください。" });
+    alerts.push({ tone: "warning", title: "内定後フォロー未整理", body: "入社手続きへ渡す前に、辞退有無・配属希望・見学店舗履歴を確認してください。" });
   }
 
   return alerts;
@@ -5005,7 +5005,7 @@ function renderStudentOverviewPanel(student) {
         ["見学", student.salonTourStatus],
         ["面接", student.interviewStatus],
         ["結果", student.resultStatus],
-        ["内定・入社", getOfferJoinStatusValue(student)]
+        ["内定後", getOfferJoinStatusValue(student)]
       ].map(([label, value]) => `
         <div class="progress-chip">
           <span>${escapeHtml(label)}</span>
@@ -5519,7 +5519,7 @@ function downloadInterviewCsv() {
     "流入元",
     "面接ステータス",
     "選考結果",
-    "内定・入社ステータス",
+    "内定後ステータス",
     "次アクション日",
     "次アクション",
     "担当者",
@@ -5682,7 +5682,7 @@ function renderStudentModalHeaderProgress(student) {
     ["LINE", student.lineStatus || "未設定"],
     ["見学", student.salonTourStatus || "未設定"],
     ["面接", student.interviewStatus || "未設定"],
-    ["内定・入社", getOfferJoinStatusValue(student)]
+    ["選考結果", student.resultStatus || "未設定"]
   ].map(([label, value]) => `
     <span class="student-modal-progress-chip ${getStudentTableStatusTone(value)}">
       <b>${escapeHtml(label)}</b>${escapeHtml(value || "未設定")}
