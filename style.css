@@ -614,6 +614,32 @@ h3 {
   padding: 4px 8px;
 }
 
+.employee-onboarding-missing {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-top: 8px;
+}
+
+.employee-onboarding-missing span {
+  border-radius: 999px;
+  font-size: 12px;
+  font-weight: 700;
+  padding: 4px 8px;
+}
+
+.employee-onboarding-missing .is-warning {
+  border: 1px solid #fed7aa;
+  background: #fff7ed;
+  color: #9a3412;
+}
+
+.employee-onboarding-missing .is-notice {
+  border: 1px solid #bfdbfe;
+  background: #eff6ff;
+  color: #1d4ed8;
+}
+
 .employee-onboarding-empty {
   border: 1px dashed var(--line);
   border-radius: 8px;

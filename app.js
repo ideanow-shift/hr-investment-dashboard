@@ -6355,6 +6355,7 @@ function renderEmployeeOnboardingCandidate(student) {
   const status = getOfferJoinStatusValue(student);
   const nextAction = student.nextAction || "入社前確認";
   const nextActionDate = student.nextActionDate || "日付未設定";
+  const missingLabels = getEmployeeOnboardingMissingLabels(student);
   return `
     <article class="employee-onboarding-item">
       <div>
@@ -6365,10 +6366,33 @@ function renderEmployeeOnboardingCandidate(student) {
           <span>${escapeHtml(nextAction)}</span>
           <span>${escapeHtml(nextActionDate)}</span>
         </div>
+        ${missingLabels.length ? `
+          <div class="employee-onboarding-missing" aria-label="入社手続き前の確認項目">
+            ${missingLabels.map((item) => `<span class="is-${item.tone}">${escapeHtml(item.label)}</span>`).join("")}
+          </div>
+        ` : ""}
       </div>
       <button class="detail-button compact" type="button" data-onboarding-student-id="${escapeHtml(student.id || "")}">学生カード</button>
     </article>
   `;
+}
+
+function getEmployeeOnboardingMissingLabels(student) {
+  const labels = [];
+  const preferences = Array.isArray(student.storePreferences) ? student.storePreferences : [];
+  const hasPreferredStore = preferences.some((preference) => preference && (preference.storeId || preference.storeName));
+  const tours = Array.isArray(student.storeTourHistories) ? student.storeTourHistories : [];
+  const hasCompletedTour = tours.some((tour) => tour && (tour.tourStatus === "実施済" || tour.tourStatus === "済"));
+
+  if (!hasPreferredStore) labels.push({ label: "不足: 配属希望店舗", tone: "warning" });
+  if (!student.nextActionDate) labels.push({ label: "不足: 次アクション日", tone: "warning" });
+  if (!hasCompletedTour) labels.push({ label: "確認: 見学店舗履歴", tone: "notice" });
+  if (!student.nextAction) labels.push({ label: "確認: 入社前フォロー", tone: "notice" });
+  if (student.expectedJoinStatus !== "入社予定" && student.expectedJoinStatus !== "入社済") {
+    labels.push({ label: "確認: 入社予定", tone: "notice" });
+  }
+
+  return labels.slice(0, 4);
 }
 
 function renderDashboard(isConnected) {
