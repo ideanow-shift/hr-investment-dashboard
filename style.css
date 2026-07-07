@@ -3554,11 +3554,23 @@ td {
   padding: 12px;
 }
 
-.student-card-panel.is-active > .student-edit-form .student-form-actions {
+.student-card-panel.is-active .student-form-actions {
   bottom: 0;
   box-shadow: 0 -8px 20px rgba(15, 23, 42, 0.07);
   position: sticky;
   z-index: 3;
+}
+
+.student-card-panel.is-active .student-form-actions::before {
+  content: "入力後はここから保存";
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 600;
+  margin-right: auto;
+}
+
+.student-form-actions .student-form-status:not(:empty) {
+  flex: 1 1 auto;
 }
 
 .student-form-actions .refresh-button {
@@ -3834,6 +3846,18 @@ td {
   .student-form-actions {
     align-items: stretch;
     flex-direction: column;
+  }
+
+  .student-card-panel.is-active .student-form-actions::before {
+    margin-right: 0;
+  }
+
+  .student-form-actions .student-form-status:not(:empty) {
+    width: 100%;
+  }
+
+  .student-form-actions .refresh-button {
+    width: 100%;
   }
 
   .student-action-meta {
