@@ -2071,12 +2071,12 @@ function renderStudentEditControls() {
   if (addButton) {
     addButton.disabled = !editable || !canEditStudents;
     addButton.textContent = !editable ? "全件参考は編集不可" : "学生追加";
-    addButton.title = !canEditStudents ? "この操作に必要なNOV Talent権限がありません" : "";
+    addButton.title = !canEditStudents ? "この操作に必要なリクルート管理システム権限がありません" : "";
   }
 
   if (editNote) {
     editNote.textContent = !canEditStudents
-      ? "学生追加・更新にはNOV Talent編集権限が必要です。権限はGAS側でも確認されます。"
+      ? "学生追加・更新にはリクルート管理システム編集権限が必要です。権限はGAS側でも確認されます。"
       : editable
       ? `${getActiveCohortLabel()}に学生を追加・更新します。保存後はスプレッドシートにも反映されます。`
       : `${sheetName}は集約確認用です。追加・更新は27卒、28卒、サロン実習の各タブで行ってください。`;
@@ -2274,7 +2274,7 @@ function getTalentPermissionState() {
 
   return {
     label: "権限不足",
-    description: "NOV Talentの編集権限がありません。Core DB側の employee_roles を確認してください。",
+    description: "リクルート管理システムの編集権限がありません。Core DB側の employee_roles を確認してください。",
     roleKeys,
     canEdit: false,
     canAdmin: false,
@@ -2288,7 +2288,7 @@ function getWriteDisabledAttribute(extraDisabled = false, action = "edit") {
     return 'disabled title="NOV HUBから開き直すと保存できます"';
   }
   if (!canWriteActionFromDashboard(action)) {
-    return 'disabled title="この操作に必要なNOV Talent権限がありません"';
+    return 'disabled title="この操作に必要なリクルート管理システム権限がありません"';
   }
   return "";
 }
@@ -5866,7 +5866,7 @@ function renderHubDiagnostics() {
       <div><dt>社員番号</dt><dd>${escapeHtml(employeeNumber)}</dd></div>
       <div><dt>所属/役職</dt><dd>${escapeHtml(department)}</dd></div>
       <div><dt>Core社員UUID</dt><dd>${escapeHtml(employeeId)}</dd></div>
-      <div><dt>NOV Talent権限</dt><dd>${escapeHtml(permission.label)}</dd></div>
+      <div><dt>リクルート管理システム権限</dt><dd>${escapeHtml(permission.label)}</dd></div>
       <div><dt>Role Keys</dt><dd>${escapeHtml(roleKeysText)}</dd></div>
     </dl>
   `;
