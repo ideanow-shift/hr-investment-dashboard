@@ -6673,10 +6673,10 @@ function formatRefreshTimestamp(date) {
 function updateDataRefreshMeta(isConnected) {
   const meta = document.getElementById("dataRefreshMeta");
   if (!meta) return;
-  const sourceLabel = isConnected ? "GAS" : "サンプル";
+  const sourceLabel = !hasAttemptedDataLoad ? "確認中" : isConnected ? "GAS" : "サンプル";
   meta.textContent = `最終取得: ${formatRefreshTimestamp(lastDataRefreshAt)} / ${sourceLabel}`;
   meta.classList.toggle("is-connected", Boolean(isConnected));
-  meta.classList.toggle("is-sample", !isConnected);
+  meta.classList.toggle("is-sample", hasAttemptedDataLoad && !isConnected);
 }
 
 function updateDataSourceStatus(isConnected) {
@@ -6731,7 +6731,22 @@ async function initDashboard() {
   setupMonthlyReportExport();
   setupDataRefresh();
   renderDashboard(false);
-  refreshDashboardData();
+  scheduleInitialDataRefresh();
+}
+
+function scheduleInitialDataRefresh() {
+  const startRefresh = () => {
+    window.setTimeout(refreshDashboardData, isMobileViewport() ? 120 : 0);
+  };
+
+  if (typeof window.requestAnimationFrame === "function") {
+    window.requestAnimationFrame(() => {
+      window.requestAnimationFrame(startRefresh);
+    });
+    return;
+  }
+
+  startRefresh();
 }
 
 document.addEventListener("DOMContentLoaded", initDashboard);
