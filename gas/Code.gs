@@ -41,6 +41,12 @@ function onOpen() {
 
 function doGet(e) {
   try {
+    const action = e && e.parameter ? String(e.parameter.action || "") : "";
+
+    if (action === "getSummary") {
+      return createResponse(getDashboardSummaryData(), e);
+    }
+
     if (e && e.parameter && e.parameter.action) {
       return createResponse(handleWriteAction(e.parameter), e);
     }
@@ -83,6 +89,16 @@ function getDashboardData() {
   return getSpreadsheetDashboardData();
 }
 
+function getDashboardSummaryData() {
+  try {
+    return getSupabaseDashboardSummaryData();
+  } catch (error) {
+    console.warn(`Supabase summary読み取りに失敗したため、スプレッドシートへフォールバックします: ${error.message}`);
+  }
+
+  return getSpreadsheetDashboardSummaryData();
+}
+
 function getSpreadsheetDashboardData() {
   const students = getStudentData();
   const studentCohorts = getStudentCohorts();
@@ -95,6 +111,22 @@ function getSpreadsheetDashboardData() {
     operationLogs: [],
     studentSummary: buildStudentSummary(students),
     lstepSummary: getDefaultLstepSummary_("spreadsheet")
+  };
+}
+
+function getSpreadsheetDashboardSummaryData() {
+  const fullData = getSpreadsheetDashboardData();
+  return {
+    config: fullData.config,
+    fairs: fullData.fairs,
+    schools: fullData.schools,
+    students: [],
+    studentCohorts: [],
+    operationLogs: [],
+    studentSummary: fullData.studentSummary,
+    lstepSummary: getDefaultLstepSummary_("spreadsheet_summary"),
+    dataSource: "spreadsheet",
+    payloadMode: "summary"
   };
 }
 
@@ -143,6 +175,32 @@ function getSupabaseDashboardData() {
     studentSummary: buildStudentSummary(convertedStudents),
     lstepSummary: lstepSummary,
     dataSource: "supabase"
+  };
+}
+
+function getSupabaseDashboardSummaryData() {
+  const settings = getSupabaseRows_("talent_investment_settings", "is_active=eq.true&corporation_id=is.null&order=fiscal_year.desc&limit=1");
+  const schools = getSupabaseRows_("talent_schools", "is_active=eq.true&order=name.asc");
+  const fairs = getSupabaseRows_("talent_fairs", "is_active=eq.true&order=held_date.asc");
+  const students = getSupabaseRowsWithSelect_(
+    "talent_students",
+    "id,cohort,gender,school_name_snapshot,line_status,salon_tour_status,interview_status,result_status,offer_status,expected_join_status,management_status,next_action,next_action_date",
+    "order=cohort.asc,student_code.asc&limit=5000"
+  );
+  const convertedStudents = students.map(convertSupabaseStudentSummary_);
+
+  return {
+    config: convertSupabaseConfig_(settings[0]),
+    fairs: fairs.map(convertSupabaseFair_),
+    schools: buildSupabaseSchoolAnalysis_(schools, convertedStudents),
+    stores: [],
+    students: [],
+    studentCohorts: [],
+    operationLogs: [],
+    studentSummary: buildStudentSummary(convertedStudents),
+    lstepSummary: getDefaultLstepSummary_("supabase_summary"),
+    dataSource: "supabase",
+    payloadMode: "summary"
   };
 }
 
@@ -315,6 +373,10 @@ function convertSupabaseOperationLog_(row, employeeMap) {
 }
 
 function getSupabaseRows_(tableName, queryString) {
+  return getSupabaseRowsWithSelect_(tableName, "*", queryString);
+}
+
+function getSupabaseRowsWithSelect_(tableName, selectClause, queryString) {
   const props = PropertiesService.getScriptProperties();
   const baseUrl = String(props.getProperty("SUPABASE_URL") || "").replace(/\/$/, "");
   const serviceRoleKey = props.getProperty("SUPABASE_SERVICE_ROLE_KEY");
@@ -323,7 +385,8 @@ function getSupabaseRows_(tableName, queryString) {
     throw new Error("SUPABASE_URL または SUPABASE_SERVICE_ROLE_KEY が未設定です。");
   }
 
-  const url = `${baseUrl}/rest/v1/${tableName}?select=*&${queryString || ""}`;
+  const query = queryString ? `&${queryString}` : "";
+  const url = `${baseUrl}/rest/v1/${tableName}?select=${encodeURIComponent(selectClause || "*")}${query}`;
   const response = UrlFetchApp.fetch(url, {
     method: "get",
     muteHttpExceptions: true,
@@ -915,6 +978,33 @@ function convertSupabaseStudent_(row, employeeMap) {
     managementStatus: String(row.management_status || "有効"),
     updatedAt: formatDateTimeValue(row.updated_at),
     updatedBy: getEmployeeDisplayName_(employeeMap, row.updated_by_employee_id)
+  };
+}
+
+function convertSupabaseStudentSummary_(row) {
+  return {
+    id: String(row.id || ""),
+    studentId: String(row.id || ""),
+    cohort: String(row.cohort || ""),
+    name: "",
+    gender: String(row.gender || "未回答"),
+    school: String(row.school_name_snapshot || ""),
+    grade: "",
+    source: "",
+    contactDate: "",
+    lineStatus: String(row.line_status || "未登録"),
+    salonTourStatus: String(row.salon_tour_status || "未設定"),
+    interviewStatus: String(row.interview_status || "未設定"),
+    resultStatus: String(row.result_status || "未定"),
+    offerStatus: String(row.offer_status || "未定"),
+    expectedJoinStatus: String(row.expected_join_status || "未定"),
+    owner: "",
+    nextAction: String(row.next_action || ""),
+    nextActionDate: String(row.next_action_date || ""),
+    memo: "",
+    managementStatus: String(row.management_status || "有効"),
+    updatedAt: "",
+    updatedBy: ""
   };
 }
 

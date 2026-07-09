@@ -242,19 +242,69 @@ let hasAttemptedDataLoad = false;
 let dataLoadInProgress = false;
 let fastEntryFallbackActive = false;
 let activeDashboardView = "overview";
+let dashboardPayloadMode = "full";
+let fullDashboardLoadPromise = null;
 
-async function fetchDashboardData() {
+async function fetchDashboardData(options = {}) {
   if (!GAS_API_URL) {
     return false;
   }
 
+  const forceFull = Boolean(options.forceFull);
+  const preferSummary = !forceFull && isMobileViewport();
+  const params = preferSummary ? { action: "getSummary" } : {};
+
   try {
-    const data = await loadJsonp(GAS_API_URL, {}, isMobileViewport() ? MOBILE_GAS_TIMEOUT_MS : DESKTOP_GAS_TIMEOUT_MS);
+    const data = await loadJsonp(GAS_API_URL, params, isMobileViewport() ? MOBILE_GAS_TIMEOUT_MS : DESKTOP_GAS_TIMEOUT_MS);
     applyDashboardData(data);
     return true;
   } catch (error) {
+    if (preferSummary) {
+      console.warn("[WARN] GAS summary APIからの取得に失敗しました。全量取得へフォールバックします。", error.message);
+      try {
+        const data = await loadJsonp(GAS_API_URL, {}, MOBILE_GAS_TIMEOUT_MS);
+        applyDashboardData(data);
+        return true;
+      } catch (fallbackError) {
+        console.warn("[WARN] GAS API全量取得にも失敗しました。サンプルデータで表示します。", fallbackError.message);
+        return false;
+      }
+    }
     console.warn("[WARN] GAS APIからの取得に失敗しました。サンプルデータで表示します。", error.message);
     return false;
+  }
+}
+
+function requiresFullDashboardData(view = getActiveDashboardView()) {
+  return ["student", "interview", "quality", "logs", "employee"].includes(view);
+}
+
+async function ensureFullDashboardDataLoadedForView(view = getActiveDashboardView()) {
+  if (dashboardPayloadMode !== "summary" || !requiresFullDashboardData(view)) {
+    return;
+  }
+
+  if (!fullDashboardLoadPromise) {
+    fullDashboardLoadPromise = fetchDashboardData({ forceFull: true })
+      .then((isConnected) => {
+        hasAttemptedDataLoad = true;
+        lastDataRefreshAt = new Date();
+        renderDashboard(isConnected);
+        return isConnected;
+      })
+      .catch((error) => {
+        console.warn("[WARN] 詳細データの後読み込みに失敗しました。", error.message);
+        throw error;
+      })
+      .finally(() => {
+        fullDashboardLoadPromise = null;
+      });
+  }
+
+  try {
+    await fullDashboardLoadPromise;
+  } catch (_) {
+    // Warning is logged above. Keep the current summary view usable.
   }
 }
 
@@ -320,6 +370,8 @@ function applyDashboardData(data) {
   if (data.error) {
     throw new Error(data.error);
   }
+
+  dashboardPayloadMode = data.payloadMode === "summary" ? "summary" : "full";
 
   if (data.config) {
     dashboardConfig = {
@@ -391,7 +443,17 @@ function applyDashboardData(data) {
 
   lstepSummary = normalizeLstepSummary(data.lstepSummary);
 
-  studentSummary = buildStudentSummary(getActiveStudents());
+  studentSummary = data.studentSummary && typeof data.studentSummary === "object"
+    ? normalizeStudentSummary(data.studentSummary)
+    : buildStudentSummary(getActiveStudents());
+}
+
+function normalizeStudentSummary(summary) {
+  const fallback = buildStudentSummary([]);
+  return Object.keys(fallback).reduce((normalized, key) => {
+    normalized[key] = Number(summary[key]) || 0;
+    return normalized;
+  }, {});
 }
 
 function buildDefaultLstepSummary() {
@@ -4888,6 +4950,19 @@ function renderStudentList(activeKey = activeStudentFilter) {
   renderStudentDueFilters(activeStudentDueFilter);
   renderStudentListFocusSummary();
 
+  if (dashboardPayloadMode === "summary") {
+    document.getElementById("studentFilterCount").innerHTML = `
+      <strong>学生一覧を読み込み中 <span>/ ${escapeHtml(getActiveCohortLabel())}</span></strong>
+    `;
+    document.getElementById("studentList").innerHTML = `
+      <div class="student-empty">
+        <strong>学生一覧を後読み込みしています。</strong>
+        <p>スマホ初期表示を軽くするため、サマリーを先に表示しています。少し待つと学生一覧が表示されます。</p>
+      </div>
+    `;
+    return;
+  }
+
   const { activeFilter, activeDueFilter, students } = getFilteredStudentList(activeKey);
   const totalCount = getStudentListTotalCountForActiveScope();
 
@@ -6471,7 +6546,7 @@ async function refreshDashboardData() {
   }, FAST_ENTRY_FALLBACK_MS);
 
   try {
-    const isConnected = await fetchDashboardData();
+    const isConnected = await fetchDashboardData({ forceFull: requiresFullDashboardData(activeDashboardView) });
     hasAttemptedDataLoad = true;
     lastDataRefreshAt = new Date();
     renderDashboard(isConnected);
@@ -6511,6 +6586,7 @@ function activateDashboardView(targetView) {
   });
 
   renderActiveDashboardView(activeDashboardView);
+  ensureFullDashboardDataLoadedForView(activeDashboardView);
 }
 
 function setupDataRefresh() {
