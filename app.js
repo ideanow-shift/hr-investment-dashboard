@@ -2157,8 +2157,29 @@ const studentSelectOptions = {
   offerStatus: ["未定", "内定", "承諾", "辞退"],
   expectedJoinStatus: ["未定", "入社予定", "入社済", "辞退"],
   offerJoinStatus: ["未定", "内定", "入社予定", "入社済", "辞退"],
-  managementStatus: ["有効", "管理対象外"]
+  managementStatus: ["管理中", "管理終了", "削除"]
 };
+
+function normalizeManagementStatusForSave(value = "") {
+  const status = String(value || "").trim();
+  if (status === "有効" || status === "管理中") return "有効";
+  if (status === "管理終了" || status === "削除" || status === "管理対象外") return "管理対象外";
+  return status || "有効";
+}
+
+function getStudentManagementFormValue(value = "") {
+  const status = String(value || "").trim();
+  if (status === "管理対象外") return "管理終了";
+  if (status === "削除") return "削除";
+  return "管理中";
+}
+
+function getStudentManagementDisplay(value = "") {
+  const status = String(value || "").trim();
+  if (status === "管理対象外") return "管理終了・削除候補";
+  if (status === "有効") return "管理中";
+  return status || "管理中";
+}
 
 function getOfferJoinStatusValue(student = {}) {
   if (student.expectedJoinStatus === "入社済") return "入社済";
@@ -2189,9 +2210,13 @@ function renderSelectField(name, label, options, value = "", disabled = "") {
     <label>
       <span>${label}</span>
       <select name="${name}" ${disabled}>
-        ${options.map((option) => `
-          <option value="${escapeHtml(option)}" ${option === value ? "selected" : ""}>${escapeHtml(option)}</option>
-        `).join("")}
+        ${options.map((option) => {
+          const optionValue = typeof option === "object" ? option.value : option;
+          const optionLabel = typeof option === "object" ? option.label : optionValue;
+          return `
+          <option value="${escapeHtml(optionValue)}" ${optionValue === value ? "selected" : ""}>${escapeHtml(optionLabel)}</option>
+        `;
+        }).join("")}
       </select>
     </label>
   `;
@@ -2370,15 +2395,15 @@ function buildStudentSaveConfirmMessage(payload, mode) {
     `氏名：${payload.name || "未入力"}`,
     `学校：${payload.school || "未入力"}`,
     `区分：${getActiveCohortLabel()}`,
-    `管理状態：${payload.managementStatus}`,
+    `管理状態：${getStudentManagementDisplay(payload.managementStatus)}`,
     "",
-    "【選考状況】",
+    "【進捗】",
     `LINE：${payload.lineStatus || "未設定"}`,
     `見学：${payload.salonTourStatus || "未設定"}`,
     `面接：${payload.interviewStatus || "未設定"}`,
     `選考結果：${payload.resultStatus || "未定"}`,
     "",
-    "【次の対応】",
+    "【アクション】",
     `次アクション：${nextAction}`,
     "",
     "保存後はSupabaseへ反映され、操作履歴にも記録されます。"
@@ -2579,7 +2604,7 @@ function getStudentFormPayload(form) {
     nextAction: String(formData.get("nextAction") || "").trim(),
     nextActionDate: String(formData.get("nextActionDate") || ""),
     memo: String(formData.get("memo") || "").trim(),
-    managementStatus: String(formData.get("managementStatus") || "有効")
+    managementStatus: normalizeManagementStatusForSave(formData.get("managementStatus") || "管理中")
   };
 }
 
@@ -2737,7 +2762,7 @@ function renderStudentOperationLogSection(student) {
           const isDenied = log.result === "denied";
           const isInactiveChange = isManagementExcludedOperationLog(log);
           const actionClass = isDenied ? "is-danger" : (isInactiveChange ? "is-inactive" : getOperationLogActionClass(log.action));
-          const actionLabel = isDenied ? "拒否" : (isInactiveChange ? "対象外" : (log.action || "操作"));
+          const actionLabel = isDenied ? "拒否" : (isInactiveChange ? "集計外" : (log.action || "操作"));
           return `
             <article class="student-operation-log-item ${isDenied ? "is-denied" : ""} ${isInactiveChange ? "is-inactive" : ""}">
               <span class="operation-log-action ${actionClass}">${escapeHtml(actionLabel)}</span>
@@ -3244,51 +3269,12 @@ function renderStudentForm(student = {}, mode = "update") {
           <li>氏名と学校名は重複チェックに使います。正式名称で入力してください。</li>
           <li>見学予定・面接予定にする場合は、次アクション日も入力してください。</li>
           <li>選考結果と次アクションを更新すると、日常フォローに反映されます。</li>
-          <li>誤登録や対象外は削除せず、管理状態を「管理対象外」にします。</li>
+          <li>年度終了は「管理終了」、重複・誤登録は「削除」を選びます。履歴保護のため集計から外して残します。</li>
         </ul>
       </div>
-      ${renderOperatorNotice()}
-      <section class="student-form-section student-form-section-priority">
+      <section class="student-form-section">
         <div class="student-form-section-title">
           <span>1</span>
-          <div>
-            <h4>今日更新すること</h4>
-            <p>日常運用では、次アクションと期限をまず更新します。</p>
-          </div>
-        </div>
-        <div class="student-form-grid">
-          <label>
-            <span>次アクション日</span>
-            <input name="nextActionDate" type="date" value="${escapeHtml(student.nextActionDate || "")}" ${disabled}>
-          </label>
-          <label>
-            <span>次アクション</span>
-            <input name="nextAction" value="${escapeHtml(student.nextAction || "")}" placeholder="例：見学前リマインド" ${disabled}>
-          </label>
-        </div>
-        <label class="student-form-full">
-          <span>メモ</span>
-          <textarea name="memo" rows="3" placeholder="次回確認すること、本人の希望、面談メモなど" ${disabled}>${escapeHtml(student.memo || "")}</textarea>
-        </label>
-      </section>
-      <section class="student-form-section">
-        <div class="student-form-section-title">
-          <span>2</span>
-          <div>
-            <h4>選考状況</h4>
-            <p>LINE、見学、面接、選考結果の進み具合を更新します。</p>
-          </div>
-        </div>
-        <div class="student-form-grid">
-          ${renderSelectField("lineStatus", "LINE登録", studentSelectOptions.lineStatus, student.lineStatus || "未登録", disabled)}
-          ${renderSelectField("salonTourStatus", "見学ステータス", studentSelectOptions.salonTourStatus, student.salonTourStatus || "未設定", disabled)}
-          ${renderSelectField("interviewStatus", "面接ステータス", studentSelectOptions.interviewStatus, student.interviewStatus || "未設定", disabled)}
-          ${renderSelectField("resultStatus", "選考結果", studentSelectOptions.resultStatus, student.resultStatus || "未定", disabled)}
-        </div>
-      </section>
-      <section class="student-form-section">
-        <div class="student-form-section-title">
-          <span>3</span>
           <div>
             <h4>基本情報</h4>
             <p>初回登録時または情報が変わった時だけ確認します。</p>
@@ -3315,10 +3301,49 @@ function renderStudentForm(student = {}, mode = "update") {
           </label>
         </div>
       </section>
+      <section class="student-form-section">
+        <div class="student-form-section-title">
+          <span>2</span>
+          <div>
+            <h4>進捗</h4>
+            <p>LINE、見学、面接、選考結果の進み具合を更新します。</p>
+          </div>
+        </div>
+        <div class="student-form-grid">
+          ${renderSelectField("lineStatus", "LINE登録", studentSelectOptions.lineStatus, student.lineStatus || "未登録", disabled)}
+          ${renderSelectField("salonTourStatus", "見学ステータス", studentSelectOptions.salonTourStatus, student.salonTourStatus || "未設定", disabled)}
+          ${renderSelectField("interviewStatus", "面接ステータス", studentSelectOptions.interviewStatus, student.interviewStatus || "未設定", disabled)}
+          ${renderSelectField("resultStatus", "選考結果", studentSelectOptions.resultStatus, student.resultStatus || "未定", disabled)}
+        </div>
+      </section>
+      <section class="student-form-section">
+        <div class="student-form-section-title">
+          <span>3</span>
+          <div>
+            <h4>アクション</h4>
+            <p>今日やること、次の期限、メモを更新します。</p>
+          </div>
+        </div>
+        <div class="student-form-grid">
+          <label>
+            <span>次アクション日</span>
+            <input name="nextActionDate" type="date" value="${escapeHtml(student.nextActionDate || "")}" ${disabled}>
+          </label>
+          <label>
+            <span>次アクション</span>
+            <input name="nextAction" value="${escapeHtml(student.nextAction || "")}" placeholder="例：見学前リマインド" ${disabled}>
+          </label>
+        </div>
+        <label class="student-form-full">
+          <span>メモ</span>
+          <textarea name="memo" rows="3" placeholder="次回確認すること、本人の希望、面談メモなど" ${disabled}>${escapeHtml(student.memo || "")}</textarea>
+        </label>
+      </section>
       <details class="student-admin-details">
         <summary>管理項目を表示</summary>
+        <p class="student-form-help">管理終了・削除は日常KPI、内定数、重複判定から外れます。物理削除は履歴確認後の管理者対応にします。</p>
         <div class="student-form-grid">
-          ${renderSelectField("managementStatus", "管理状態", studentSelectOptions.managementStatus, student.managementStatus || "有効", disabled)}
+          ${renderSelectField("managementStatus", "管理状態", studentSelectOptions.managementStatus, getStudentManagementFormValue(student.managementStatus), disabled)}
           <label>
             <span>担当者</span>
             <input value="${escapeHtml(student.owner || "総務人事")}" disabled>
@@ -3443,7 +3468,7 @@ function getStudentFilters() {
     { key: "lstepUnlinked", label: "LSTEP未紐付け", predicate: (student) => !student.lineAccount || !student.lineAccount.id },
     { key: "lstepFriend", label: "LSTEP友だち", predicate: (student) => student.lineAccount?.friendStatus === "friend" },
     { key: "lstepBlocked", label: "LSTEPブロック", predicate: (student) => student.lineAccount?.friendStatus === "blocked" },
-    { key: "inactive", label: "管理対象外", predicate: (student) => student.managementStatus === "管理対象外" },
+    { key: "inactive", label: "管理終了・削除", predicate: (student) => student.managementStatus === "管理対象外" },
     { key: "male", label: "男性", predicate: (student) => student.gender === "男性" },
     { key: "female", label: "女性", predicate: (student) => student.gender === "女性" }
   ];
@@ -3909,7 +3934,7 @@ function getStudentQualityIssues() {
         "要修正",
         "重複候補",
         `同じ氏名・学校名の学生が${duplicates.length}件あります。`,
-        "残す1件を決め、他の行は学生詳細から管理状態を「管理対象外」にしてください。",
+        "残す1件を決め、他の行は学生詳細から管理状態を「削除」にしてください。",
         {
           relatedStudents: duplicates.map((item) => ({
             studentId: item.studentId || "ID未取得",
@@ -3937,7 +3962,7 @@ function getStudentQualityIssues() {
       addIssue("要修正", "次アクション日未設定", "見学予定・面接予定なのに次アクション日が未設定です。", "次アクション日を入力してください。");
     }
     if (isInactive && hasOpenFollowup(student)) {
-      addIssue("注意", "管理対象外フォロー", "管理対象外ですが未完了フォローがあります。", "フォローを完了・不要にするか、管理状態を確認してください。");
+      addIssue("注意", "管理終了フォロー", "管理終了・削除候補ですが未完了フォローがあります。", "フォローを完了・不要にするか、管理状態を確認してください。");
     }
   });
 
@@ -3960,9 +3985,9 @@ function getDuplicateStudentAuditScore(student) {
 
 function getDuplicateStudentAuditLabel(student, bestScore) {
   const score = getDuplicateStudentAuditScore(student);
-  if (student.managementStatus === "管理対象外") return { label: "対象外済", className: "is-inactive" };
+  if (student.managementStatus === "管理対象外") return { label: "集計外", className: "is-inactive" };
   if (score === bestScore && bestScore > 0) return { label: "残す候補", className: "is-keep-candidate" };
-  if (student.cohort && student.cohort.includes("サロン実習")) return { label: "対象外候補", className: "is-remove-candidate" };
+  if (student.cohort && student.cohort.includes("サロン実習")) return { label: "削除候補", className: "is-remove-candidate" };
   return { label: "確認", className: "is-review" };
 }
 
@@ -4027,9 +4052,9 @@ function renderQualityIssueExtra(issue) {
       <div class="quality-related-heading">
         <strong>関連する学生</strong>
         <span>残す候補 ${formatNumber.format(keepCount)}</span>
-        <span>対象外候補 ${formatNumber.format(removeCount)}</span>
+        <span>削除候補 ${formatNumber.format(removeCount)}</span>
         ${reviewCount ? `<span>確認 ${formatNumber.format(reviewCount)}</span>` : ""}
-        ${bulkExcludeIds.length ? `<button class="quality-related-bulk-exclude" type="button" data-quality-bulk-exclude-ids="${escapeHtml(bulkExcludeIds.join(","))}" ${getWriteDisabledAttribute(!isActiveCohortEditable())}>対象外候補をまとめて対象外にする</button>` : ""}
+        ${bulkExcludeIds.length ? `<button class="quality-related-bulk-exclude" type="button" data-quality-bulk-exclude-ids="${escapeHtml(bulkExcludeIds.join(","))}" ${getWriteDisabledAttribute(!isActiveCohortEditable())}>削除候補をまとめて集計外にする</button>` : ""}
       </div>
       ${sortedStudents.map((student) => {
         const audit = getDuplicateStudentAuditLabel(student, bestScore);
@@ -4041,13 +4066,13 @@ function renderQualityIssueExtra(issue) {
             <strong>${escapeHtml(student.name || "氏名未取得")}</strong>
             <em>${escapeHtml(student.cohort)}</em>
             <span class="quality-related-audit-label">${escapeHtml(audit.label)}</span>
-            <small>${escapeHtml(student.school || "学校未取得")} / 内定:${escapeHtml(student.offerStatus)} / 入社:${escapeHtml(student.expectedJoinStatus)} / ${escapeHtml(student.managementStatus)}</small>
+            <small>${escapeHtml(student.school || "学校未取得")} / 内定:${escapeHtml(student.offerStatus)} / 入社:${escapeHtml(student.expectedJoinStatus)} / ${escapeHtml(getStudentManagementDisplay(student.managementStatus))}</small>
           </button>
-          ${showExcludeButton ? `<button class="quality-related-exclude" type="button" data-quality-exclude-student-id="${escapeHtml(student.studentId)}" ${getWriteDisabledAttribute(!isActiveCohortEditable())}>対象外にする</button>` : ""}
+          ${showExcludeButton ? `<button class="quality-related-exclude" type="button" data-quality-exclude-student-id="${escapeHtml(student.studentId)}" ${getWriteDisabledAttribute(!isActiveCohortEditable())}>削除候補にする</button>` : ""}
         </div>
       `;
       }).join("")}
-      <small class="quality-related-note">目安：内定後フォローが必要な行を残し、サロン実習などの重複元を管理対象外にします。</small>
+      <small class="quality-related-note">目安：内定後フォローが必要な行を残し、重複元は削除候補として集計から外します。</small>
     </div>
   `;
 }
@@ -4075,7 +4100,7 @@ function setupQualityRelatedStudentActions(list) {
       if (!targetStudents.length) return;
 
       const message = [
-        `${targetStudents.length}件の対象外候補をまとめて管理対象外にします。`,
+        `${targetStudents.length}件の削除候補をまとめて集計外にします。`,
         "",
         ...targetStudents.map((student) => `・${student.name || "氏名未取得"}（${student.studentId || "ID未取得"} / ${student.cohort || "区分未設定"}）`),
         "",
@@ -4086,20 +4111,20 @@ function setupQualityRelatedStudentActions(list) {
       const originalText = button.textContent;
       try {
         button.disabled = true;
-        button.textContent = "まとめて対象外化中...";
+        button.textContent = "まとめて集計外に更新中...";
         for (const student of targetStudents) {
           const payload = buildStudentUpdatePayloadFromRecord(student, { managementStatus: "管理対象外" });
           const result = await callGasAction("updateStudent", payload);
           if (!result || result.ok === false || result.error) {
-            throw new Error(`${student.studentId || student.name}：${result?.error || "管理対象外にできませんでした"}`);
+            throw new Error(`${student.studentId || student.name}：${result?.error || "集計外にできませんでした"}`);
           }
         }
-        button.textContent = "対象外済";
+        button.textContent = "集計外";
         await refreshDashboardData();
       } catch (error) {
         button.disabled = false;
-        button.textContent = originalText || "対象外候補をまとめて対象外にする";
-        alert(`まとめて対象外にできませんでした：${error.message}`);
+        button.textContent = originalText || "削除候補をまとめて集計外にする";
+        alert(`まとめて集計外にできませんでした：${error.message}`);
       }
     });
   });
@@ -4109,24 +4134,24 @@ function setupQualityRelatedStudentActions(list) {
       event.stopPropagation();
       const selectedStudent = getActiveStudents().find((student) => student.studentId === button.dataset.qualityExcludeStudentId);
       if (!selectedStudent || button.disabled) return;
-      const message = `${selectedStudent.name || selectedStudent.studentId}（${selectedStudent.studentId}）を管理対象外にします。\n\nこの学生はサマリー・内定数・重複判定から外れます。よろしいですか？`;
+      const message = `${selectedStudent.name || selectedStudent.studentId}（${selectedStudent.studentId}）を削除候補として集計外にします。\n\nこの学生はサマリー・内定数・重複判定から外れます。よろしいですか？`;
       if (!window.confirm(message)) return;
 
       const originalText = button.textContent;
       try {
         button.disabled = true;
-        button.textContent = "対象外化中...";
+        button.textContent = "集計外に更新中...";
         const payload = buildStudentUpdatePayloadFromRecord(selectedStudent, { managementStatus: "管理対象外" });
         const result = await callGasAction("updateStudent", payload);
         if (!result || result.ok === false || result.error) {
-          throw new Error(result?.error || "管理対象外にできませんでした");
+          throw new Error(result?.error || "集計外にできませんでした");
         }
-        button.textContent = "対象外済";
+        button.textContent = "集計外";
         await refreshDashboardData();
       } catch (error) {
         button.disabled = false;
-        button.textContent = originalText || "対象外にする";
-        alert(`管理対象外にできませんでした：${error.message}`);
+        button.textContent = originalText || "削除候補にする";
+        alert(`集計外にできませんでした：${error.message}`);
       }
     });
   });
@@ -4159,7 +4184,7 @@ function getDataQualityFilters(summary, totalCount) {
     { key: "duplicate", label: "重複候補", count: summary.duplicate || 0 },
     { key: "statusMismatch", label: "ステータス矛盾", count: summary.statusMismatch || 0 },
     { key: "lstepUnlinked", label: "LSTEP未紐付け", count: summary.lstepUnlinked || 0 },
-    { key: "removeCandidate", label: "対象外候補あり", count: summary.removeCandidate || 0 }
+    { key: "removeCandidate", label: "削除候補あり", count: summary.removeCandidate || 0 }
   ];
 }
 
@@ -4186,7 +4211,7 @@ function renderDataQualityFilters(summary, totalCount) {
 
 function getQualityIssueFocusLabel(issue) {
   if (issue.type === "重複候補") return "同一学生か確認";
-  if (issue.type === "管理対象外候補") return "対象外にするか確認";
+  if (issue.type === "管理対象外候補") return "削除候補にするか確認";
   if (issue.type.includes("ステータス")) return "ステータスを整理";
   if (issue.type.includes("未入力")) return "不足項目を入力";
   return "学生カルテで確認";
@@ -4280,7 +4305,7 @@ function renderDataQuality() {
         <small>同姓同校の確認対象</small>
       </div>
       <div class="operation-log-summary-card ${removeCandidateTotal ? "is-warning" : "is-linked"}">
-        <span>対象外候補</span>
+        <span>削除候補</span>
         <strong>${displayNumber(removeCandidateTotal)}</strong>
         <small>整理候補としてCSV出力可</small>
       </div>
@@ -4422,7 +4447,7 @@ function downloadDataQualityCsv() {
       issue.name,
       issue.school,
       issue.cohort,
-      issue.managementStatus,
+      getStudentManagementDisplay(issue.managementStatus),
       Array.isArray(issue.relatedStudents) ? issue.relatedStudents.map((student) => student.studentId).join(" / ") : "",
       formatRelatedStudentAudit(issue),
       issue.detail,
@@ -4447,11 +4472,11 @@ function downloadDataQualityDuplicateCandidateCsv() {
       student.cohort || "",
       student.offerStatus || "",
       student.expectedJoinStatus || "",
-      student.managementStatus || "",
+      getStudentManagementDisplay(student.managementStatus),
       audit.label,
       keepCandidates.join(" / "),
       issue.detail,
-      audit.className === "is-remove-candidate" ? "管理対象外候補。画面で内容確認後に対象外化" : "残す候補または確認対象"
+      audit.className === "is-remove-candidate" ? "削除候補。画面で内容確認後に集計外へ更新" : "残す候補または確認対象"
     ])
   );
 }
@@ -4463,7 +4488,7 @@ function downloadDataQualityRemoveCandidateCsv() {
   const filterLabel = activeDataQualityFilter === "all" ? "all" : activeDataQualityFilter;
   downloadCsvFile(
     `nov-talent-remove-candidates-${getActiveCohortLabel()}-${filterLabel}-${new Date().toISOString().slice(0, 10)}.csv`,
-    ["対象外候補ID", "氏名", "学校名", "区分", "内定", "入社予定", "管理状態", "残す候補ID", "判定理由", "推奨対応"],
+    ["削除候補ID", "氏名", "学校名", "区分", "内定", "入社予定", "管理状態", "残す候補ID", "判定理由", "推奨対応"],
     rows.map(({ issue, student, keepCandidates }) => [
       student.studentId || "",
       student.name || "",
@@ -4471,10 +4496,10 @@ function downloadDataQualityRemoveCandidateCsv() {
       student.cohort || "",
       student.offerStatus || "",
       student.expectedJoinStatus || "",
-      student.managementStatus || "",
+      getStudentManagementDisplay(student.managementStatus),
       keepCandidates.join(" / "),
       issue.detail,
-      "画面で内容を確認し、問題なければ「対象外にする」"
+      "画面で内容を確認し、問題なければ「削除候補にする」"
     ])
   );
 }
@@ -4575,7 +4600,7 @@ function renderStudentLstepStatusChip(student) {
 function renderStudentManagementBadge(student) {
   const status = student.managementStatus || "有効";
   const className = status === "管理対象外" ? "is-inactive" : "is-active";
-  return `<span class="student-management-badge ${className}">${escapeHtml(status)}</span>`;
+  return `<span class="student-management-badge ${className}">${escapeHtml(getStudentManagementDisplay(status))}</span>`;
 }
 
 function maskExternalId(value) {
@@ -4717,7 +4742,7 @@ function getStudentQuickActions(student) {
     actions.push({ key: "offer", label: "内定", confirmLabel: "内定に更新", overrides: { resultStatus: "合格", offerStatus: "内定", expectedJoinStatus: "未定", nextAction: "内定後フォロー" } });
   }
   if (student.managementStatus !== "管理対象外") {
-    actions.push({ key: "inactive", label: "対象外", confirmLabel: "管理対象外に更新", className: "is-danger", overrides: { managementStatus: "管理対象外", nextAction: "", nextActionDate: "" } });
+    actions.push({ key: "inactive", label: "削除候補", confirmLabel: "削除候補に更新", className: "is-danger", overrides: { managementStatus: "管理対象外", nextAction: "", nextActionDate: "" } });
   }
 
   return actions;
@@ -4909,9 +4934,9 @@ function renderStudentListHint(students, activeFilter, activeDueFilter) {
     body = "内定後の学生です。入社前不安の解消、配属希望、見学店舗履歴を確認します。入社手続きは将来の現職者管理へ引き継ぎます。";
     tags.splice(0, tags.length, "内定後", "引き継ぎ前", "配属希望");
   } else if (activeFilter.key === "inactive") {
-    title = "管理対象外の確認";
-    body = "現在のKPIには含めない学生です。誤って対象外にしていないか、必要な時だけ確認してください。";
-    tags.splice(0, tags.length, "対象外", "確認用", "KPI除外");
+    title = "管理終了・削除候補の確認";
+    body = "現在のKPIには含めない学生です。誤って集計外にしていないか、必要な時だけ確認してください。";
+    tags.splice(0, tags.length, "集計外", "確認用", "KPI除外");
   }
 
   return `
@@ -5032,7 +5057,7 @@ function getStudentOverviewAlerts(student) {
   const hasOffer = ["内定", "承諾"].includes(student.offerStatus || "");
 
   if (student.managementStatus === "管理対象外") {
-    alerts.push({ tone: "muted", title: "管理対象外", body: "通常のKPI集計からは外れています。再開する場合は基本・選考で管理状態を有効にしてください。" });
+    alerts.push({ tone: "muted", title: "管理終了・削除候補", body: "通常のKPI集計からは外れています。再開する場合は管理項目で管理状態を管理中にしてください。" });
   }
   if (lstepStatus.className === "is-pending") {
     alerts.push({ tone: "warning", title: "LSTEP未紐付け", body: "LINE/LSTEP連携前のため、配信・反応履歴の確認ができません。" });
@@ -5990,9 +6015,9 @@ function renderOperationLogSummary() {
       <small>最大30件を表示</small>
     </div>
     <div class="operation-log-summary-card ${inactiveCount ? "is-warning" : "is-linked"}">
-      <span>管理対象外化</span>
+      <span>集計外更新</span>
       <strong>${displayNumber(inactiveCount)}</strong>
-      <small>重複整理・対象外処理</small>
+      <small>管理終了・削除候補の処理</small>
     </div>
     <div class="operation-log-summary-card ${deniedCount ? "is-danger" : "is-linked"}">
       <span>拒否ログ</span>
@@ -6023,7 +6048,7 @@ function updateOperationLogTabBadge(missingCount) {
 function getOperationLogFilters() {
   return [
     { key: "all", label: "すべて", predicate: () => true },
-    { key: "inactive", label: "管理対象外化", predicate: isManagementExcludedOperationLog },
+    { key: "inactive", label: "集計外更新", predicate: isManagementExcludedOperationLog },
     { key: "denied", label: "拒否", predicate: (log) => log.result === "denied" },
     { key: "linked", label: "HUB社員IDあり", predicate: (log) => Boolean(log.actorEmployeeId) },
     { key: "missing", label: "HUB社員IDなし", predicate: (log) => !log.actorEmployeeId }
@@ -6223,7 +6248,7 @@ function renderLatestOperationLogCard() {
   const isInactiveChange = isManagementExcludedOperationLog(latest);
   const actorLabel = latest.actorName || latest.actorEmail || maskEmployeeId(latest.actorEmployeeId);
   const targetName = latest.studentName || latest.studentCode || getOperationLogTableLabel(latest.tableName);
-  const actionLabel = isDenied ? "保存拒否" : (isInactiveChange ? "管理対象外化" : (latest.action || "操作"));
+  const actionLabel = isDenied ? "保存拒否" : (isInactiveChange ? "集計外更新" : (latest.action || "操作"));
 
   return `
     <section class="operation-log-latest ${isDenied ? "is-denied" : ""}">
@@ -6292,7 +6317,7 @@ function renderOperationLogs() {
     const isInactiveChange = isManagementExcludedOperationLog(log);
     const relatedStudent = findStudentByOperationLog(log);
     const actionClass = isDenied ? "is-danger" : (isInactiveChange ? "is-inactive" : getOperationLogActionClass(log.action));
-    const actionLabel = isDenied ? "拒否" : (isInactiveChange ? "対象外" : (log.action || "操作"));
+    const actionLabel = isDenied ? "拒否" : (isInactiveChange ? "集計外" : (log.action || "操作"));
     return `
       <article class="operation-log-card ${isDenied ? "is-denied" : ""} ${isInactiveChange ? "is-inactive" : ""}">
         <div class="operation-log-main">
@@ -6301,7 +6326,7 @@ function renderOperationLogs() {
             <div class="operation-log-title-row">
               <h3>${escapeHtml(targetName)}</h3>
               <span class="operation-log-target ${tableClass}">${escapeHtml(tableLabel)}</span>
-              ${isInactiveChange ? `<span class="operation-log-target is-inactive">管理対象外化</span>` : ""}
+              ${isInactiveChange ? `<span class="operation-log-target is-inactive">集計外更新</span>` : ""}
               ${isDenied ? `<span class="operation-log-target is-denied">保存拒否</span>` : ""}
             </div>
             <p>${escapeHtml(log.detail || "詳細未記録")}</p>

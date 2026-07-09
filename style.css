@@ -3540,6 +3540,13 @@ td {
   color: var(--text);
 }
 
+.student-form-help {
+  margin: 0 12px 10px;
+  color: var(--muted);
+  font-size: 12px;
+  line-height: 1.6;
+}
+
 .student-admin-details .student-form-grid {
   padding: 0 12px;
 }
